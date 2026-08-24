@@ -60,15 +60,7 @@ jobs:
             TAG="v${VERSION}"
           fi
 
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG already exists, nothing to do"
-            exit 0
-          fi
-
-          echo "creating release $TAG at ${GITHUB_SHA}"
-
           JAR=$(find build/libs -name '*.jar' ! -name '*-sources.jar' | head -1)
-          SOURCES=$(find build/libs -name '*-sources.jar' | head -1)
 
           if [ -z "$JAR" ]; then
             echo "no mod jar was produced"
@@ -76,7 +68,12 @@ jobs:
             exit 1
           fi
 
-          echo "releasing $JAR"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists"
+          else
+            echo "creating release $TAG at ${GITHUB_SHA}"
+            CREATE=1
+          fi
 
           NOTES=$(cat <<NOTE
           Server-side moderation commands for **Minecraft $MC** (Fabric).
@@ -113,14 +110,20 @@ jobs:
           # Strip the leading indentation the heredoc keeps.
           NOTES=$(printf '%s\n' "$NOTES" | sed 's/^          //')
 
-          ASSETS="$JAR"
-          if [ -n "$SOURCES" ]; then
-            ASSETS="$ASSETS $SOURCES"
+          if [ "${CREATE:-0}" = "1" ]; then
+            gh release create "$TAG" "$JAR" \
+              --target "${GITHUB_SHA}" \
+              --title "$TAG - Make The Players Listen" \
+              --notes "$NOTES"
           fi
 
-          gh release create "$TAG" $ASSETS \
-            --target "${GITHUB_SHA}" \
-            --title "$TAG - Make The Players Listen" \
-            --notes "$NOTES"
+          # Never leave a sources jar attached to a release. It carries a fabric.mod.json
+          # with the version placeholder unexpanded and no compiled classes, so dropping it
+          # into mods/ makes Fabric load it as a mod and then fail with
+          # "The specified mixin ... was not found". Only the mod jar belongs here.
+          for asset in $(gh release view "$TAG" --json assets --jq '.assets[].name' | grep -- '-sources\.jar$' || true); do
+            echo "removing stray asset $asset"
+            gh release delete-asset "$TAG" "$asset" --yes
+          done
 
           gh release view "$TAG"

@@ -47,6 +47,42 @@ jobs:
           grep -o "<version>$MC+build\.[0-9]*</version>" /tmp/yarn.xml | sed 's|</\?version>||g' | tail -10 \
             || echo "MAPPINGS none found for $MC"
 
+      - name: check the jar is a usable mod
+        run: |
+          set -euo pipefail
+          JAR=$(find build/libs -name '*.jar' ! -name '*-sources.jar' | head -1)
+          echo "checking $JAR"
+
+          fail=0
+
+          # The version placeholder must have been expanded by processResources. A jar that
+          # still says ${version} is the sources jar, which Fabric loads and then fails on.
+          if unzip -p "$JAR" fabric.mod.json | grep -q '\${version}'; then
+            echo "FAIL: fabric.mod.json still contains the unexpanded version placeholder"
+            fail=1
+          else
+            echo "OK  : fabric.mod.json version is expanded"
+          fi
+
+          # Every mixin named in the config has to be present as a compiled class.
+          for mixin in $(unzip -p "$JAR" freezemute.mixins.json | grep -oE '"[A-Za-z]+Mixin"' | tr -d '"'); do
+            if unzip -l "$JAR" | grep -q "dev/mtpl/freezemute/mixin/${mixin}.class"; then
+              echo "OK  : $mixin is compiled into the jar"
+            else
+              echo "FAIL: $mixin is named in freezemute.mixins.json but not in the jar"
+              fail=1
+            fi
+          done
+
+          if unzip -l "$JAR" | grep -q 'dev/mtpl/freezemute/FreezeMute.class'; then
+            echo "OK  : entrypoint class is present"
+          else
+            echo "FAIL: entrypoint class is missing"
+            fail=1
+          fi
+
+          [ "$fail" -eq 0 ] || { echo "jar contents:"; unzip -l "$JAR"; exit 1; }
+
       - name: start a real server with the mod (smoke test)
         run: |
           set -o pipefail

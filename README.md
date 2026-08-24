@@ -35,7 +35,9 @@ access.
 
 ## Installing
 
-1. Put the jar in your server's `mods/` folder.
+1. Put the jar in your server's `mods/` folder. Use `make-the-players-listen-1.0.0.jar`; a
+   file ending in `-sources.jar` is source code for an IDE, not a mod, and Fabric will fail to
+   start if you put one in `mods/`.
 2. Restart the server.
 3. On startup the log shows
    `Ready - operators can use /freeze, /unfreeze, /mute and /unmute`.
