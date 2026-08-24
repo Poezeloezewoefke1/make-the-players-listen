@@ -11,6 +11,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 
 import dev.mtpl.freezemute.FreezeEnforcer;
+import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.FreezeEntry;
 import dev.mtpl.freezemute.util.Messages;
@@ -52,6 +53,8 @@ public final class FreezeCommand {
 	}
 
 	private static int freeze(ServerCommandSource source, Collection<ServerPlayerEntity> targets) {
+		FreezeMute.rememberServer(source.getServer());
+
 		ModerationData data = ModerationData.get();
 		String actor = source.getName();
 		int count = 0;

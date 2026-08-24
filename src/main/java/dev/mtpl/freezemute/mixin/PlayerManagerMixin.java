@@ -1,5 +1,6 @@
 package dev.mtpl.freezemute.mixin;
 
+import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.util.Messages;
@@ -19,6 +20,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 public abstract class PlayerManagerMixin {
 	@Inject(method = "onPlayerConnect", at = @At("TAIL"))
 	private void freezemute$onPlayerConnect(ClientConnection connection, ServerPlayerEntity player, ConnectedClientData clientData, CallbackInfo info) {
+		FreezeMute.rememberServer(((PlayerManager) (Object) this).getServer());
+
 		ModerationData data = ModerationData.get();
 		// Keep the stored name in sync so /unfreeze and /unmute keep working after a rename.
 		data.refreshName(player.getUuid(), player.getGameProfile().name());

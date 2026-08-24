@@ -1,7 +1,6 @@
 package dev.mtpl.freezemute;
 
 import java.lang.reflect.Method;
-import java.util.Set;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -11,9 +10,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 /**
  * Keeps a frozen player exactly where the server thinks they are.
  *
- * <p>The server is authoritative about player positions only because it refuses the movement
- * packets of frozen players (see {@code ServerPlayNetworkHandlerMixin}). This class takes care
- * of the other half: telling the client to go back whenever it drifts away.
+ * <p>The server stays authoritative about a frozen player's position only because it refuses
+ * their movement packets (see {@code ServerPlayNetworkHandlerMixin}). This class takes care of
+ * the other half: telling the client to go back whenever it drifts away.
  */
 public final class FreezeEnforcer {
 	/** A client that is standing still still jitters a tiny bit; ignore that. */
@@ -40,6 +39,18 @@ public final class FreezeEnforcer {
 		snapBack(player);
 	}
 
+	/**
+	 * Sends the player back to the position and the view angles the server holds for them.
+	 * Must run on the server thread.
+	 */
+	public static void snapBack(ServerPlayerEntity player) {
+		ServerPlayNetworkHandler handler = player.networkHandler;
+
+		if (handler != null) {
+			((FrozenConnection) (Object) handler).freezemute$snapBack();
+		}
+	}
+
 	/** True when the client reports a position or rotation that the server did not authorise. */
 	public static boolean hasDrifted(ServerPlayerEntity player, double x, double y, double z, float yaw, float pitch) {
 		if (!Double.isNaN(x)
@@ -52,23 +63,6 @@ public final class FreezeEnforcer {
 		return !Float.isNaN(yaw)
 				&& (angleDifference(yaw, player.getYaw()) > ROTATION_TOLERANCE
 				|| Math.abs(pitch - player.getPitch()) > ROTATION_TOLERANCE);
-	}
-
-	/**
-	 * Sends the player back to the position and the view angles the server holds for them.
-	 * Must run on the server thread.
-	 */
-	public static void snapBack(ServerPlayerEntity player) {
-		player.setVelocity(0.0D, 0.0D, 0.0D);
-		player.teleport(
-				player.getServerWorld(),
-				player.getX(),
-				player.getY(),
-				player.getZ(),
-				Set.of(),
-				player.getYaw(),
-				player.getPitch(),
-				false);
 	}
 
 	/** Stops vanilla's "you seem to be floating" disconnect from firing at a frozen player. */

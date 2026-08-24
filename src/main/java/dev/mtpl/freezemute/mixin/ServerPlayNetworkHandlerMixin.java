@@ -1,6 +1,8 @@
 package dev.mtpl.freezemute.mixin;
 
 import dev.mtpl.freezemute.FreezeEnforcer;
+import dev.mtpl.freezemute.FreezeMute;
+import dev.mtpl.freezemute.FrozenConnection;
 import dev.mtpl.freezemute.ModerationData;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -33,12 +35,27 @@ import net.minecraft.server.network.ServerPlayerEntity;
  * onto the server thread with {@code server.execute(...)}.
  */
 @Mixin(ServerPlayNetworkHandler.class)
-public abstract class ServerPlayNetworkHandlerMixin {
+public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection {
 	@Shadow
 	public ServerPlayerEntity player;
 
+	@Shadow
+	public abstract void requestTeleport(double x, double y, double z, float yaw, float pitch);
+
 	@Unique
-	private int freezemute$lastCorrectionTick = -1;
+	private long freezemute$lastCorrectionNanos;
+
+	@Override
+	public void freezemute$snapBack() {
+		ServerPlayerEntity target = this.player;
+
+		if (target == null) {
+			return;
+		}
+
+		target.setVelocity(0.0D, 0.0D, 0.0D);
+		this.requestTeleport(target.getX(), target.getY(), target.getZ(), target.getYaw(), target.getPitch());
+	}
 
 	@Inject(method = "onPlayerMove", at = @At("HEAD"), cancellable = true)
 	private void freezemute$refuseMovement(PlayerMoveC2SPacket packet, CallbackInfo info) {
@@ -57,8 +74,11 @@ public abstract class ServerPlayNetworkHandlerMixin {
 		float yaw = packet.getYaw(Float.NaN);
 		float pitch = packet.getPitch(Float.NaN);
 
-		MinecraftServer server = target.getServerWorld().getServer();
-		server.execute(() -> freezemute$correct(target, x, y, z, yaw, pitch));
+		MinecraftServer server = FreezeMute.server();
+
+		if (server != null) {
+			server.execute(() -> freezemute$correct(target, x, y, z, yaw, pitch));
+		}
 	}
 
 	@Inject(method = "onVehicleMove", at = @At("HEAD"), cancellable = true)
@@ -71,14 +91,17 @@ public abstract class ServerPlayNetworkHandlerMixin {
 
 		info.cancel();
 
-		MinecraftServer server = target.getServerWorld().getServer();
-		server.execute(() -> {
-			if (freezemute$isFrozen(target) && target.hasVehicle()) {
-				// A frozen player cannot drive a boat, horse or minecart out of the freeze.
-				target.stopRiding();
-				FreezeEnforcer.snapBack(target);
-			}
-		});
+		MinecraftServer server = FreezeMute.server();
+
+		if (server != null) {
+			server.execute(() -> {
+				if (freezemute$isFrozen(target) && target.hasVehicle()) {
+					// A frozen player cannot drive a boat, horse or minecart out of the freeze.
+					target.stopRiding();
+					FreezeEnforcer.snapBack(target);
+				}
+			});
+		}
 	}
 
 	@Inject(method = "onPlayerInput", at = @At("HEAD"), cancellable = true)
@@ -124,15 +147,15 @@ public abstract class ServerPlayNetworkHandlerMixin {
 			return;
 		}
 
-		int tick = target.getServerWorld().getServer().getTicks();
+		long now = System.nanoTime();
 
-		if (tick == this.freezemute$lastCorrectionTick) {
+		if (now - this.freezemute$lastCorrectionNanos < 45_000_000L) {
 			// One correction per tick is enough, even when the client floods move packets.
 			return;
 		}
 
-		this.freezemute$lastCorrectionTick = tick;
-		FreezeEnforcer.snapBack(target);
+		this.freezemute$lastCorrectionNanos = now;
+		this.freezemute$snapBack();
 	}
 
 	@Unique

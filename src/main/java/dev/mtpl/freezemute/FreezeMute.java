@@ -5,6 +5,8 @@ import java.nio.file.Path;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 
+import net.minecraft.server.MinecraftServer;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,10 +20,31 @@ public final class FreezeMute implements ModInitializer {
 	public static final String MOD_ID = "freezemute";
 	public static final Logger LOGGER = LoggerFactory.getLogger("Make The Players Listen");
 
+	private static volatile MinecraftServer server;
+
 	@Override
 	public void onInitialize() {
 		Path file = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("moderation.json");
 		ModerationData.get().load(file);
 		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute and /unmute");
+	}
+
+	/**
+	 * The running server, remembered when a player joins.
+	 *
+	 * <p>Packet handlers run on netty threads and have to push their work onto the server
+	 * thread; this is how they get hold of it without asking the player for its world, which
+	 * is the part of the API that gets renamed most often.
+	 *
+	 * @return the server, or null before anybody has joined
+	 */
+	public static MinecraftServer server() {
+		return server;
+	}
+
+	public static void rememberServer(MinecraftServer instance) {
+		if (instance != null) {
+			server = instance;
+		}
 	}
 }
