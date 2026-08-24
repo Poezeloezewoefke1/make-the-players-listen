@@ -116,9 +116,12 @@ refuses to deliver it, so:
 * The mod is pinned to Minecraft 1.21.11. To try it on another 1.21.x build, change
   `minecraft_version` / `yarn_mappings` in `gradle.properties` and the `minecraft` entry in
   `src/main/resources/fabric.mod.json`, then rebuild.
-* `yarn_mappings` uses `1.21.11+build.+`, which always picks the newest mappings build for
-  1.21.11. Pin it to a concrete build (for example `1.21.11+build.4`) if you want reproducible
-  builds.
+* `yarn_mappings` is pinned to a concrete Yarn build. Loom does not accept a wildcard here.
+  Which Yarn build you compile against does not change the resulting mod: Yarn only renames
+  things for humans, while the names the mod is remapped onto at runtime (intermediary) are the
+  same for every build of a given Minecraft version.
+* Every push is compiled by GitHub Actions (`.github/workflows/build.yml`), and the built jar is
+  attached to the run as an artifact.
 
 ## License
 
