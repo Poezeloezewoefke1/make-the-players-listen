@@ -1,14 +1,23 @@
-# Publishes a GitHub release whenever a v* tag is pushed.
+# Publishes a GitHub release for the version in gradle.properties.
 #
-# The jar attached to the release is built here rather than uploaded by hand, so what
-# people download is exactly what the build produced for that tag.
+# It runs on a push and creates the release only when one does not exist yet for that
+# version, so bumping mod_version and pushing cuts a new release while ordinary commits
+# do nothing. The tag is created here, at the commit that was built - handy when your
+# git client cannot push tags.
+#
+# The jar attached to the release is built by this workflow rather than uploaded by
+# hand, so what people download is exactly what the build produced.
 
 name: release
 
 on:
   push:
+    branches:
+      - main
+      - 'claude/**'
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -43,6 +52,20 @@ jobs:
           set -euo pipefail
           MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
           LOADER=$(grep '^loader_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          VERSION=$(grep '^mod_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+
+          if [ "${GITHUB_REF}" != "${GITHUB_REF#refs/tags/}" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release $TAG already exists, nothing to do"
+            exit 0
+          fi
+
+          echo "creating release $TAG at ${GITHUB_SHA}"
 
           JAR=$(find build/libs -name '*.jar' ! -name '*-sources.jar' | head -1)
           SOURCES=$(find build/libs -name '*-sources.jar' | head -1)
@@ -95,8 +118,9 @@ jobs:
             ASSETS="$ASSETS $SOURCES"
           fi
 
-          gh release create "${GITHUB_REF_NAME}" $ASSETS \
-            --title "${GITHUB_REF_NAME} - Make The Players Listen" \
+          gh release create "$TAG" $ASSETS \
+            --target "${GITHUB_SHA}" \
+            --title "$TAG - Make The Players Listen" \
             --notes "$NOTES"
 
-          gh release view "${GITHUB_REF_NAME}"
+          gh release view "$TAG"
