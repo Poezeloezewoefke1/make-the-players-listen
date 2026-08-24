@@ -120,8 +120,10 @@ refuses to deliver it, so:
   Which Yarn build you compile against does not change the resulting mod: Yarn only renames
   things for humans, while the names the mod is remapped onto at runtime (intermediary) are the
   same for every build of a given Minecraft version.
-* Every push is compiled by GitHub Actions (`.github/workflows/build.yml`), and the built jar is
-  attached to the run as an artifact.
+* Every push is built by GitHub Actions (`.github/workflows/build.yml`): the mod is compiled and
+  remapped, then a real Fabric server is installed and started with the mod in it, and the
+  workflow checks that the mixins applied and that the commands answer from the server console.
+  The built jar is attached to the run as an artifact.
 
 ## License
 

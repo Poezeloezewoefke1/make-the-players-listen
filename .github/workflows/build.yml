@@ -47,6 +47,79 @@ jobs:
           grep -o "<version>$MC+build\.[0-9]*</version>" /tmp/yarn.xml | sed 's|</\?version>||g' | tail -10 \
             || echo "MAPPINGS none found for $MC"
 
+      - name: start a real server with the mod (smoke test)
+        run: |
+          set -o pipefail
+          MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          LOADER=$(grep '^loader_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          INSTALLER=$(curl -sS --max-time 60 https://maven.fabricmc.net/net/fabricmc/fabric-installer/maven-metadata.xml \
+            | grep -o '<release>[^<]*' | cut -d'>' -f2)
+          echo "minecraft=$MC loader=$LOADER installer=$INSTALLER"
+
+          curl -sSL --max-time 300 -o fabric-installer.jar \
+            "https://maven.fabricmc.net/net/fabricmc/fabric-installer/$INSTALLER/fabric-installer-$INSTALLER.jar"
+
+          mkdir -p run/mods
+          java -jar fabric-installer.jar server -dir run -mcversion "$MC" -loader "$LOADER" -downloadMinecraft
+          find build/libs -name '*.jar' ! -name '*-sources.jar' -exec cp {} run/mods/ \;
+          ls -la run/mods
+
+          echo "eula=true" > run/eula.txt
+          {
+            echo "online-mode=false"
+            echo "level-type=minecraft:flat"
+            echo "spawn-protection=0"
+            echo "max-players=5"
+            echo "sync-chunk-writes=false"
+          } > run/server.properties
+
+          LAUNCHER=$(ls run | grep -E '^fabric-server-(launch|launcher).*\.jar$' | head -1)
+          echo "launcher=$LAUNCHER"
+
+          cd run
+          # Give the server time to come up, then drive it through the console.
+          ( sleep 75
+            echo "freezelist"
+            sleep 3
+            echo "mutelist"
+            sleep 3
+            echo "stop"
+            sleep 20 ) | timeout 300 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee server.log || true
+
+          echo "===================== assertions ====================="
+          fail=0
+          check() {
+            if grep -qF "$1" server.log; then
+              echo "OK      : $2"
+            else
+              echo "MISSING : $2"
+              fail=1
+            fi
+          }
+          refute() {
+            if grep -qE "$1" server.log; then
+              echo "FOUND BAD: $2"
+              grep -E "$1" server.log | head -5
+              fail=1
+            else
+              echo "OK      : no $2"
+            fi
+          }
+
+          check "Ready - operators can use" "mod initialised"
+          check "Done (" "server finished starting"
+          check "Nobody is frozen." "/freezelist ran from the console"
+          check "Nobody is muted." "/mutelist ran from the console"
+          refute "Mixin apply failed|Mixin transformation of|was not found in|Critical injection failure|Error injecting" "mixin failures"
+          refute "Failed to start the minecraft server|Exception in server tick loop" "server crashes"
+
+          if [ "$fail" -ne 0 ]; then
+            echo "smoke test failed - last 80 lines of the server log:"
+            tail -80 server.log
+            exit 1
+          fi
+          echo "smoke test passed"
+
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
