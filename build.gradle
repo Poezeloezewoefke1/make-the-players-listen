@@ -11,7 +11,8 @@ base {
 }
 
 repositories {
-	// Loom adds the Minecraft/Fabric repositories automatically.
+	// Loom adds the Minecraft/Fabric repositories automatically; this is for the test deps.
+	mavenCentral()
 }
 
 dependencies {
@@ -21,6 +22,18 @@ dependencies {
 
 	// No Fabric API dependency on purpose: this mod only needs Fabric Loader,
 	// so the built jar is the only file that has to be dropped into /mods.
+
+	testImplementation platform("org.junit:junit-bom:5.11.4")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
+
+	testLogging {
+		events "passed", "failed", "skipped"
+	}
 }
 
 processResources {
