@@ -57,7 +57,7 @@ public final class FreezeCommand {
 		int count = 0;
 
 		for (ServerPlayerEntity target : targets) {
-			String name = target.getGameProfile().getName();
+			String name = target.getGameProfile().name();
 
 			if (data.isFrozen(target.getUuid())) {
 				source.sendError(Messages.failure(name + " is already frozen."));

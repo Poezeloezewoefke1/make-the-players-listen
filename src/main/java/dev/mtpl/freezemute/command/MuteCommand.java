@@ -88,7 +88,7 @@ public final class MuteCommand {
 		int count = 0;
 
 		for (ServerPlayerEntity target : targets) {
-			String name = target.getGameProfile().getName();
+			String name = target.getGameProfile().name();
 			boolean wasMuted = data.isMuted(target.getUuid());
 			MuteEntry entry = new MuteEntry(target.getUuid(), name, actor, now, until, reason);
 			data.mute(entry);

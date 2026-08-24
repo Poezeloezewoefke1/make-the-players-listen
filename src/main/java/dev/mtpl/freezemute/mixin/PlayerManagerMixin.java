@@ -21,7 +21,7 @@ public abstract class PlayerManagerMixin {
 	private void freezemute$onPlayerConnect(ClientConnection connection, ServerPlayerEntity player, ConnectedClientData clientData, CallbackInfo info) {
 		ModerationData data = ModerationData.get();
 		// Keep the stored name in sync so /unfreeze and /unmute keep working after a rename.
-		data.refreshName(player.getUuid(), player.getGameProfile().getName());
+		data.refreshName(player.getUuid(), player.getGameProfile().name());
 
 		if (data.isFrozen(player.getUuid())) {
 			player.sendMessage(Messages.youAreStillFrozen());
