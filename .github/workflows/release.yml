@@ -1,0 +1,102 @@
+# Publishes a GitHub release whenever a v* tag is pushed.
+#
+# The jar attached to the release is built here rather than uploaded by hand, so what
+# people download is exactly what the build produced for that tag.
+
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: build
+        run: ./gradlew build --stacktrace
+
+      - name: publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          LOADER=$(grep '^loader_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+
+          JAR=$(find build/libs -name '*.jar' ! -name '*-sources.jar' | head -1)
+          SOURCES=$(find build/libs -name '*-sources.jar' | head -1)
+
+          if [ -z "$JAR" ]; then
+            echo "no mod jar was produced"
+            ls -la build/libs || true
+            exit 1
+          fi
+
+          echo "releasing $JAR"
+
+          NOTES=$(cat <<NOTE
+          Server-side moderation commands for **Minecraft $MC** (Fabric).
+
+          ### Install
+
+          1. Download \`$(basename "$JAR")\` below.
+          2. Drop it into your server's \`mods/\` folder.
+          3. Restart the server.
+
+          Nothing has to be installed on the client, and **Fabric API is not required** - this
+          jar is the only file you need. Requires Fabric Loader $LOADER or newer and Java 21.
+
+          ### Commands (operators only)
+
+          | Command | What it does |
+          |---|---|
+          | \`/freeze <targets>\` | Freezes players completely: no walking, jumping, flying, elytra, riding, ender pearls, not even turning their head |
+          | \`/unfreeze <name>\` | Unfreezes, also works while the player is offline |
+          | \`/freezelist\` / \`/unfreezeall\` | List everyone frozen / unfreeze everybody |
+          | \`/mute <targets> [duration] [reason]\` | Mutes chat, permanently or for a while (\`30s\`, \`10m\`, \`2h\`, \`7d\`, \`1h30m\`, \`perm\`) |
+          | \`/unmute <name>\` | Unmutes, also works while the player is offline |
+          | \`/mutelist\` / \`/unmuteall\` | List everyone muted / unmute everybody |
+
+          Freezes and mutes survive relogs and restarts, and timed mutes expire on their own.
+          The mute is applied where chat is delivered, so it also covers \`/msg\`, \`/tell\`,
+          \`/w\`, \`/me\`, \`/say\` and \`/teammsg\` without breaking Minecraft's chat signature
+          chain.
+
+          See the README for the full details and the known limits.
+          NOTE
+          )
+
+          # Strip the leading indentation the heredoc keeps.
+          NOTES=$(printf '%s\n' "$NOTES" | sed 's/^          //')
+
+          ASSETS="$JAR"
+          if [ -n "$SOURCES" ]; then
+            ASSETS="$ASSETS $SOURCES"
+          fi
+
+          gh release create "${GITHUB_REF_NAME}" $ASSETS \
+            --title "${GITHUB_REF_NAME} - Make The Players Listen" \
+            --notes "$NOTES"
+
+          gh release view "${GITHUB_REF_NAME}"
