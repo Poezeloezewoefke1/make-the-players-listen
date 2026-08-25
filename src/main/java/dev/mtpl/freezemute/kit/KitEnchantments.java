@@ -175,16 +175,14 @@ public final class KitEnchantments {
 		boolean sword = itemId.endsWith("_sword");
 		boolean axe = itemId.endsWith("_axe");
 		boolean digger = itemId.endsWith("_pickaxe") || itemId.endsWith("_shovel") || axe;
-		boolean hoe = itemId.endsWith("_hoe");
 
 		if (armour) {
-			add(options, power, "protection", "protection", EnchantPower.WEAK, cap(power, 1, 2, 3, 4));
-			add(options, power, "blast_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
-			add(options, power, "fire_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
-			add(options, power, "projectile_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
+			// Plain Protection only. Blast, Fire and Projectile Protection are deliberately left
+			// out so armour is never worse than it looks against ordinary damage.
+			add(options, power, "protection", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 4));
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
 			add(options, power, "thorns", null, EnchantPower.GOOD, cap(power, 1, 1, 2, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+			add(options, power, "mending", null, EnchantPower.GOOD, 1);
 		}
 
 		if (helmet) {
@@ -204,9 +202,9 @@ public final class KitEnchantments {
 		}
 
 		if (sword || axe) {
-			add(options, power, "sharpness", "damage", EnchantPower.WEAK, cap(power, 1, 2, 3, 5));
-			add(options, power, "smite", "damage", EnchantPower.MIXED, cap(power, 1, 2, 4, 5));
-			add(options, power, "bane_of_arthropods", "damage", EnchantPower.MIXED, cap(power, 1, 2, 4, 5));
+			// Sharpness only. Smite and Bane of Arthropods are left out so a weapon is never
+			// carrying damage that only helps against one kind of mob.
+			add(options, power, "sharpness", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 5));
 		}
 
 		if (sword) {
@@ -214,52 +212,20 @@ public final class KitEnchantments {
 			add(options, power, "fire_aspect", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
 			add(options, power, "looting", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+			add(options, power, "mending", null, EnchantPower.GOOD, 1);
 		}
 
-		if (digger || hoe) {
+		if (digger) {
 			add(options, power, "efficiency", null, EnchantPower.WEAK, cap(power, 2, 3, 4, 5));
 			add(options, power, "fortune", "digging", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
 			add(options, power, "silk_touch", "digging", EnchantPower.GOOD, 1);
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+			add(options, power, "mending", null, EnchantPower.GOOD, 1);
 		}
 
-		if (itemId.equals("bow")) {
-			add(options, power, "power", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 5));
-			add(options, power, "punch", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
-			add(options, power, "flame", null, EnchantPower.GOOD, 1);
-			add(options, power, "infinity", "mending", EnchantPower.BEST, 1);
+		if (itemId.equals(KitTier.SHIELD)) {
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
-		}
-
-		if (itemId.equals("crossbow")) {
-			add(options, power, "quick_charge", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
-			add(options, power, "piercing", "loading", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
-			add(options, power, "multishot", "loading", EnchantPower.GOOD, 1);
-			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
-		}
-
-		if (itemId.equals("trident")) {
-			add(options, power, "impaling", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 5));
-			add(options, power, "loyalty", "throwing", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
-			add(options, power, "riptide", "throwing", EnchantPower.GOOD, cap(power, 1, 1, 2, 3));
-			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
-		}
-
-		if (itemId.equals("fishing_rod")) {
-			add(options, power, "luck_of_the_sea", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
-			add(options, power, "lure", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
-			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
-		}
-
-		if (itemId.equals("shield") || itemId.equals("elytra")) {
-			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+			add(options, power, "mending", null, EnchantPower.GOOD, 1);
 		}
 
 		return options;

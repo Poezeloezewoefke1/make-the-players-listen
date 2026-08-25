@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
-import dev.mtpl.freezemute.kit.KitTier.Stack;
+import dev.mtpl.freezemute.FreezeMute;
+import dev.mtpl.freezemute.kit.KitTier.Gear;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -14,82 +15,66 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Identifier;
 
 /**
- * Builds a kit that looks like it belonged to somebody who has been playing for a while:
- * worn gear, a few random enchantments on the better tiers, some food, some blocks and whatever
- * odds and ends were in their inventory.
+ * Builds a kit: a full set of armour, a full set of tools and a shield, all of it worn the way
+ * gear looks after a few weeks of use and enchanted at random on the tiers that get enchantments.
  *
- * <p>Every part of it is rolled fresh, so handing the same tier to a group of players gives each
- * of them a different loadout rather than the same one several times over: which material each
- * slot came out as, whether the slot is filled at all, how worn it is, what it is enchanted with
- * and which supplies came along are all separate rolls.
+ * <p>There is nothing else in a kit - no food, no blocks, no loot. Two kits of the same tier
+ * differ in how battered each piece is, what it rolled for enchantments and at what level, and on
+ * the mixed tiers which slots came out as the better material.
  */
 public final class KitGenerator {
 	private KitGenerator() {
 	}
 
 	public static List<ItemStack> generate(MinecraftServer server, KitTier tier, Random random) {
-		List<String> gearIds = new ArrayList<>();
-
-		for (String slot : KitTier.ARMOUR_SLOTS) {
-			if (random.nextInt(100) < tier.presencePercent()) {
-				gearIds.add(tier.rollArmour(slot, random));
-			}
-		}
-
-		for (String slot : KitTier.TOOL_SLOTS) {
-			if (random.nextInt(100) < tier.presencePercent()) {
-				gearIds.add(tier.rollTool(slot, random));
-			}
-		}
-
-		tier.ensureSignature(gearIds, random);
-
 		List<ItemStack> stacks = new ArrayList<>();
 
-		for (String id : gearIds) {
-			gear(server, id, tier, random).ifPresent(stacks::add);
+		for (Gear gear : tier.rollGear(random)) {
+			build(server, gear.itemId(), tier, random).ifPresent(stacks::add);
 		}
 
-		for (Stack supply : tier.rollSupplies(random)) {
-			supply(server, supply, tier, random).ifPresent(stacks::add);
-		}
-
+		build(server, KitTier.SHIELD, tier, random).ifPresent(stacks::add);
 		return stacks;
 	}
 
-	private static Optional<ItemStack> gear(MinecraftServer server, String id, KitTier tier, Random random) {
-		Optional<ItemStack> maybe = stack(id, 1);
+	/**
+	 * Checks that every id the kits can hand out actually exists in this version, and says so in
+	 * the log. Item names move between Minecraft versions, and a missing id would otherwise show
+	 * up as a kit quietly arriving a piece short.
+	 */
+	public static void logMissingIds() {
+		List<String> missing = new ArrayList<>();
 
-		if (maybe.isEmpty()) {
-			return maybe;
+		for (KitTier tier : KitTier.values()) {
+			for (String id : tier.everyPossibleItemId()) {
+				if (Registries.ITEM.getOptionalValue(Identifier.ofVanilla(id)).isEmpty() && !missing.contains(id)) {
+					missing.add(id);
+				}
+			}
 		}
 
-		ItemStack stack = maybe.get();
-		wear(stack, tier, random);
-		KitEnchantments.apply(server, stack, id, tier.enchantPowerFor(id), random);
-		return Optional.of(stack);
+		if (missing.isEmpty()) {
+			FreezeMute.LOGGER.info("Kit items: every id resolved");
+		} else {
+			FreezeMute.LOGGER.warn("Kit items missing from this version: {}", String.join(", ", missing));
+		}
 	}
 
-	/**
-	 * Rolls one supply stack. Anything with a durability bar - a bow, a shield, a trident - is
-	 * treated as gear too, so it comes out used and possibly enchanted rather than brand new.
-	 */
-	private static Optional<ItemStack> supply(MinecraftServer server, Stack supply, KitTier tier, Random random) {
-		int spread = Math.max(1, supply.max() - supply.min() + 1);
-		int count = Math.max(1, supply.min() + random.nextInt(spread));
-		Optional<ItemStack> maybe = stack(supply.id(), count);
+	private static Optional<ItemStack> build(MinecraftServer server, String id, KitTier tier, Random random) {
+		Optional<Item> item = Registries.ITEM.getOptionalValue(Identifier.ofVanilla(id));
 
-		if (maybe.isEmpty()) {
-			return maybe;
+		if (item.isEmpty()) {
+			return Optional.empty();
 		}
 
-		ItemStack stack = maybe.get();
+		ItemStack stack = new ItemStack(item.get(), 1);
 
-		if (stack.isDamageable()) {
-			wear(stack, tier, random);
-			KitEnchantments.apply(server, stack, supply.id(), tier.enchantPowerFor(supply.id()), random);
+		if (stack.isEmpty()) {
+			return Optional.empty();
 		}
 
+		wear(stack, tier, random);
+		KitEnchantments.apply(server, stack, id, tier.enchantPowerFor(id), random);
 		return Optional.of(stack);
 	}
 
@@ -112,20 +97,5 @@ public final class KitGenerator {
 		if (damage > 0) {
 			stack.setDamage(damage);
 		}
-	}
-
-	/**
-	 * Items are looked up by id rather than through the {@code Items} constants, which the
-	 * 1.21.11 mappings do not name. An unknown id is skipped instead of handing out air.
-	 */
-	private static Optional<ItemStack> stack(String id, int count) {
-		Optional<Item> item = Registries.ITEM.getOptionalValue(Identifier.ofVanilla(id));
-
-		if (item.isEmpty()) {
-			return Optional.empty();
-		}
-
-		ItemStack stack = new ItemStack(item.get(), count);
-		return stack.isEmpty() ? Optional.empty() : Optional.of(stack);
 	}
 }

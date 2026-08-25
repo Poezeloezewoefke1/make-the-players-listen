@@ -60,7 +60,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/unmute <name>` | Unmutes a player - works while they are offline, tab-completes muted names |
 | `/mutelist` | Lists everyone who is muted, with the time left |
 | `/unmuteall` | Unmutes everybody |
-| `/kitgive <tier> [targets]` | Hands out a used-looking kit - see below. Without targets it gives it to you |
+| `/kitgive <tier> [targets]` | Hands out worn armour, tools and a shield - see below. Without targets it gives it to you |
 | `/kitgive random [targets]` | Same, but rolls the tier as well, separately for each player |
 
 ### Durations
@@ -145,46 +145,41 @@ refuses to deliver it, so:
 
 ## Kits
 
-`/kitgive <tier> [targets]` gives out a loadout that looks like it came off somebody who has been
+`/kitgive <tier> [targets]` hands out gear that looks like it came off somebody who has been
 playing on the server for a while, rather than a shiny box-fresh kit. Without targets it goes to
 you; with them it goes to whoever the selector picks out - `/kitgive diamond @a`, `/kitgive iron
 Steve Alex`, `/kitgive random @a`.
 
-Nothing about a kit is fixed. Every slot is rolled on its own, so handing one command to a whole
-group gives each player a different loadout rather than the same one several times over:
+**A kit is gear and nothing else**: four pieces of armour, four tools and a shield. No food, no
+blocks, no loot, no experience bottles - nine items, all of them wearable or swingable.
 
-- **which material each slot came out as** - a tier is a set of odds, not a shopping list, so an
-  `iron_diamond` kit might be a diamond chestplate over iron, or an iron helmet with a diamond
-  sword and pickaxe;
-- **whether the slot is filled at all** - poorer players have gaps;
-- **how worn each piece is**;
-- **what it is enchanted with, and at what level**;
-- **which food, blocks and odds and ends came along** - each tier draws a few entries from pools
-  much bigger than any one kit gets to see.
+| Tier | Armour | Tools | Enchantments | Condition |
+|---|---|---|---|---|
+| `poor` | leather | stone | none | 45-90% worn |
+| `copper` | copper | copper | none | 35-80% worn |
+| `iron` | iron | iron | weak - level 1-2, sometimes none at all | 25-65% worn |
+| `iron_diamond` | iron and diamond, per slot | iron and diamond, per slot | iron parts weak, diamond parts middling | 20-58% worn |
+| `diamond` | diamond | diamond | good - Prot 1-3, Sharpness 1-3, Aqua Affinity, Silk Touch, Mending | 15-50% worn |
+| `diamond_netherite` | diamond and netherite, per slot | diamond and netherite, per slot | diamond parts good, netherite parts the best rolls | 10-42% worn |
+| `netherite` | netherite | netherite | best - Prot up to 4, Sharpness up to 5, Soul Speed, Swift Sneak | 5-35% worn |
+| `random` | a tier rolled per player | | whatever that tier gives | |
 
-| Tier | Mostly made of | Enchantments | Condition |
-|---|---|---|---|
-| `poor` | leather, stone and wood, the odd gold piece | none | 45-90% worn |
-| `copper` | chainmail and a stone/iron mix, copper ingots and blocks | none | 35-80% worn |
-| `iron` | iron, with the odd chainmail or stone piece | weak - one or two, level 1-2, sometimes none at all | 25-65% worn |
-| `iron_diamond` | iron with diamond mixed in, per slot | iron parts weak, diamond parts middling | 20-58% worn |
-| `diamond` | diamond, with the odd iron piece | good - Prot 1-3, Sharpness 1-3, Aqua Affinity, Silk Touch, Mending | 15-50% worn |
-| `diamond_netherite` | diamond with netherite mixed in, per slot | diamond parts good, netherite parts the best rolls | 10-42% worn |
-| `netherite` | netherite, with the odd diamond piece | best - Prot up to 4, Sharpness up to 5, Soul Speed, Swift Sneak, Infinity | 5-35% worn |
-| `random` | a tier rolled per player | whatever that tier gives | - |
+The five straight tiers are exactly what they say: `netherite` is netherite from head to boots,
+`diamond` is diamond, and neither ever slips a lower piece into the set.
 
-The two mixed tiers are the half-geared look you actually see on an SMP: someone with a diamond
-sword and a couple of good pieces, the rest still iron. Which pieces got upgraded is part of the
-roll, so no two players end up with the same half. A mixed tier always shows at least one piece of
-the material it is named after - otherwise a `diamond_netherite` kit could come up as plain
-diamond and be the tier below it wearing the wrong name.
+The two mixed tiers are the half-geared look you actually see on an SMP. Each slot rolls its own
+material, so one player gets the diamond chestplate and the next gets diamond boots and a diamond
+sword. Every mixed kit is guaranteed at least one piece of each of its two materials, in both the
+armour and the tools - otherwise `diamond_netherite` could come out as plain diamond, or as full
+netherite, and be a different tier wearing the wrong name.
 
 ### Enchantments
 
 Enchantments follow the piece rather than the tier: the tier sets a ceiling and the material
 decides the rest, so on `iron_diamond` the iron helmet rolls weak while the diamond chestplate
-rolls middling. Leather, stone, wood and gold are never enchanted whatever the tier says, and no
-piece can go above its tier's ceiling - a diamond sword in an `iron` kit still only rolls weak.
+rolls middling. Leather, copper, stone, wood and gold are never enchanted whatever the tier says,
+and no piece can go above its tier's ceiling - a diamond sword in an `iron` kit still only rolls
+weak.
 
 How many enchantments a piece gets is rolled (an iron piece can easily come out plain), which ones
 it gets is drawn from a pool that suits the item, and **every level is rolled inside a range
@@ -192,36 +187,31 @@ rather than handed out at maximum**. Protection on a diamond chestplate lands so
 on netherite it can reach 4. The better tiers roll each level twice and keep the higher one, so
 they lean towards the top of their range without ever being guaranteed it.
 
+**Armour only ever rolls plain Protection**, and **weapons only ever roll Sharpness**. Blast, Fire
+and Projectile Protection, Smite and Bane of Arthropods are deliberately left out, so a piece is
+never quietly worse than it looks against ordinary damage.
+
 The pools widen as the tier goes up, so better gear is not just bigger numbers:
 
 | Item | Can roll |
 |---|---|
-| Helmet | Protection / Blast / Fire / Projectile Protection, Respiration, Aqua Affinity, Thorns, Unbreaking, Mending |
-| Chestplate | the protections, Thorns, Unbreaking, Mending |
-| Leggings | the protections, Thorns, Swift Sneak, Unbreaking, Mending |
-| Boots | the protections, Feather Falling, Depth Strider, Frost Walker, Soul Speed, Unbreaking, Mending |
-| Sword | Sharpness / Smite / Bane of Arthropods, Knockback, Fire Aspect, Looting, Unbreaking, Mending |
-| Axe | Sharpness / Smite / Bane of Arthropods, Efficiency, Fortune / Silk Touch, Unbreaking, Mending |
+| Helmet | Protection, Respiration, Aqua Affinity, Thorns, Unbreaking, Mending |
+| Chestplate | Protection, Thorns, Unbreaking, Mending |
+| Leggings | Protection, Thorns, Swift Sneak, Unbreaking, Mending |
+| Boots | Protection, Feather Falling, Depth Strider, Frost Walker, Soul Speed, Unbreaking, Mending |
+| Sword | Sharpness, Knockback, Fire Aspect, Looting, Unbreaking, Mending |
+| Axe | Sharpness, Efficiency, Fortune / Silk Touch, Unbreaking, Mending |
 | Pickaxe, shovel | Efficiency, Fortune / Silk Touch, Unbreaking, Mending |
-| Bow | Power, Punch, Flame, Infinity, Unbreaking, Mending |
-| Crossbow | Quick Charge, Piercing / Multishot, Unbreaking, Mending |
-| Trident | Impaling, Loyalty / Riptide, Unbreaking, Mending |
-| Fishing rod | Luck of the Sea, Lure, Unbreaking, Mending |
-| Shield, elytra | Unbreaking, Mending |
+| Shield | Unbreaking, Mending |
 
 Enchantments that cannot sit together never do: a pickaxe gets Fortune or Silk Touch but never
-both, a sword gets one of Sharpness, Smite and Bane of Arthropods, armour gets one of the four
-protections, and a bow gets Mending or Infinity. Bows, crossbows, tridents, shields and elytra
-that turn up in the loot are treated as gear too, so they arrive used and possibly enchanted
-rather than brand new.
-
-Minecraft 1.21.11 has no copper tools or armour, so the `copper` tier is built from chainmail and
-a stone/iron mix with copper ingots and blocks as the loot, which is the closest thing to a
-copper-age loadout the version has.
+both, and boots get Depth Strider or Frost Walker.
 
 Items and enchantments are looked up by id (`minecraft:diamond_sword`, `minecraft:mending`), so
 an id that does not exist in your version is skipped instead of breaking the command, and data
-pack enchantments work too.
+pack enchantments work too. The mod checks every id it could hand out when it registers the
+commands and logs anything this version does not have, so a missing item shows up in the log
+rather than as a kit quietly arriving a piece short.
 
 ## Notes and limits
 

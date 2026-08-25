@@ -44,6 +44,10 @@ public final class KitCommand {
 		root = root.then(tierNode("random", () -> KitTier.values()[RANDOM.nextInt(KitTier.values().length)]));
 
 		dispatcher.register(root);
+
+		// The item registry is filled by the time commands are built, so this is the first safe
+		// place to check that every id the kits use exists in this version.
+		KitGenerator.logMissingIds();
 	}
 
 	/** One tier literal, usable on yourself or on whoever the targets argument picks out. */

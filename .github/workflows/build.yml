@@ -180,6 +180,8 @@ jobs:
           check "iron_diamond" "the iron/diamond tier registered"
           check "diamond_netherite" "the diamond/netherite tier registered"
           check "kitgive random" "the random tier registered"
+          check "Kit items: every id resolved" "every kit item id exists in this version"
+          refute "Kit items missing" "kit item ids that this version does not have"
           refute "Kit enchantments are off" "broken enchantment registry lookup"
           refute "Unknown or incomplete command" "unrecognised command"
           refute "Mixin apply failed|Mixin transformation of|was not found in|Critical injection failure|Error injecting" "mixin failures"
