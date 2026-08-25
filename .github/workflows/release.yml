@@ -97,7 +97,7 @@ jobs:
           | \`/mute <targets> [duration] [reason]\` | Mutes chat, permanently or for a while (\`30s\`, \`10m\`, \`2h\`, \`7d\`, \`1h30m\`, \`perm\`) |
           | \`/unmute <name>\` | Unmutes, also works while the player is offline |
           | \`/mutelist\` / \`/unmuteall\` | List everyone muted / unmute everybody |
-          | \`/kitgive <tier> [targets]\` | Hands out a worn, randomly enchanted kit: poor, copper, iron, diamond or netherite |
+          | \`/kitgive <tier> [targets]\` | Hands out a worn, randomly enchanted kit. Tiers, weakest first: \`poor\`, \`copper\`, \`iron\`, \`iron_diamond\`, \`diamond\`, \`diamond_netherite\`, \`netherite\` |
 
           Freezes and mutes survive relogs and restarts, and timed mutes expire on their own.
           The mute is applied where chat is delivered, so it also covers \`/msg\`, \`/tell\`,

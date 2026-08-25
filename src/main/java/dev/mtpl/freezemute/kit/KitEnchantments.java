@@ -50,6 +50,18 @@ public final class KitEnchantments {
 	}
 
 	/**
+	 * Says at startup whether kits will be enchanted, so a mapping change that breaks the lookup
+	 * shows up in the log rather than as quietly plain gear.
+	 */
+	public static void logStatus() {
+		if (REGISTRY_LOOKUP == null) {
+			FreezeMute.LOGGER.warn("Kit enchantments are off - the enchantment registry lookup could not be found");
+		} else {
+			FreezeMute.LOGGER.info("Kit enchantments are on");
+		}
+	}
+
+	/**
 	 * Enchants one piece of gear. How many enchantments it gets, and how strong, follows the
 	 * tier: iron is scrappy, diamond is respectable, netherite is what you would expect from
 	 * somebody who has been playing for months.

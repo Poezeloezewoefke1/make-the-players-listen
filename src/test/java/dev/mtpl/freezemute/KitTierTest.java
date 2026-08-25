@@ -30,7 +30,7 @@ class KitTierTest {
 		assertEquals(EnchantPower.NONE, KitTier.COPPER.enchantCeiling());
 		assertEquals(EnchantPower.WEAK, KitTier.IRON.enchantCeiling());
 		assertEquals(EnchantPower.MIXED, KitTier.IRON_DIAMOND.enchantCeiling());
-		assertEquals(EnchantPower.MIXED, KitTier.DIAMOND.enchantCeiling());
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantCeiling());
 		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND_NETHERITE.enchantCeiling());
 		assertEquals(EnchantPower.GOOD, KitTier.NETHERITE.enchantCeiling());
 	}
@@ -41,8 +41,11 @@ class KitTierTest {
 		assertEquals(EnchantPower.WEAK, KitTier.IRON_DIAMOND.enchantPowerFor("iron_helmet"));
 		assertEquals(EnchantPower.MIXED, KitTier.IRON_DIAMOND.enchantPowerFor("diamond_sword"));
 
-		// Same idea one tier up: diamond parts stay mixed, netherite parts get the good rolls.
-		assertEquals(EnchantPower.MIXED, KitTier.DIAMOND_NETHERITE.enchantPowerFor("diamond_pickaxe"));
+		// A full diamond kit gets the good rolls, which the half-iron one does not.
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor("diamond_sword"));
+
+		// Netherite is good too, so the top two tiers are about what you find rather than the rolls.
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND_NETHERITE.enchantPowerFor("diamond_pickaxe"));
 		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND_NETHERITE.enchantPowerFor("netherite_sword"));
 
 		// A tier never lets a piece punch above its own ceiling.

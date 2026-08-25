@@ -47,7 +47,7 @@ public enum KitTier {
 			List.of(entry("iron_ingot", 2, 8), entry("diamond", 0, 3), entry("bow", 0, 1),
 					entry("arrow", 12, 40), entry("shield", 0, 1), entry("ender_pearl", 0, 4))),
 
-	DIAMOND(15, 50, EnchantPower.MIXED,
+	DIAMOND(15, 50, EnchantPower.GOOD,
 			List.of("diamond_helmet", "diamond_chestplate", "diamond_leggings", "diamond_boots"),
 			List.of("diamond_sword", "diamond_pickaxe", "diamond_axe", "diamond_shovel"),
 			List.of(entry("golden_apple", 1, 3), entry("cooked_beef", 8, 16)),
@@ -92,14 +92,14 @@ public enum KitTier {
 			return ordinal() <= other.ordinal() ? this : other;
 		}
 
-		/** What a piece of gear can carry, judged by what it is made of. */
+		/**
+		 * The most a piece of gear can carry, judged by what it is made of. The tier's ceiling
+		 * still applies on top, so diamond rolls middling enchantments on the half-iron tier and
+		 * good ones once the whole kit is diamond.
+		 */
 		public static EnchantPower ofMaterial(String itemId) {
-			if (itemId.startsWith("netherite_")) {
+			if (itemId.startsWith("netherite_") || itemId.startsWith("diamond_")) {
 				return GOOD;
-			}
-
-			if (itemId.startsWith("diamond_")) {
-				return MIXED;
 			}
 
 			if (itemId.startsWith("iron_") || itemId.startsWith("chainmail_")) {
@@ -111,8 +111,8 @@ public enum KitTier {
 				return NONE;
 			}
 
-			// Bows, crossbows and shields have no material tier of their own.
-			return MIXED;
+			// Bows, crossbows and shields have no material tier of their own, so the tier decides.
+			return GOOD;
 		}
 	}
 

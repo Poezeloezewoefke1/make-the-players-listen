@@ -146,6 +146,8 @@ jobs:
             sleep 3
             echo "mutelist"
             sleep 3
+            echo "help kitgive"
+            sleep 3
             echo "stop"
             sleep 20 ) | timeout 300 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee server.log || true
 
@@ -173,6 +175,12 @@ jobs:
           check "Done (" "server finished starting"
           check "Nobody is frozen." "/freezelist ran from the console"
           check "Nobody is muted." "/mutelist ran from the console"
+          check "Kit enchantments are on" "the enchantment registry lookup resolved"
+          check "kitgive" "/kitgive registered"
+          check "iron_diamond" "the iron/diamond tier registered"
+          check "diamond_netherite" "the diamond/netherite tier registered"
+          refute "Kit enchantments are off" "broken enchantment registry lookup"
+          refute "Unknown or incomplete command" "unrecognised command"
           refute "Mixin apply failed|Mixin transformation of|was not found in|Critical injection failure|Error injecting" "mixin failures"
           refute "Failed to start the minecraft server|Exception in server tick loop" "server crashes"
 

@@ -6,6 +6,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 
 import dev.mtpl.freezemute.command.Permissions;
+import dev.mtpl.freezemute.kit.KitEnchantments;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -30,6 +31,7 @@ public final class FreezeMute implements ModInitializer {
 		FreezeMuteConfig.load(directory.resolve("config.json"));
 		ModerationData.get().load(directory.resolve("moderation.json"));
 		Permissions.logMode();
+		KitEnchantments.logStatus();
 		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute and /unmute");
 	}
 
