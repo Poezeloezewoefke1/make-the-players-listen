@@ -5,6 +5,7 @@ import java.util.UUID;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.util.Messages;
+import dev.mtpl.freezemute.util.StaffAlerts;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -56,6 +57,7 @@ public abstract class ServerPlayerEntityMixin {
 			// The sender is one of the receivers, which is a good moment to tell them why
 			// their message disappeared - exactly once per message.
 			receiver.sendMessage(Messages.youAreMuted(mute));
+			StaffAlerts.mutedPlayerTriedToTalk(receiver, chat.message().getSignedContent());
 		}
 	}
 }

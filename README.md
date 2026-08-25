@@ -48,7 +48,9 @@ All commands require operator rights (the console, RCON and command blocks may u
 
 | Command | What it does |
 |---|---|
-| `/freeze <targets>` | Freezes one or more online players. Accepts selectors: `/freeze @a` |
+| `/freeze <targets>` | Freezes one or more online players until you lift it. Accepts selectors: `/freeze @a` |
+| `/freeze <targets> <duration>` | Freezes them for a while, e.g. `/freeze Steve 10m` |
+| `/freeze <targets> <duration> <reason...>` | Same, with a reason the player is shown |
 | `/unfreeze <name>` | Unfreezes a player - works while they are offline, tab-completes frozen names |
 | `/freezelist` | Lists everyone who is frozen |
 | `/unfreezeall` | Unfreezes everybody |
@@ -72,8 +74,34 @@ permanently.
 /unfreeze Steve
 ```
 
-Freezes and mutes survive relogs and server restarts. They are stored in
-`config/freezemute/moderation.json`, which is rewritten every time something changes.
+Freezes and mutes survive relogs and server restarts, and timed ones expire on their own - the
+player is told when that happens. They are stored in `config/freezemute/moderation.json`, which is
+rewritten every time something changes.
+
+## Permissions
+
+Operators, the console, RCON and command blocks can always use these commands. If
+[fabric-permissions-api](https://github.com/lucko/fabric-permissions-api) is installed - LuckPerms,
+`player_roles` and similar expose their permissions through it - these nodes are honoured too, so a
+moderator rank can use the commands without being a full operator:
+
+`freezemute.freeze`, `freezemute.unfreeze`, `freezemute.mute`, `freezemute.unmute`,
+`freezemute.list`, and `freezemute.staff` for the notifications below.
+
+The mod does not depend on that API: without it, it just checks operator status. The log line at
+startup says which mode is in use.
+
+## Settings
+
+`config/freezemute/config.json` is written with the defaults on first run:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `freezeBlocksInteractions` | `true` | Frozen players cannot break or place blocks, hit anything, drop items or move things around their inventory |
+| `freezeProtectsFromDamage` | `true` | Frozen players cannot be hurt, so a mob or a fall cannot kill somebody you are holding for questioning |
+| `muteBlocksSignsAndBooks` | `true` | Muted players cannot write signs or books either, which is the usual way around a mute |
+| `notifyStaff` | `true` | Staff are told when a muted player tries to talk (including what they tried to say) or a frozen player tries to run |
+| `staffNotifyCooldownSeconds` | `10` | How long before the same player is reported again |
 
 ## What "frozen" means exactly
 
@@ -89,10 +117,12 @@ practice:
   short wiggle while they fight it - that is unavoidable without a client-side mod.
 * Ender pearls and chorus fruit teleport a player on the server side, so **using items is
   blocked while frozen** (this is what stops a frozen player from pearling away).
+* With the default settings a frozen player also cannot break or place blocks, attack, drop items
+  or rearrange their inventory, and cannot be hurt while frozen. Both are switches in the config.
 * A frozen player can still be moved by an operator: `/tp` works, and the freeze simply continues
   at the new spot.
-* Frozen players can still be hurt and can die. If you want them safe, put them in a protected
-  spot first.
+* Whatever invulnerability the player had before the freeze is restored when it is lifted, so
+  turning `freezeProtectsFromDamage` on does not leave survival players immortal afterwards.
 
 ## What "muted" means exactly
 
@@ -106,8 +136,8 @@ refuses to deliver it, so:
 * It covers plain chat as well as `/msg`, `/tell`, `/w`, `/me`, `/say` and `/teammsg`.
 * The muted player gets a short reminder of why their message disappeared, including the time
   left on the mute.
-* Attempted messages are still written to the server log, which is handy when you want to know
-  what somebody was trying to say.
+* Attempted messages are still written to the server log, and staff online at the time get a
+  short notice with what was said, so you do not have to go digging.
 * Timed mutes expire on their own; the player is not notified, their next message simply goes
   through.
 

@@ -2,8 +2,10 @@ package dev.mtpl.freezemute.mixin;
 
 import dev.mtpl.freezemute.FreezeEnforcer;
 import dev.mtpl.freezemute.FreezeMute;
+import dev.mtpl.freezemute.FreezeMuteConfig;
 import dev.mtpl.freezemute.FrozenConnection;
 import dev.mtpl.freezemute.ModerationData;
+import dev.mtpl.freezemute.util.StaffAlerts;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -12,11 +14,17 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import net.minecraft.network.packet.c2s.play.BookUpdateC2SPacket;
+import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.SpectatorTeleportC2SPacket;
+import net.minecraft.network.packet.c2s.play.UpdateSignC2SPacket;
 import net.minecraft.network.packet.c2s.play.VehicleMoveC2SPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
@@ -135,6 +143,51 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 		}
 	}
 
+	@Inject(method = "onPlayerAction", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseAction(PlayerActionC2SPacket packet, CallbackInfo info) {
+		// Breaking blocks, dropping items, swapping hands and releasing a bow.
+		if (freezemute$blocksInteractions()) {
+			info.cancel();
+		}
+	}
+
+	@Inject(method = "onPlayerInteractBlock", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseBlockInteraction(PlayerInteractBlockC2SPacket packet, CallbackInfo info) {
+		if (freezemute$blocksInteractions()) {
+			info.cancel();
+		}
+	}
+
+	@Inject(method = "onPlayerInteractEntity", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseEntityInteraction(PlayerInteractEntityC2SPacket packet, CallbackInfo info) {
+		// Also stops a frozen player from hitting anyone standing next to them.
+		if (freezemute$blocksInteractions()) {
+			info.cancel();
+		}
+	}
+
+	@Inject(method = "onClickSlot", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseSlotClick(ClickSlotC2SPacket packet, CallbackInfo info) {
+		if (freezemute$blocksInteractions()) {
+			info.cancel();
+		}
+	}
+
+	@Inject(method = "onUpdateSign", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseSign(UpdateSignC2SPacket packet, CallbackInfo info) {
+		// Writing on a sign is the usual way around a mute.
+		if (freezemute$mutedAndBlocked()) {
+			info.cancel();
+		}
+	}
+
+	@Inject(method = "onBookUpdate", at = @At("HEAD"), cancellable = true)
+	private void freezemute$refuseBook(BookUpdateC2SPacket packet, CallbackInfo info) {
+		if (freezemute$mutedAndBlocked()) {
+			info.cancel();
+		}
+	}
+
 	@Unique
 	private void freezemute$correct(ServerPlayerEntity target, double x, double y, double z, float yaw, float pitch) {
 		if (!freezemute$isFrozen(target) || !target.isAlive()) {
@@ -156,10 +209,24 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 
 		this.freezemute$lastCorrectionNanos = now;
 		this.freezemute$snapBack();
+		StaffAlerts.frozenPlayerIsTrying(target);
 	}
 
 	@Unique
 	private boolean freezemute$isFrozen(ServerPlayerEntity target) {
 		return target != null && ModerationData.get().isFrozen(target.getUuid());
+	}
+
+	@Unique
+	private boolean freezemute$blocksInteractions() {
+		return FreezeMuteConfig.get().freezeBlocksInteractions && freezemute$isFrozen(this.player);
+	}
+
+	@Unique
+	private boolean freezemute$mutedAndBlocked() {
+		ServerPlayerEntity target = this.player;
+		return FreezeMuteConfig.get().muteBlocksSignsAndBooks
+				&& target != null
+				&& ModerationData.get().isMuted(target.getUuid());
 	}
 }

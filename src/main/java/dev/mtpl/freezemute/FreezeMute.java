@@ -5,6 +5,8 @@ import java.nio.file.Path;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
 
+import dev.mtpl.freezemute.command.Permissions;
+
 import net.minecraft.server.MinecraftServer;
 
 import org.slf4j.Logger;
@@ -24,8 +26,10 @@ public final class FreezeMute implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		Path file = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID).resolve("moderation.json");
-		ModerationData.get().load(file);
+		Path directory = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
+		FreezeMuteConfig.load(directory.resolve("config.json"));
+		ModerationData.get().load(directory.resolve("moderation.json"));
+		Permissions.logMode();
 		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute and /unmute");
 	}
 

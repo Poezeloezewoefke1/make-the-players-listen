@@ -10,10 +10,12 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 
+import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.util.Durations;
 import dev.mtpl.freezemute.util.Messages;
+import dev.mtpl.freezemute.util.StaffAlerts;
 
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -30,7 +32,7 @@ public final class MuteCommand {
 
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(CommandManager.literal("mute")
-				.requires(Permissions::isModerator)
+				.requires(source -> Permissions.check(source, Permissions.MUTE))
 				.then(CommandManager.argument("targets", EntityArgumentType.players())
 						.executes(context -> mute(
 								context.getSource(),
@@ -52,7 +54,7 @@ public final class MuteCommand {
 												StringArgumentType.getString(context, "reason")))))));
 
 		dispatcher.register(CommandManager.literal("unmute")
-				.requires(Permissions::isModerator)
+				.requires(source -> Permissions.check(source, Permissions.UNMUTE))
 				.then(CommandManager.argument("player", StringArgumentType.word())
 						.suggests(MuteCommand::suggestMuted)
 						.executes(context -> unmute(
@@ -60,11 +62,11 @@ public final class MuteCommand {
 								StringArgumentType.getString(context, "player")))));
 
 		dispatcher.register(CommandManager.literal("mutelist")
-				.requires(Permissions::isModerator)
+				.requires(source -> Permissions.check(source, Permissions.LIST))
 				.executes(context -> list(context.getSource())));
 
 		dispatcher.register(CommandManager.literal("unmuteall")
-				.requires(Permissions::isModerator)
+				.requires(source -> Permissions.check(source, Permissions.UNMUTE))
 				.executes(context -> unmuteAll(context.getSource())));
 	}
 
@@ -81,6 +83,8 @@ public final class MuteCommand {
 	}
 
 	private static int mute(ServerCommandSource source, Collection<ServerPlayerEntity> targets, long durationMillis, String reason) {
+		FreezeMute.rememberServer(source.getServer());
+
 		ModerationData data = ModerationData.get();
 		String actor = source.getName();
 		long now = System.currentTimeMillis();
@@ -92,9 +96,10 @@ public final class MuteCommand {
 			boolean wasMuted = data.isMuted(target.getUuid());
 			MuteEntry entry = new MuteEntry(target.getUuid(), name, actor, now, until, reason);
 			data.mute(entry);
+			StaffAlerts.forget(target.getUuid());
 			target.sendMessage(Messages.youAreMuted(entry));
 
-			String feedback = (wasMuted ? "Updated the mute of " : "Muted ") + name + " " + Messages.describeDuration(entry)
+			String feedback = (wasMuted ? "Updated the mute of " : "Muted ") + name + " " + Messages.describeRemaining(entry.until())
 					+ (reason.isBlank() ? "" : " - reason: " + reason);
 			source.sendFeedback(() -> Messages.success(feedback), true);
 			count++;
@@ -113,6 +118,7 @@ public final class MuteCommand {
 		}
 
 		data.unmute(entry.uuid());
+		StaffAlerts.forget(entry.uuid());
 		ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(entry.uuid());
 
 		if (player != null) {
@@ -136,7 +142,7 @@ public final class MuteCommand {
 		for (MuteEntry entry : entries) {
 			boolean online = source.getServer().getPlayerManager().getPlayer(entry.uuid()) != null;
 			String line = " - " + entry.name() + (online ? "" : " (offline)")
-					+ " - muted " + Messages.describeDuration(entry) + " by " + entry.source()
+					+ " - muted " + Messages.describeRemaining(entry.until()) + " by " + entry.source()
 					+ (entry.reason().isBlank() ? "" : " - reason: " + entry.reason());
 			source.sendFeedback(() -> Messages.listEntry(line), false);
 		}

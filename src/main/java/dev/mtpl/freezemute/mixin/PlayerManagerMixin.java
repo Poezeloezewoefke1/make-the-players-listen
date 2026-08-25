@@ -1,7 +1,9 @@
 package dev.mtpl.freezemute.mixin;
 
+import dev.mtpl.freezemute.FreezeEnforcer;
 import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
+import dev.mtpl.freezemute.ModerationData.FreezeEntry;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.util.Messages;
 
@@ -26,8 +28,11 @@ public abstract class PlayerManagerMixin {
 		// Keep the stored name in sync so /unfreeze and /unmute keep working after a rename.
 		data.refreshName(player.getUuid(), player.getGameProfile().name());
 
-		if (data.isFrozen(player.getUuid())) {
-			player.sendMessage(Messages.youAreStillFrozen());
+		FreezeEntry freeze = data.freezeOf(player.getUuid());
+
+		if (freeze != null) {
+			FreezeEnforcer.onRejoinedWhileFrozen(player);
+			player.sendMessage(Messages.youAreStillFrozen(freeze));
 		}
 
 		MuteEntry mute = data.muteOf(player.getUuid());

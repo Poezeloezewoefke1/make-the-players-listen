@@ -21,6 +21,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import dev.mtpl.freezemute.util.Messages;
+
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.network.ServerPlayerEntity;
+
 /**
  * Everything the mod remembers: who is frozen and who is muted.
  *
@@ -46,8 +51,24 @@ public final class ModerationData {
 		return INSTANCE;
 	}
 
-	/** A frozen player. */
-	public record FreezeEntry(UUID uuid, String name, String source, long since) {
+	/**
+	 * A frozen player. {@code until} is an epoch millisecond timestamp, or 0 for a freeze that
+	 * lasts until somebody runs {@code /unfreeze}. {@code wasInvulnerable} remembers whether the
+	 * player was already invulnerable before the freeze, so unfreezing puts that back.
+	 */
+	public record FreezeEntry(UUID uuid, String name, String source, long since, long until, String reason,
+			boolean wasInvulnerable) {
+		public boolean permanent() {
+			return until <= 0L;
+		}
+
+		public boolean expired(long now) {
+			return !permanent() && now >= until;
+		}
+
+		public long remainingMillis(long now) {
+			return permanent() ? Long.MAX_VALUE : Math.max(0L, until - now);
+		}
 	}
 
 	/** A muted player. {@code until} is an epoch millisecond timestamp, or 0 for a permanent mute. */
@@ -68,11 +89,27 @@ public final class ModerationData {
 	// ------------------------------------------------------------------ freeze
 
 	public boolean isFrozen(UUID uuid) {
-		return frozen.containsKey(uuid);
+		return freezeOf(uuid) != null;
 	}
 
+	/** The active freeze of a player, dropping it when its time is up. */
 	public FreezeEntry freezeOf(UUID uuid) {
-		return frozen.get(uuid);
+		FreezeEntry entry = frozen.get(uuid);
+
+		if (entry == null) {
+			return null;
+		}
+
+		if (entry.expired(System.currentTimeMillis())) {
+			if (frozen.remove(uuid, entry)) {
+				save();
+				onFreezeExpired(entry);
+			}
+
+			return null;
+		}
+
+		return entry;
 	}
 
 	/** @return true if the player was not already frozen. */
@@ -94,7 +131,7 @@ public final class ModerationData {
 	}
 
 	public int clearFrozen() {
-		int size = frozen.size();
+		int size = frozenEntries().size();
 		frozen.clear();
 
 		if (size > 0) {
@@ -104,15 +141,26 @@ public final class ModerationData {
 		return size;
 	}
 
+	/** All freezes that are still running, expired ones filtered out. */
 	public List<FreezeEntry> frozenEntries() {
-		List<FreezeEntry> entries = new ArrayList<>(frozen.values());
+		long now = System.currentTimeMillis();
+		List<FreezeEntry> entries = new ArrayList<>();
+
+		for (FreezeEntry entry : frozen.values()) {
+			if (!entry.expired(now)) {
+				entries.add(entry);
+			}
+		}
+
 		entries.sort(Comparator.comparing(FreezeEntry::name, String.CASE_INSENSITIVE_ORDER));
 		return entries;
 	}
 
 	public FreezeEntry findFrozenByName(String name) {
+		long now = System.currentTimeMillis();
+
 		for (FreezeEntry entry : frozen.values()) {
-			if (entry.name().equalsIgnoreCase(name)) {
+			if (entry.name().equalsIgnoreCase(name) && !entry.expired(now)) {
 				return entry;
 			}
 		}
@@ -135,6 +183,7 @@ public final class ModerationData {
 		if (entry.expired(System.currentTimeMillis())) {
 			if (muted.remove(uuid, entry)) {
 				save();
+				onMuteExpired(entry);
 			}
 
 			return null;
@@ -231,7 +280,8 @@ public final class ModerationData {
 		FreezeEntry freeze = frozen.get(uuid);
 
 		if (freeze != null && !freeze.name().equals(name)) {
-			frozen.put(uuid, new FreezeEntry(uuid, name, freeze.source(), freeze.since()));
+			frozen.put(uuid, new FreezeEntry(uuid, name, freeze.source(), freeze.since(), freeze.until(),
+					freeze.reason(), freeze.wasInvulnerable()));
 			changed = true;
 		}
 
@@ -304,7 +354,10 @@ public final class ModerationData {
 					uuid,
 					readString(entry, "name", uuid.toString()),
 					readString(entry, "source", "unknown"),
-					readLong(entry, "since", 0L)));
+					readLong(entry, "since", 0L),
+					readLong(entry, "until", 0L),
+					readString(entry, "reason", ""),
+					readBoolean(entry, "wasInvulnerable", false)));
 		}
 	}
 
@@ -357,6 +410,48 @@ public final class ModerationData {
 		}
 	}
 
+	private static boolean readBoolean(JsonObject entry, String key, boolean fallback) {
+		try {
+			return entry.has(key) ? entry.get(key).getAsBoolean() : fallback;
+		} catch (RuntimeException exception) {
+			return fallback;
+		}
+	}
+
+	/** Releases a player whose freeze ran out, and tells them so. */
+	private void onFreezeExpired(FreezeEntry entry) {
+		MinecraftServer server = FreezeMute.server();
+
+		if (server == null) {
+			return;
+		}
+
+		server.execute(() -> {
+			ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.uuid());
+
+			if (player != null) {
+				FreezeEnforcer.onUnfrozen(player, entry);
+				player.sendMessage(Messages.youAreUnfrozen());
+			}
+		});
+	}
+
+	private void onMuteExpired(MuteEntry entry) {
+		MinecraftServer server = FreezeMute.server();
+
+		if (server == null) {
+			return;
+		}
+
+		server.execute(() -> {
+			ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.uuid());
+
+			if (player != null) {
+				player.sendMessage(Messages.youAreUnmuted());
+			}
+		});
+	}
+
 	private static long readLong(JsonObject entry, String key, long fallback) {
 		try {
 			return entry.has(key) ? entry.get(key).getAsLong() : fallback;
@@ -383,6 +478,9 @@ public final class ModerationData {
 			object.addProperty("name", entry.name());
 			object.addProperty("source", entry.source());
 			object.addProperty("since", entry.since());
+			object.addProperty("until", entry.until());
+			object.addProperty("reason", entry.reason());
+			object.addProperty("wasInvulnerable", entry.wasInvulnerable());
 			frozenArray.add(object);
 		}
 

@@ -45,13 +45,36 @@ class ModerationDataTest {
 
 	@Test
 	void freezesAndUnfreezes() {
-		assertTrue(data.freeze(new FreezeEntry(STEVE, "Steve", "Console", System.currentTimeMillis())));
+		assertTrue(data.freeze(new FreezeEntry(STEVE, "Steve", "Console", System.currentTimeMillis(), 0L, "", false)));
 		assertTrue(data.isFrozen(STEVE));
 		assertFalse(data.isFrozen(ALEX));
 
 		assertNotNull(data.unfreeze(STEVE));
 		assertFalse(data.isFrozen(STEVE));
 		assertNull(data.unfreeze(STEVE));
+	}
+
+	@Test
+	void timedFreezeExpiresOnItsOwn() {
+		long now = System.currentTimeMillis();
+		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, now + 60_000L, "griefing", false));
+		assertTrue(data.isFrozen(STEVE));
+
+		// A freeze whose time is up releases the player without anybody running /unfreeze.
+		data.freeze(new FreezeEntry(ALEX, "Alex", "Console", now - 120_000L, now - 1L, "", false));
+		assertFalse(data.isFrozen(ALEX));
+		assertNull(data.freezeOf(ALEX));
+		assertEquals(1, data.frozenEntries().size());
+	}
+
+	@Test
+	void freezeRemembersWhetherThePlayerWasAlreadyInvulnerable() {
+		long now = System.currentTimeMillis();
+		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, 0L, "", true));
+		data.freeze(new FreezeEntry(ALEX, "Alex", "Console", now, 0L, "", false));
+
+		assertTrue(data.freezeOf(STEVE).wasInvulnerable());
+		assertFalse(data.freezeOf(ALEX).wasInvulnerable());
 	}
 
 	@Test
@@ -81,7 +104,7 @@ class ModerationDataTest {
 	@Test
 	void survivesAReload() throws IOException {
 		long now = System.currentTimeMillis();
-		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now));
+		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, now + 3_600_000L, "griefing", true));
 		data.mute(new MuteEntry(ALEX, "Alex", "Notch", now, now + 3_600_000L, "being rude"));
 
 		assertTrue(Files.isRegularFile(file), "the state file should have been written");
@@ -89,7 +112,12 @@ class ModerationDataTest {
 		// Reload from disk, the way a server restart would.
 		data.load(file);
 
-		assertTrue(data.isFrozen(STEVE));
+		FreezeEntry freeze = data.freezeOf(STEVE);
+		assertNotNull(freeze);
+		assertEquals("griefing", freeze.reason());
+		assertTrue(freeze.wasInvulnerable());
+		assertFalse(freeze.permanent());
+
 		MuteEntry mute = data.muteOf(ALEX);
 		assertNotNull(mute);
 		assertEquals("Alex", mute.name());
@@ -101,7 +129,7 @@ class ModerationDataTest {
 	@Test
 	void findsByNameIgnoringCaseAndFollowsRenames() {
 		long now = System.currentTimeMillis();
-		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now));
+		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, 0L, "", false));
 		data.mute(new MuteEntry(STEVE, "Steve", "Console", now, 0L, ""));
 
 		assertNotNull(data.findFrozenByName("steve"));

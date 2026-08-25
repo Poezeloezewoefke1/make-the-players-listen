@@ -1,5 +1,6 @@
 package dev.mtpl.freezemute.util;
 
+import dev.mtpl.freezemute.ModerationData.FreezeEntry;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 
 import net.minecraft.text.MutableText;
@@ -11,33 +12,33 @@ public final class Messages {
 	private Messages() {
 	}
 
-	public static MutableText youAreFrozen(String source) {
-		return Text.literal("You have been frozen by " + source + ". You cannot move until an operator unfreezes you.")
-				.formatted(Formatting.RED);
+	// ------------------------------------------------------------------ freeze
+
+	public static MutableText youAreFrozen(FreezeEntry entry) {
+		StringBuilder builder = new StringBuilder("You have been frozen by ")
+				.append(entry.source())
+				.append(' ')
+				.append(describeRemaining(entry.until()));
+		appendReason(builder, entry.reason());
+		builder.append(" You cannot move until it is lifted.");
+		return Text.literal(builder.toString()).formatted(Formatting.RED);
 	}
 
-	public static MutableText youAreStillFrozen() {
-		return Text.literal("You are still frozen. Ask an operator to unfreeze you.").formatted(Formatting.RED);
+	public static MutableText youAreStillFrozen(FreezeEntry entry) {
+		StringBuilder builder = new StringBuilder("You are still frozen ").append(describeRemaining(entry.until()));
+		appendReason(builder, entry.reason());
+		return Text.literal(builder.toString()).formatted(Formatting.RED);
 	}
 
 	public static MutableText youAreUnfrozen() {
 		return Text.literal("You are no longer frozen - you can move again.").formatted(Formatting.GREEN);
 	}
 
-	public static MutableText youAreMuted(MuteEntry mute) {
-		StringBuilder builder = new StringBuilder("You are muted");
+	// -------------------------------------------------------------------- mute
 
-		if (mute.permanent()) {
-			builder.append(" permanently");
-		} else {
-			builder.append(" for another ").append(Durations.format(mute.remainingMillis(System.currentTimeMillis())));
-		}
-
-		if (!mute.reason().isBlank()) {
-			builder.append(" - reason: ").append(mute.reason());
-		}
-
-		builder.append('.');
+	public static MutableText youAreMuted(MuteEntry entry) {
+		StringBuilder builder = new StringBuilder("You are muted ").append(describeRemaining(entry.until()));
+		appendReason(builder, entry.reason());
 		return Text.literal(builder.toString()).formatted(Formatting.RED);
 	}
 
@@ -45,11 +46,23 @@ public final class Messages {
 		return Text.literal("You are no longer muted - you can chat again.").formatted(Formatting.GREEN);
 	}
 
-	/** "permanently" or "for 2h 30m", used in operator feedback. */
-	public static String describeDuration(MuteEntry mute) {
-		return mute.permanent()
-				? "permanently"
-				: "for " + Durations.format(mute.remainingMillis(System.currentTimeMillis()));
+	// ------------------------------------------------------------------ shared
+
+	/** "permanently", or "for 2h 30m" when there is an end in sight. */
+	public static String describeRemaining(long until) {
+		if (until <= 0L) {
+			return "permanently";
+		}
+
+		return "for " + Durations.format(Math.max(0L, until - System.currentTimeMillis()));
+	}
+
+	private static void appendReason(StringBuilder builder, String reason) {
+		if (reason != null && !reason.isBlank()) {
+			builder.append(" - reason: ").append(reason);
+		}
+
+		builder.append('.');
 	}
 
 	public static MutableText success(String text) {

@@ -36,7 +36,24 @@ public final class FreezeEnforcer {
 			player.stopRiding();
 		}
 
+		if (FreezeMuteConfig.get().freezeProtectsFromDamage) {
+			// A player being held for questioning should not drown or get shot in the meantime.
+			player.setInvulnerable(true);
+		}
+
 		snapBack(player);
+	}
+
+	/** Called when a freeze ends, restoring whatever invulnerability the player had before. */
+	public static void onUnfrozen(ServerPlayerEntity player, ModerationData.FreezeEntry entry) {
+		player.setInvulnerable(entry != null && entry.wasInvulnerable());
+	}
+
+	/** Re-applies the freeze to a player who just logged in. */
+	public static void onRejoinedWhileFrozen(ServerPlayerEntity player) {
+		if (FreezeMuteConfig.get().freezeProtectsFromDamage) {
+			player.setInvulnerable(true);
+		}
 	}
 
 	/**
