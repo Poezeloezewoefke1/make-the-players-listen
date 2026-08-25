@@ -34,6 +34,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: dump the pinned mappings for the classes we build against
+        continue-on-error: true
         run: |
           PINNED=$(grep '^yarn_mappings=' gradle.properties | cut -d= -f2 | tr -d '\r')
           URL="https://maven.fabricmc.net/net/fabricmc/yarn/${PINNED}/yarn-${PINNED}-v2.jar"

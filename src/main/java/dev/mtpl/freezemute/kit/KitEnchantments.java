@@ -1,13 +1,18 @@
 package dev.mtpl.freezemute.kit;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 
+import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.kit.KitTier.EnchantPower;
 
+import net.fabricmc.loader.api.FabricLoader;
+
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
@@ -28,6 +33,18 @@ public final class KitEnchantments {
 
 	private static final RegistryKey<Registry<Enchantment>> ENCHANTMENT_REGISTRY =
 			RegistryKey.ofRegistry(Identifier.ofVanilla("enchantment"));
+
+	/**
+	 * {@code DynamicRegistryManager#get(RegistryKey)}.
+	 *
+	 * <p>Enchantments are a dynamic registry, so they have to be looked up through the server's
+	 * registry manager - but the Yarn build this mod compiles against does not give that method
+	 * a readable name, so there is nothing to call in source. It is resolved here through the
+	 * intermediary name instead, which is what the game uses at runtime anyway and is fixed for
+	 * a given Minecraft version. If it ever cannot be found, kits are still handed out, just
+	 * without enchantments.
+	 */
+	private static final Method REGISTRY_LOOKUP = findRegistryLookup();
 
 	private KitEnchantments() {
 	}
@@ -191,9 +208,31 @@ public final class KitEnchantments {
 
 	@SuppressWarnings("unchecked")
 	private static Registry<Enchantment> registry(MinecraftServer server) {
+		if (REGISTRY_LOOKUP == null) {
+			return null;
+		}
+
 		try {
-			return (Registry<Enchantment>) (Registry<?>) server.getRegistryManager().get(ENCHANTMENT_REGISTRY);
-		} catch (RuntimeException exception) {
+			return (Registry<Enchantment>) REGISTRY_LOOKUP.invoke(server.getRegistryManager(), ENCHANTMENT_REGISTRY);
+		} catch (ReflectiveOperationException | RuntimeException exception) {
+			return null;
+		}
+	}
+
+	private static Method findRegistryLookup() {
+		try {
+			String name = FabricLoader.getInstance().getMappingResolver().mapMethodName(
+					"intermediary",
+					"net.minecraft.class_5455",
+					"method_30530",
+					"(Lnet/minecraft/class_5321;)Lnet/minecraft/class_2378;");
+			Method method = DynamicRegistryManager.class.getMethod(name, RegistryKey.class);
+			method.setAccessible(true);
+			return method;
+		} catch (Throwable throwable) {
+			FreezeMute.LOGGER.warn(
+					"Could not find the registry lookup ({}), so kits will be handed out without enchantments",
+					throwable.toString());
 			return null;
 		}
 	}
