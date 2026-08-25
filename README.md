@@ -147,7 +147,7 @@ refuses to deliver it, so:
 
 `/kitgive <tier> [targets]` hands out gear that looks like it came off somebody who has been
 playing on the server for a while, rather than a shiny box-fresh kit. Without targets it goes to
-you; with them it goes to whoever the selector picks out - `/kitgive diamond @a`, `/kitgive iron
+you; with them it goes to whoever the selector picks out - `/kitgive rich @a`, `/kitgive chungie
 Steve Alex`, `/kitgive random @a`.
 
 **A kit is gear and nothing else**: four pieces of armour, four tools and a shield. No food, no
@@ -155,57 +155,70 @@ blocks, no loot, no experience bottles - nine items, all of them wearable or swi
 
 | Tier | Armour | Tools | Enchantments | Condition |
 |---|---|---|---|---|
-| `poor` | leather | stone | none | 45-90% worn |
+| `poor` | mismatched leather, copper and gold | stone, wood and gold | none | 60-95% worn |
 | `copper` | copper | copper | none | 35-80% worn |
-| `iron` | iron | iron | weak - level 1-2, sometimes none at all | 25-65% worn |
-| `iron_diamond` | iron and diamond, per slot | iron and diamond, per slot | iron parts weak, diamond parts middling | 20-58% worn |
-| `diamond` | diamond | diamond | good - Prot 1-3, Sharpness 1-3, Aqua Affinity, Silk Touch, Mending | 15-50% worn |
-| `diamond_netherite` | diamond and netherite, per slot | diamond and netherite, per slot | diamond parts good, netherite parts the best rolls | 10-42% worn |
-| `netherite` | netherite | netherite | best - Prot up to 4, Sharpness up to 5, Soul Speed, Swift Sneak | 5-35% worn |
+| `iron` | iron | iron | weak - main enchantment at level 1-2, maybe one side | 25-65% worn |
+| `chungie` | iron and diamond, per slot | iron and diamond, per slot | iron parts weak, diamond parts middling | 20-58% worn |
+| `diamond` | diamond | diamond | good - Prot III, Sharpness III, Efficiency IV, plus 1-3 sides | 15-50% worn |
+| `rich` | diamond and netherite, per slot | diamond and netherite, per slot | diamond parts good, netherite parts maxed | 10-42% worn |
+| `netherite` | netherite | netherite | the best - everything the item can carry, at max level | 5-35% worn |
 | `random` | a tier rolled per player | | whatever that tier gives | |
 
-The five straight tiers are exactly what they say: `netherite` is netherite from head to boots,
+`poor` is a grab bag on purpose: every slot rolls on its own out of leather, copper and gold, and
+the gear is nearly gone, so it comes out as mismatched junk rather than a matching set.
+
+The four straight tiers are exactly what they say: `netherite` is netherite from head to boots,
 `diamond` is diamond, and neither ever slips a lower piece into the set.
 
-The two mixed tiers are the half-geared look you actually see on an SMP. Each slot rolls its own
-material, so one player gets the diamond chestplate and the next gets diamond boots and a diamond
-sword. Every mixed kit is guaranteed at least one piece of each of its two materials, in both the
-armour and the tools - otherwise `diamond_netherite` could come out as plain diamond, or as full
-netherite, and be a different tier wearing the wrong name.
+`chungie` and `rich` are the half-geared look you actually see on an SMP - `chungie` is iron with
+diamond mixed in, `rich` is diamond with netherite mixed in. Each slot rolls its own material, so
+one player gets the diamond chestplate and the next gets diamond boots and a diamond sword. Both
+are guaranteed at least one piece of each of their two materials, in the armour and in the tools,
+so `rich` can never come out as plain diamond or as full netherite and be a different tier wearing
+the wrong name.
 
 ### Enchantments
 
-Enchantments follow the piece rather than the tier: the tier sets a ceiling and the material
-decides the rest, so on `iron_diamond` the iron helmet rolls weak while the diamond chestplate
-rolls middling. Leather, copper, stone, wood and gold are never enchanted whatever the tier says,
-and no piece can go above its tier's ceiling - a diamond sword in an `iron` kit still only rolls
-weak.
+**Every enchanted piece gets its main enchantment**, and side enchantments go on top of it:
 
-How many enchantments a piece gets is rolled (an iron piece can easily come out plain), which ones
-it gets is drawn from a pool that suits the item, and **every level is rolled inside a range
-rather than handed out at maximum**. Protection on a diamond chestplate lands somewhere in 1-3;
-on netherite it can reach 4. The better tiers roll each level twice and keep the higher one, so
-they lean towards the top of their range without ever being guaranteed it.
+| Item | Main enchantment | Sides it can pick up |
+|---|---|---|
+| Helmet | Protection | Aqua Affinity, Respiration, Unbreaking, Mending |
+| Chestplate | Protection | Unbreaking, Mending |
+| Leggings | Protection | Swift Sneak, Unbreaking, Mending |
+| Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Frost Walker, Unbreaking, Mending |
+| Sword | Sharpness | Looting, Fire Aspect, Knockback, Unbreaking, Mending |
+| Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending |
+| Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending |
+| Shield | Unbreaking | Mending |
 
-**Armour only ever rolls plain Protection**, and **weapons only ever roll Sharpness**. Blast, Fire
-and Projectile Protection, Smite and Bane of Arthropods are deliberately left out, so a piece is
-never quietly worse than it looks against ordinary damage.
+So an enchanted chestplate always actually protects and an enchanted sword always actually hits
+harder - the sides are extras, never a substitute. A diamond helmet reads as Protection III and
+Aqua Affinity, not as whichever single enchantment a shuffle happened to land on.
 
-The pools widen as the tier goes up, so better gear is not just bigger numbers:
+**No Thorns**, anywhere, at any tier. Armour only ever rolls plain Protection and weapons only
+ever roll Sharpness - Blast, Fire and Projectile Protection, Smite and Bane of Arthropods are all
+left out, so a piece is never quietly worse than it looks.
 
-| Item | Can roll |
-|---|---|
-| Helmet | Protection, Respiration, Aqua Affinity, Thorns, Unbreaking, Mending |
-| Chestplate | Protection, Thorns, Unbreaking, Mending |
-| Leggings | Protection, Thorns, Swift Sneak, Unbreaking, Mending |
-| Boots | Protection, Feather Falling, Depth Strider, Frost Walker, Soul Speed, Unbreaking, Mending |
-| Sword | Sharpness, Knockback, Fire Aspect, Looting, Unbreaking, Mending |
-| Axe | Sharpness, Efficiency, Fortune / Silk Touch, Unbreaking, Mending |
-| Pickaxe, shovel | Efficiency, Fortune / Silk Touch, Unbreaking, Mending |
-| Shield | Unbreaking, Mending |
+How good the rolls are follows the piece. The tier sets a ceiling and the material decides the
+rest, so on `chungie` the iron helmet rolls weak while the diamond chestplate rolls middling.
+Leather, copper, stone, wood and gold are never enchanted whatever the tier says, and no piece can
+go above its tier's ceiling - a diamond sword in an `iron` kit still only rolls weak.
+
+| Power | Main enchantment | Sides | Levels |
+|---|---|---|---|
+| weak (iron) | level 1-2 | 0-1 | rolled |
+| middling (diamond in a `chungie` kit) | level 2-3 | 1-2 | rolled |
+| good (diamond) | at the cap - Prot III, Sharpness III, Efficiency IV | 1-3 | rolled, best of two |
+| best (netherite) | at the cap - Prot IV, Sharpness V, Efficiency V | all of them | maximum |
+
+**Netherite does not roll.** It gets its main enchantment and every side its item can carry, all
+at maximum level, because it is the top of the ladder - so a netherite helmet is Protection IV,
+Aqua Affinity, Respiration III, Unbreaking III and Mending, every time.
 
 Enchantments that cannot sit together never do: a pickaxe gets Fortune or Silk Touch but never
-both, and boots get Depth Strider or Frost Walker.
+both, and boots get Depth Strider or Frost Walker. At the top tier the preferred one wins rather
+than a coin flip, so netherite boots get Depth Strider and a netherite pickaxe gets Fortune.
 
 Items and enchantments are looked up by id (`minecraft:diamond_sword`, `minecraft:mending`), so
 an id that does not exist in your version is skipped instead of breaking the command, and data

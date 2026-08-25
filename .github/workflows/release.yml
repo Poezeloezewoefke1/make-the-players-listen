@@ -97,13 +97,16 @@ jobs:
           | \`/mute <targets> [duration] [reason]\` | Mutes chat, permanently or for a while (\`30s\`, \`10m\`, \`2h\`, \`7d\`, \`1h30m\`, \`perm\`) |
           | \`/unmute <name>\` | Unmutes, also works while the player is offline |
           | \`/mutelist\` / \`/unmuteall\` | List everyone muted / unmute everybody |
-          | \`/kitgive <tier> [targets]\` | Hands out a worn set of armour, tools and a shield with random enchantments. Tiers, weakest first: \`poor\`, \`copper\`, \`iron\`, \`iron_diamond\`, \`diamond\`, \`diamond_netherite\`, \`netherite\` - or \`random\` to roll the tier per player |
+          | \`/kitgive <tier> [targets]\` | Hands out a worn set of armour, tools and a shield with random enchantments. Tiers, weakest first: \`poor\`, \`copper\`, \`iron\`, \`chungie\`, \`diamond\`, \`rich\`, \`netherite\` - or \`random\` to roll the tier per player |
 
           A kit is gear and nothing else - four pieces of armour, four tools and a shield, with
           no food, blocks or loot. It is rolled per player, so handing one command to a group
           gives each of them different wear and different enchantments at randomly rolled levels.
-          Armour only rolls plain Protection and weapons only roll Sharpness. The straight tiers
-          are exactly what they say, and the two mixed tiers always show both of their materials.
+          Every enchanted piece gets its main enchantment - Protection on armour, Sharpness on a
+          weapon, Efficiency on a digging tool - with side enchantments on top, so a diamond
+          helmet reads as Protection III and Aqua Affinity rather than one lucky roll. Netherite
+          does not roll at all: it gets every enchantment its item can carry, at maximum level.
+          No Thorns, and no situational variants - plain Protection and plain Sharpness only.
 
           Freezes and mutes survive relogs and restarts, and timed mutes expire on their own.
           The mute is applied where chat is delivered, so it also covers \`/msg\`, \`/tell\`,

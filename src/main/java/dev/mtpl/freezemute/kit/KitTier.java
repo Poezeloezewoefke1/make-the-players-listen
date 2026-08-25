@@ -20,9 +20,10 @@ import java.util.Set;
  * what a server owner would recognise.
  */
 public enum KitTier {
-	POOR(45, 90, EnchantPower.NONE,
-			List.of(choice("leather", 1)),
-			List.of(choice("stone", 1))),
+	/** Whatever they scraped together: mismatched leather, copper and gold, all of it nearly gone. */
+	POOR(60, 95, EnchantPower.NONE,
+			List.of(choice("leather", 5), choice("copper", 3), choice("golden", 2)),
+			List.of(choice("stone", 4), choice("wooden", 4), choice("golden", 2))),
 
 	COPPER(35, 80, EnchantPower.NONE,
 			List.of(choice("copper", 1)),
@@ -33,7 +34,7 @@ public enum KitTier {
 			List.of(choice("iron", 1))),
 
 	/** Half kitted out: iron and diamond mixed, and which slots got the diamond is the roll. */
-	IRON_DIAMOND(20, 58, EnchantPower.MIXED,
+	CHUNGIE(20, 58, EnchantPower.MIXED,
 			List.of(choice("iron", 5), choice("diamond", 3)),
 			List.of(choice("iron", 4), choice("diamond", 4))),
 
@@ -41,8 +42,8 @@ public enum KitTier {
 			List.of(choice("diamond", 1)),
 			List.of(choice("diamond", 1))),
 
-	/** Most of the way there: diamond and netherite mixed, again decided per slot. */
-	DIAMOND_NETHERITE(10, 42, EnchantPower.BEST,
+	/** Doing well for themselves: diamond and netherite mixed, again decided per slot. */
+	RICH(10, 42, EnchantPower.BEST,
 			List.of(choice("diamond", 5), choice("netherite", 3)),
 			List.of(choice("diamond", 4), choice("netherite", 4))),
 
@@ -170,9 +171,18 @@ public enum KitTier {
 		return toolMaterials;
 	}
 
-	/** True when this tier is a blend of two materials rather than one straight set. */
+	/** True when any slot can come out as more than one material. */
 	public boolean isMixed() {
 		return armourMaterials.size() > 1 || toolMaterials.size() > 1;
+	}
+
+	/**
+	 * True when this tier is a deliberate blend of exactly two materials, which is a promise
+	 * about what a kit contains rather than just a spread of odds. A tier drawing on three or
+	 * more is a grab bag and is left entirely to chance.
+	 */
+	public boolean isBlend() {
+		return armourMaterials.size() == 2 || toolMaterials.size() == 2;
 	}
 
 	/**
@@ -181,8 +191,7 @@ public enum KitTier {
 	 * <p>On a mixed tier each slot picks its own material, which is where the half-geared look
 	 * comes from - one player ends up with the diamond chestplate, the next with diamond boots.
 	 * The roll is then balanced so both of the tier's materials actually turn up, otherwise a
-	 * diamond_netherite kit could come out as plain diamond and be the tier below it wearing the
-	 * wrong name.
+	 * rich kit could come out as plain diamond and be the tier below it wearing the wrong name.
 	 */
 	public List<Gear> rollGear(Random random) {
 		List<Gear> gear = new ArrayList<>();
@@ -200,9 +209,13 @@ public enum KitTier {
 		return gear;
 	}
 
-	/** Promotes or demotes a slot until every material the tier offers is somewhere in the set. */
+	/**
+	 * Promotes or demotes a slot until every material the tier offers is somewhere in the set.
+	 * Only a two-material blend gets this: a grab bag of three or more is meant to be mismatched,
+	 * so forcing one of each would make every kit the same shape.
+	 */
 	private static void balance(List<Gear> gear, boolean armour, List<Choice> materials, Random random) {
-		if (materials.size() < 2) {
+		if (materials.size() != 2) {
 			return;
 		}
 
