@@ -25,6 +25,7 @@ public final class Permissions {
 	public static final String MUTE = "freezemute.mute";
 	public static final String UNMUTE = "freezemute.unmute";
 	public static final String LIST = "freezemute.list";
+	public static final String KITGIVE = "freezemute.kitgive";
 	/** Receives the "player is testing their punishment" messages. */
 	public static final String STAFF = "freezemute.staff";
 

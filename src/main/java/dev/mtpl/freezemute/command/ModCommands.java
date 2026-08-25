@@ -12,5 +12,6 @@ public final class ModCommands {
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		FreezeCommand.register(dispatcher);
 		MuteCommand.register(dispatcher);
+		KitCommand.register(dispatcher);
 	}
 }

@@ -60,6 +60,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/unmute <name>` | Unmutes a player - works while they are offline, tab-completes muted names |
 | `/mutelist` | Lists everyone who is muted, with the time left |
 | `/unmuteall` | Unmutes everybody |
+| `/kitgive <tier> [targets]` | Hands out a used-looking kit - see below. Without targets it gives it to you |
 
 ### Durations
 
@@ -86,7 +87,7 @@ Operators, the console, RCON and command blocks can always use these commands. I
 moderator rank can use the commands without being a full operator:
 
 `freezemute.freeze`, `freezemute.unfreeze`, `freezemute.mute`, `freezemute.unmute`,
-`freezemute.list`, and `freezemute.staff` for the notifications below.
+`freezemute.list`, `freezemute.kitgive`, and `freezemute.staff` for the notifications below.
 
 The mod does not depend on that API: without it, it just checks operator status. The log line at
 startup says which mode is in use.
@@ -140,6 +141,32 @@ refuses to deliver it, so:
   short notice with what was said, so you do not have to go digging.
 * Timed mutes expire on their own; the player is not notified, their next message simply goes
   through.
+
+## Kits
+
+`/kitgive <tier> [targets]` gives out a loadout that looks like it came off somebody who has been
+playing on the server for a while, rather than a shiny box-fresh kit: the gear is worn, some
+pieces are missing on the poorer tiers, and the better tiers carry a few random enchantments.
+
+| Tier | Gear | Enchantments | Condition |
+|---|---|---|---|
+| `poor` | leather armour, stone tools, bread, cobble, torches, junk | none | 45-90% worn |
+| `copper` | chainmail, stone/iron mix, copper ingots and blocks | none | 35-80% worn |
+| `iron` | full iron, bow and arrows, bucket, shield | weak - level 1-2, e.g. Sharpness I, Efficiency II | 25-65% worn |
+| `diamond` | full diamond, golden apples, obsidian, pearls | mixed - up to Sharpness III, Efficiency IV, Protection III | 15-50% worn |
+| `netherite` | full netherite, notch apple, totem, pearls, crossbow | good - Sharpness IV-V, Protection IV, Mending, Fortune III | 5-35% worn |
+
+Every count is rolled per kit, so two `/kitgive iron` never come out the same. Which enchantments
+land on which piece is random too, taken from a pool that suits the item: swords get Sharpness,
+Looting and Fire Aspect, pickaxes get Efficiency and Fortune, boots get Feather Falling and Depth
+Strider.
+
+Minecraft 1.21.11 has no copper tools or armour, so the `copper` tier is built from chainmail and
+a stone/iron mix with copper ingots and blocks as the loot, which is the closest thing to a
+copper-age loadout the version has.
+
+Items are looked up by id (`minecraft:diamond_sword`), so an id that does not exist in your
+version is skipped instead of breaking the command.
 
 ## Notes and limits
 
