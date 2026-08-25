@@ -3,6 +3,7 @@ package dev.mtpl.freezemute.command;
 import java.util.Collection;
 import java.util.List;
 import java.util.Random;
+import java.util.function.Supplier;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -35,23 +36,35 @@ public final class KitCommand {
 				.requires(source -> Permissions.check(source, Permissions.KITGIVE));
 
 		for (KitTier tier : KitTier.values()) {
-			root = root.then(CommandManager.literal(tier.id())
-					.executes(context -> give(context.getSource(), List.of(context.getSource().getPlayerOrThrow()), tier))
-					.then(CommandManager.argument("targets", EntityArgumentType.players())
-							.executes(context -> give(
-									context.getSource(),
-									EntityArgumentType.getPlayers(context, "targets"),
-									tier))));
+			root = root.then(tierNode(tier.id(), () -> tier));
 		}
+
+		// A tier per player, rolled on the spot, for when you want a whole group kitted out
+		// without deciding who gets what.
+		root = root.then(tierNode("random", () -> KitTier.values()[RANDOM.nextInt(KitTier.values().length)]));
 
 		dispatcher.register(root);
 	}
 
-	private static int give(ServerCommandSource source, Collection<ServerPlayerEntity> targets, KitTier tier) {
+	/** One tier literal, usable on yourself or on whoever the targets argument picks out. */
+	private static LiteralArgumentBuilder<ServerCommandSource> tierNode(String name, Supplier<KitTier> tier) {
+		return CommandManager.literal(name)
+				.executes(context -> give(context.getSource(), List.of(context.getSource().getPlayerOrThrow()), tier))
+				.then(CommandManager.argument("targets", EntityArgumentType.players())
+						.executes(context -> give(
+								context.getSource(),
+								EntityArgumentType.getPlayers(context, "targets"),
+								tier)));
+	}
+
+	private static int give(ServerCommandSource source, Collection<ServerPlayerEntity> targets, Supplier<KitTier> roll) {
 		MinecraftServer server = source.getServer();
 		int count = 0;
 
 		for (ServerPlayerEntity target : targets) {
+			// Rolled per player on purpose: handing one command to a group should not give
+			// everybody the same loadout.
+			KitTier tier = roll.get();
 			List<ItemStack> kit = KitGenerator.generate(server, tier, RANDOM);
 
 			for (ItemStack stack : kit) {

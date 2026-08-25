@@ -2,9 +2,12 @@ package dev.mtpl.freezemute.kit;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.Set;
 
 import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.kit.KitTier.EnchantPower;
@@ -12,8 +15,8 @@ import dev.mtpl.freezemute.kit.KitTier.EnchantPower;
 import net.fabricmc.loader.api.FabricLoader;
 
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -23,12 +26,25 @@ import net.minecraft.util.Identifier;
 /**
  * Rolls the random enchantments for a kit.
  *
+ * <p>Nothing here is fixed. Which enchantments a piece gets is drawn from a pool that suits the
+ * item, how many it gets is rolled, and every level is rolled inside a range rather than handed
+ * out at maximum - so a diamond chestplate might come back with Protection II and Thorns I, or
+ * with Blast Protection III and Mending, or with nothing much at all.
+ *
  * <p>Enchantments are looked up in the server's registry by id, so this keeps working with
  * data pack enchantments and does not depend on constants the mappings do not name.
  */
 public final class KitEnchantments {
-	/** One enchantment with the range of levels a tier may roll for it. */
-	private record Option(String id, int minLevel, int maxLevel) {
+	/**
+	 * One enchantment a piece may roll.
+	 *
+	 * @param id the enchantment's registry id
+	 * @param group enchantments that cannot sit on the same item, or null when it conflicts with
+	 *     nothing - only one option per group is ever applied, so a pickaxe never ends up with
+	 *     both Silk Touch and Fortune the way a plain random pick would allow
+	 * @param maxLevel the highest level it may roll here; the level itself is random below that
+	 */
+	private record Option(String id, String group, int maxLevel) {
 	}
 
 	private static final RegistryKey<Registry<Enchantment>> ENCHANTMENT_REGISTRY =
@@ -62,9 +78,9 @@ public final class KitEnchantments {
 	}
 
 	/**
-	 * Enchants one piece of gear. How many enchantments it gets, and how strong, follows the
-	 * tier: iron is scrappy, diamond is respectable, netherite is what you would expect from
-	 * somebody who has been playing for months.
+	 * Enchants one piece of gear, or leaves it plain. How many enchantments it gets and how
+	 * strong they roll follows the power of the piece, which is the tier and its material
+	 * together.
 	 */
 	public static void apply(MinecraftServer server, ItemStack stack, String itemId, EnchantPower power, Random random) {
 		if (power == EnchantPower.NONE) {
@@ -77,6 +93,12 @@ public final class KitEnchantments {
 			return;
 		}
 
+		int wanted = count(power, random);
+
+		if (wanted <= 0) {
+			return;
+		}
+
 		Registry<Enchantment> registry = registry(server);
 
 		if (registry == null) {
@@ -84,15 +106,9 @@ public final class KitEnchantments {
 		}
 
 		List<Option> shuffled = new ArrayList<>(pool);
-		java.util.Collections.shuffle(shuffled, random);
+		Collections.shuffle(shuffled, random);
 
-		int wanted = switch (power) {
-			case WEAK -> 1 + random.nextInt(2);
-			case MIXED -> 1 + random.nextInt(3);
-			case GOOD -> 2 + random.nextInt(3);
-			default -> 0;
-		};
-
+		Set<String> usedGroups = new HashSet<>();
 		int applied = 0;
 
 		for (Option option : shuffled) {
@@ -100,122 +116,172 @@ public final class KitEnchantments {
 				break;
 			}
 
-			Optional<? extends RegistryEntry<Enchantment>> entry = registry.getEntry(Identifier.ofVanilla(option.id()));
+			if (option.group() != null && !usedGroups.add(option.group())) {
+				continue;
+			}
+
+			Optional<? extends RegistryEntry<Enchantment>> entry =
+					registry.getEntry(Identifier.ofVanilla(option.id()));
 
 			if (entry.isEmpty()) {
 				continue;
 			}
 
-			int level = option.minLevel() + random.nextInt(Math.max(1, option.maxLevel() - option.minLevel() + 1));
-			stack.addEnchantment(entry.get(), level);
+			stack.addEnchantment(entry.get(), level(option.maxLevel(), power, random));
 			applied++;
 		}
 	}
 
-	private static List<Option> pool(String itemId, EnchantPower power) {
-		boolean sword = itemId.endsWith("_sword");
-		boolean digger = itemId.endsWith("_pickaxe") || itemId.endsWith("_axe") || itemId.endsWith("_shovel");
-		boolean boots = itemId.endsWith("_boots");
-		boolean armour = boots || itemId.endsWith("_helmet") || itemId.endsWith("_chestplate")
-				|| itemId.endsWith("_leggings");
-		boolean bow = itemId.equals("bow") || itemId.equals("crossbow");
+	/** How many enchantments to try for. The weaker tiers may well roll none at all. */
+	private static int count(EnchantPower power, Random random) {
+		return switch (power) {
+			case WEAK -> random.nextInt(3);
+			case MIXED -> 1 + random.nextInt(2);
+			case GOOD -> 1 + random.nextInt(3);
+			case BEST -> 2 + random.nextInt(3);
+			default -> 0;
+		};
+	}
 
+	/**
+	 * Rolls a level between one and the cap. The better kits roll twice and keep the higher one,
+	 * so netherite gear leans towards the top of its range without ever being guaranteed it.
+	 */
+	private static int level(int maxLevel, EnchantPower power, Random random) {
+		int cap = Math.max(1, maxLevel);
+		int rolled = 1 + random.nextInt(cap);
+
+		if (power.atLeast(EnchantPower.GOOD)) {
+			rolled = Math.max(rolled, 1 + random.nextInt(cap));
+		}
+
+		return rolled;
+	}
+
+	/**
+	 * What this item could roll at this power. The pool is built per item so a sword never gets
+	 * Feather Falling, and every option carries the weakest kit that may see it, so the better
+	 * gear draws from a visibly wider pool rather than just higher numbers.
+	 */
+	private static List<Option> pool(String itemId, EnchantPower power) {
 		List<Option> options = new ArrayList<>();
 
-		switch (power) {
-			case WEAK -> {
-				if (sword) {
-					options.add(new Option("sharpness", 1, 1));
-					options.add(new Option("unbreaking", 1, 1));
-				}
+		boolean helmet = itemId.endsWith("_helmet");
+		boolean chestplate = itemId.endsWith("_chestplate");
+		boolean leggings = itemId.endsWith("_leggings");
+		boolean boots = itemId.endsWith("_boots");
+		boolean armour = helmet || chestplate || leggings || boots;
 
-				if (digger) {
-					options.add(new Option("efficiency", 1, 2));
-					options.add(new Option("unbreaking", 1, 1));
-				}
+		boolean sword = itemId.endsWith("_sword");
+		boolean axe = itemId.endsWith("_axe");
+		boolean digger = itemId.endsWith("_pickaxe") || itemId.endsWith("_shovel") || axe;
+		boolean hoe = itemId.endsWith("_hoe");
 
-				if (armour) {
-					options.add(new Option("protection", 1, 1));
-					options.add(new Option("unbreaking", 1, 1));
-				}
+		if (armour) {
+			add(options, power, "protection", "protection", EnchantPower.WEAK, cap(power, 1, 2, 3, 4));
+			add(options, power, "blast_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
+			add(options, power, "fire_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
+			add(options, power, "projectile_protection", "protection", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "thorns", null, EnchantPower.GOOD, cap(power, 1, 1, 2, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (boots) {
-					options.add(new Option("feather_falling", 1, 1));
-				}
+		if (helmet) {
+			add(options, power, "aqua_affinity", null, EnchantPower.MIXED, 1);
+			add(options, power, "respiration", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+		}
 
-				if (bow) {
-					options.add(new Option("power", 1, 1));
-				}
-			}
-			case MIXED -> {
-				if (sword) {
-					options.add(new Option("sharpness", 2, 3));
-					options.add(new Option("looting", 1, 2));
-					options.add(new Option("fire_aspect", 1, 1));
-					options.add(new Option("unbreaking", 2, 2));
-				}
+		if (boots) {
+			add(options, power, "feather_falling", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 4));
+			add(options, power, "depth_strider", "walking", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "frost_walker", "walking", EnchantPower.GOOD, cap(power, 1, 1, 2, 2));
+			add(options, power, "soul_speed", null, EnchantPower.BEST, 3);
+		}
 
-				if (digger) {
-					options.add(new Option("efficiency", 3, 4));
-					options.add(new Option("unbreaking", 2, 3));
-					options.add(new Option("fortune", 1, 2));
-				}
+		if (leggings) {
+			add(options, power, "swift_sneak", null, EnchantPower.BEST, 3);
+		}
 
-				if (armour) {
-					options.add(new Option("protection", 2, 3));
-					options.add(new Option("unbreaking", 2, 3));
-				}
+		if (sword || axe) {
+			add(options, power, "sharpness", "damage", EnchantPower.WEAK, cap(power, 1, 2, 3, 5));
+			add(options, power, "smite", "damage", EnchantPower.MIXED, cap(power, 1, 2, 4, 5));
+			add(options, power, "bane_of_arthropods", "damage", EnchantPower.MIXED, cap(power, 1, 2, 4, 5));
+		}
 
-				if (boots) {
-					options.add(new Option("feather_falling", 2, 3));
-					options.add(new Option("depth_strider", 1, 2));
-				}
+		if (sword) {
+			add(options, power, "knockback", null, EnchantPower.WEAK, cap(power, 1, 1, 2, 2));
+			add(options, power, "fire_aspect", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
+			add(options, power, "looting", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (bow) {
-					options.add(new Option("power", 2, 3));
-					options.add(new Option("punch", 1, 1));
-				}
-			}
-			case GOOD -> {
-				if (sword) {
-					options.add(new Option("sharpness", 4, 5));
-					options.add(new Option("looting", 2, 3));
-					options.add(new Option("fire_aspect", 2, 2));
-					options.add(new Option("unbreaking", 3, 3));
-					options.add(new Option("mending", 1, 1));
-					options.add(new Option("sweeping_edge", 2, 3));
-				}
+		if (digger || hoe) {
+			add(options, power, "efficiency", null, EnchantPower.WEAK, cap(power, 2, 3, 4, 5));
+			add(options, power, "fortune", "digging", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "silk_touch", "digging", EnchantPower.GOOD, 1);
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (digger) {
-					options.add(new Option("efficiency", 4, 5));
-					options.add(new Option("unbreaking", 3, 3));
-					options.add(new Option("fortune", 2, 3));
-					options.add(new Option("mending", 1, 1));
-				}
+		if (itemId.equals("bow")) {
+			add(options, power, "power", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 5));
+			add(options, power, "punch", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
+			add(options, power, "flame", null, EnchantPower.GOOD, 1);
+			add(options, power, "infinity", "mending", EnchantPower.BEST, 1);
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (armour) {
-					options.add(new Option("protection", 3, 4));
-					options.add(new Option("unbreaking", 3, 3));
-					options.add(new Option("mending", 1, 1));
-					options.add(new Option("thorns", 1, 2));
-				}
+		if (itemId.equals("crossbow")) {
+			add(options, power, "quick_charge", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "piercing", "loading", EnchantPower.MIXED, cap(power, 1, 2, 3, 4));
+			add(options, power, "multishot", "loading", EnchantPower.GOOD, 1);
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (boots) {
-					options.add(new Option("feather_falling", 3, 4));
-					options.add(new Option("depth_strider", 2, 3));
-				}
+		if (itemId.equals("trident")) {
+			add(options, power, "impaling", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 5));
+			add(options, power, "loyalty", "throwing", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "riptide", "throwing", EnchantPower.GOOD, cap(power, 1, 1, 2, 3));
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
 
-				if (bow) {
-					options.add(new Option("power", 4, 5));
-					options.add(new Option("flame", 1, 1));
-					options.add(new Option("unbreaking", 3, 3));
-				}
-			}
-			default -> {
-			}
+		if (itemId.equals("fishing_rod")) {
+			add(options, power, "luck_of_the_sea", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "lure", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
+		}
+
+		if (itemId.equals("shield") || itemId.equals("elytra")) {
+			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
+			add(options, power, "mending", "mending", EnchantPower.GOOD, 1);
 		}
 
 		return options;
+	}
+
+	/** Adds an option, unless this kit is too poor to have seen that enchantment at all. */
+	private static void add(List<Option> options, EnchantPower power, String id, String group,
+			EnchantPower minPower, int maxLevel) {
+		if (power.atLeast(minPower)) {
+			options.add(new Option(id, group, maxLevel));
+		}
+	}
+
+	/** The level cap for the current power: one number per step from weak to best. */
+	private static int cap(EnchantPower power, int weak, int mixed, int good, int best) {
+		return switch (power) {
+			case WEAK -> weak;
+			case MIXED -> mixed;
+			case GOOD -> good;
+			case BEST -> best;
+			default -> 0;
+		};
 	}
 
 	@SuppressWarnings("unchecked")
@@ -234,16 +300,13 @@ public final class KitEnchantments {
 	private static Method findRegistryLookup() {
 		try {
 			String name = FabricLoader.getInstance().getMappingResolver().mapMethodName(
-					"intermediary",
-					"net.minecraft.class_5455",
-					"method_30530",
+					"intermediary", "net.minecraft.class_5455", "method_30530",
 					"(Lnet/minecraft/class_5321;)Lnet/minecraft/class_2378;");
 			Method method = DynamicRegistryManager.class.getMethod(name, RegistryKey.class);
 			method.setAccessible(true);
 			return method;
 		} catch (Throwable throwable) {
-			FreezeMute.LOGGER.warn(
-					"Could not find the registry lookup ({}), so kits will be handed out without enchantments",
+			FreezeMute.LOGGER.warn("Could not find the registry lookup ({}), so kits will be handed out without enchantments",
 					throwable.toString());
 			return null;
 		}

@@ -17,45 +17,44 @@ import net.minecraft.util.Identifier;
  * Builds a kit that looks like it belonged to somebody who has been playing for a while:
  * worn gear, a few random enchantments on the better tiers, some food, some blocks and whatever
  * odds and ends were in their inventory.
+ *
+ * <p>Every part of it is rolled fresh, so handing the same tier to a group of players gives each
+ * of them a different loadout rather than the same one several times over: which material each
+ * slot came out as, whether the slot is filled at all, how worn it is, what it is enchanted with
+ * and which supplies came along are all separate rolls.
  */
 public final class KitGenerator {
 	private KitGenerator() {
 	}
 
 	public static List<ItemStack> generate(MinecraftServer server, KitTier tier, Random random) {
+		List<String> gearIds = new ArrayList<>();
+
+		for (String slot : KitTier.ARMOUR_SLOTS) {
+			if (random.nextInt(100) < tier.presencePercent()) {
+				gearIds.add(tier.rollArmour(slot, random));
+			}
+		}
+
+		for (String slot : KitTier.TOOL_SLOTS) {
+			if (random.nextInt(100) < tier.presencePercent()) {
+				gearIds.add(tier.rollTool(slot, random));
+			}
+		}
+
+		tier.ensureSignature(gearIds, random);
+
 		List<ItemStack> stacks = new ArrayList<>();
-		int presence = presenceChance(tier);
 
-		for (String id : tier.armour()) {
-			if (random.nextInt(100) < presence) {
-				gear(server, id, tier, random).ifPresent(stacks::add);
-			}
+		for (String id : gearIds) {
+			gear(server, id, tier, random).ifPresent(stacks::add);
 		}
 
-		for (String id : tier.tools()) {
-			if (random.nextInt(100) < presence) {
-				gear(server, id, tier, random).ifPresent(stacks::add);
-			}
+		for (Stack supply : tier.rollSupplies(random)) {
+			supply(server, supply, tier, random).ifPresent(stacks::add);
 		}
-
-		addSupplies(stacks, tier.food(), random);
-		addSupplies(stacks, tier.blocks(), random);
-		addSupplies(stacks, tier.oddsAndEnds(), random);
 
 		return stacks;
-	}
-
-	/** How likely each piece of gear is to be there at all - poorer players have gaps. */
-	private static int presenceChance(KitTier tier) {
-		return switch (tier) {
-			case POOR -> 65;
-			case COPPER -> 75;
-			case IRON -> 85;
-			case IRON_DIAMOND -> 88;
-			case DIAMOND -> 90;
-			case DIAMOND_NETHERITE -> 95;
-			case NETHERITE -> 100;
-		};
 	}
 
 	private static Optional<ItemStack> gear(MinecraftServer server, String id, KitTier tier, Random random) {
@@ -68,6 +67,29 @@ public final class KitGenerator {
 		ItemStack stack = maybe.get();
 		wear(stack, tier, random);
 		KitEnchantments.apply(server, stack, id, tier.enchantPowerFor(id), random);
+		return Optional.of(stack);
+	}
+
+	/**
+	 * Rolls one supply stack. Anything with a durability bar - a bow, a shield, a trident - is
+	 * treated as gear too, so it comes out used and possibly enchanted rather than brand new.
+	 */
+	private static Optional<ItemStack> supply(MinecraftServer server, Stack supply, KitTier tier, Random random) {
+		int spread = Math.max(1, supply.max() - supply.min() + 1);
+		int count = Math.max(1, supply.min() + random.nextInt(spread));
+		Optional<ItemStack> maybe = stack(supply.id(), count);
+
+		if (maybe.isEmpty()) {
+			return maybe;
+		}
+
+		ItemStack stack = maybe.get();
+
+		if (stack.isDamageable()) {
+			wear(stack, tier, random);
+			KitEnchantments.apply(server, stack, supply.id(), tier.enchantPowerFor(supply.id()), random);
+		}
+
 		return Optional.of(stack);
 	}
 
@@ -89,19 +111,6 @@ public final class KitGenerator {
 
 		if (damage > 0) {
 			stack.setDamage(damage);
-		}
-	}
-
-	private static void addSupplies(List<ItemStack> stacks, List<Stack> supplies, Random random) {
-		for (Stack supply : supplies) {
-			int spread = Math.max(1, supply.max() - supply.min() + 1);
-			int count = supply.min() + random.nextInt(spread);
-
-			if (count <= 0) {
-				continue;
-			}
-
-			stack(supply.id(), count).ifPresent(stacks::add);
 		}
 	}
 
