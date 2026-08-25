@@ -40,20 +40,24 @@ jobs:
           URL="https://maven.fabricmc.net/net/fabricmc/yarn/${PINNED}/yarn-${PINNED}-v2.jar"
           echo "fetching $URL"
           curl -sSL --max-time 120 -o yarn.jar "$URL"
-          unzip -o -q yarn.jar mappings/mappings.tiny -d yarn-mappings
+          ls -la yarn.jar
+          unzip -o -q yarn.jar -d yarn-mappings
+          find yarn-mappings -type f | head
+          TINY=$(find yarn-mappings -name '*.tiny' | head -1)
+          echo "tiny file: $TINY"
+          echo "--- header and first rows ---"
+          head -5 "$TINY" | cat -A | cut -c1-200
 
-          # Prints every member of the named classes, exactly as the pinned build has them.
           for want in \
             net/minecraft/registry/DynamicRegistryManager \
-            net/minecraft/registry/Registry \
             net/minecraft/command/CommandRegistryAccess \
             net/minecraft/registry/RegistryWrapper ; do
             echo "===== $want ====="
-            awk -v want="$want" '
-              $1 == "c" { inclass = ($NF == want) }
-              inclass && $1 != "c" { print }
-            ' yarn-mappings/mappings/mappings.tiny | head -60
+            grep -n -m1 -A 25 -F "$want" "$TINY" | cut -c1-220 || echo "(not found)"
           done
+
+          echo "===== anything named getRegistryManager / getOrThrow on class_5455 ====="
+          grep -n -F "class_5455" "$TINY" | head -20 | cut -c1-220
 
       - name: build
         run: ./gradlew build --stacktrace
