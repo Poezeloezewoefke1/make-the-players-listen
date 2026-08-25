@@ -153,8 +153,15 @@ pieces are missing on the poorer tiers, and the better tiers carry a few random 
 | `poor` | leather armour, stone tools, bread, cobble, torches, junk | none | 45-90% worn |
 | `copper` | chainmail, stone/iron mix, copper ingots and blocks | none | 35-80% worn |
 | `iron` | full iron, bow and arrows, bucket, shield | weak - level 1-2, e.g. Sharpness I, Efficiency II | 25-65% worn |
+| `iron_diamond` | diamond sword, pickaxe, chestplate and boots over iron | per piece: iron parts weak, diamond parts mixed | 20-58% worn |
 | `diamond` | full diamond, golden apples, obsidian, pearls | mixed - up to Sharpness III, Efficiency IV, Protection III | 15-50% worn |
+| `diamond_netherite` | netherite sword, axe, chestplate and boots over diamond | per piece: diamond parts mixed, netherite parts good | 10-42% worn |
 | `netherite` | full netherite, notch apple, totem, pearls, crossbow | good - Sharpness IV-V, Protection IV, Mending, Fortune III | 5-35% worn |
+
+The two mixed tiers are the half-geared look you actually see on an SMP: someone with a diamond
+sword and a couple of good pieces, the rest still iron. Enchantments there follow the piece rather
+than the tier - the iron helmet rolls weak while the diamond chestplate rolls mixed - so a mixed
+kit reads as gear collected over time instead of handed out in one go.
 
 Every count is rolled per kit, so two `/kitgive iron` never come out the same. Which enchantments
 land on which piece is random too, taken from a pool that suits the item: swords get Sharpness,

@@ -26,11 +26,33 @@ class KitTierTest {
 
 	@Test
 	void onlyTheBetterTiersAreEnchanted() {
-		assertEquals(EnchantPower.NONE, KitTier.POOR.enchantPower());
-		assertEquals(EnchantPower.NONE, KitTier.COPPER.enchantPower());
-		assertEquals(EnchantPower.WEAK, KitTier.IRON.enchantPower());
-		assertEquals(EnchantPower.MIXED, KitTier.DIAMOND.enchantPower());
-		assertEquals(EnchantPower.GOOD, KitTier.NETHERITE.enchantPower());
+		assertEquals(EnchantPower.NONE, KitTier.POOR.enchantCeiling());
+		assertEquals(EnchantPower.NONE, KitTier.COPPER.enchantCeiling());
+		assertEquals(EnchantPower.WEAK, KitTier.IRON.enchantCeiling());
+		assertEquals(EnchantPower.MIXED, KitTier.IRON_DIAMOND.enchantCeiling());
+		assertEquals(EnchantPower.MIXED, KitTier.DIAMOND.enchantCeiling());
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND_NETHERITE.enchantCeiling());
+		assertEquals(EnchantPower.GOOD, KitTier.NETHERITE.enchantCeiling());
+	}
+
+	@Test
+	void mixedKitsEnchantEachPieceForWhatItIsMadeOf() {
+		// The iron half of an iron/diamond kit stays scrappy, the diamond half does not.
+		assertEquals(EnchantPower.WEAK, KitTier.IRON_DIAMOND.enchantPowerFor("iron_helmet"));
+		assertEquals(EnchantPower.MIXED, KitTier.IRON_DIAMOND.enchantPowerFor("diamond_sword"));
+
+		// Same idea one tier up: diamond parts stay mixed, netherite parts get the good rolls.
+		assertEquals(EnchantPower.MIXED, KitTier.DIAMOND_NETHERITE.enchantPowerFor("diamond_pickaxe"));
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND_NETHERITE.enchantPowerFor("netherite_sword"));
+
+		// A tier never lets a piece punch above its own ceiling.
+		assertEquals(EnchantPower.WEAK, KitTier.IRON.enchantPowerFor("diamond_sword"));
+		assertEquals(EnchantPower.NONE, KitTier.POOR.enchantPowerFor("diamond_sword"));
+		assertEquals(EnchantPower.NONE, KitTier.COPPER.enchantPowerFor("chainmail_chestplate"));
+
+		// Leather and stone are never worth enchanting whatever the tier says.
+		assertEquals(EnchantPower.NONE, KitTier.NETHERITE.enchantPowerFor("leather_boots"));
+		assertEquals(EnchantPower.NONE, KitTier.DIAMOND.enchantPowerFor("stone_axe"));
 	}
 
 	@Test

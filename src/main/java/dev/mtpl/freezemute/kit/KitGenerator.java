@@ -51,7 +51,9 @@ public final class KitGenerator {
 			case POOR -> 65;
 			case COPPER -> 75;
 			case IRON -> 85;
+			case IRON_DIAMOND -> 88;
 			case DIAMOND -> 90;
+			case DIAMOND_NETHERITE -> 95;
 			case NETHERITE -> 100;
 		};
 	}
@@ -65,7 +67,7 @@ public final class KitGenerator {
 
 		ItemStack stack = maybe.get();
 		wear(stack, tier, random);
-		KitEnchantments.apply(server, stack, id, tier.enchantPower(), random);
+		KitEnchantments.apply(server, stack, id, tier.enchantPowerFor(id), random);
 		return Optional.of(stack);
 	}
 

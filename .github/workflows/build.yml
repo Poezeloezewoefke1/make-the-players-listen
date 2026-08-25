@@ -35,29 +35,29 @@ jobs:
 
       - name: dump the pinned mappings for the classes we build against
         run: |
-          set -o pipefail
           PINNED=$(grep '^yarn_mappings=' gradle.properties | cut -d= -f2 | tr -d '\r')
           URL="https://maven.fabricmc.net/net/fabricmc/yarn/${PINNED}/yarn-${PINNED}-v2.jar"
-          echo "fetching $URL"
           curl -sSL --max-time 120 -o yarn.jar "$URL"
-          ls -la yarn.jar
           unzip -o -q yarn.jar -d yarn-mappings
-          find yarn-mappings -type f | head
           TINY=$(find yarn-mappings -name '*.tiny' | head -1)
-          echo "tiny file: $TINY"
-          echo "--- header and first rows ---"
-          head -5 "$TINY" | cat -A | cut -c1-200
+          echo "mappings: $PINNED ($TINY)"
 
-          for want in \
-            net/minecraft/registry/DynamicRegistryManager \
-            net/minecraft/command/CommandRegistryAccess \
-            net/minecraft/registry/RegistryWrapper ; do
-            echo "===== $want ====="
-            grep -n -m1 -A 25 -F "$want" "$TINY" | cut -c1-220 || echo "(not found)"
-          done
+          # Members are "<tab>m<tab><descriptor><tab><intermediary><tab><named>" under a
+          # "c<tab><intermediary><tab><named>" line, so print the block after the class line.
+          dump() {
+            local n
+            n=$(grep -n -m1 -P "^c\t[^\t]+\t$1\$" "$TINY" | cut -d: -f1)
+            echo "===== $1 ====="
+            if [ -z "$n" ]; then
+              echo "(not found in this build)"
+              return
+            fi
+            sed -n "${n},$((n + 45))p" "$TINY"
+          }
 
-          echo "===== anything named getRegistryManager / getOrThrow on class_5455 ====="
-          grep -n -F "class_5455" "$TINY" | head -20 | cut -c1-220
+          dump net/minecraft/registry/DynamicRegistryManager
+          dump net/minecraft/registry/Registry
+          dump net/minecraft/registry/Registries
 
       - name: build
         run: ./gradlew build --stacktrace
