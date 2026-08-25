@@ -33,6 +33,28 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: dump the pinned mappings for the classes we build against
+        run: |
+          set -o pipefail
+          PINNED=$(grep '^yarn_mappings=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          URL="https://maven.fabricmc.net/net/fabricmc/yarn/${PINNED}/yarn-${PINNED}-v2.jar"
+          echo "fetching $URL"
+          curl -sSL --max-time 120 -o yarn.jar "$URL"
+          unzip -o -q yarn.jar mappings/mappings.tiny -d yarn-mappings
+
+          # Prints every member of the named classes, exactly as the pinned build has them.
+          for want in \
+            net/minecraft/registry/DynamicRegistryManager \
+            net/minecraft/registry/Registry \
+            net/minecraft/command/CommandRegistryAccess \
+            net/minecraft/registry/RegistryWrapper ; do
+            echo "===== $want ====="
+            awk -v want="$want" '
+              $1 == "c" { inclass = ($NF == want) }
+              inclass && $1 != "c" { print }
+            ' yarn-mappings/mappings/mappings.tiny | head -60
+          done
+
       - name: build
         run: ./gradlew build --stacktrace
 
