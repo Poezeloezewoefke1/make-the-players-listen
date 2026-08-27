@@ -55,11 +55,17 @@ jobs:
           echo "$ITEMS" | grep '^copper' || echo "  (none)"
           echo "===== which enchantments each kit weapon may legitimately carry ====="
           # The enchantable tags decide what an item is allowed to hold, so this says whether a
-          # spear really takes the sword enchantments the kits give it.
-          for TAG in sharp_weapon weapon durability mining fire_aspect; do
+          # spear really takes the sword enchantments the kits give it. They are written in terms
+          # of other tags, so pull out every item tag and follow them.
+          mkdir -p tags && unzip -q -o client.jar 'data/minecraft/tags/item/*' -d tags
+          TAGS=tags/data/minecraft/tags/item
+          echo "--- every item tag that mentions a spear ---"
+          grep -rl spear "$TAGS" 2>/dev/null | sed "s|$TAGS/||" || echo "  (none)"
+          for TAG in enchantable/melee_weapon enchantable/sharp_weapon enchantable/durability \
+                     enchantable/fire_aspect swords spears; do
             echo "--- $TAG ---"
-            unzip -p client.jar "data/minecraft/tags/item/enchantable/$TAG.json" 2>/dev/null \
-              | tr -d ' \n' || echo "  (no such tag)"
+            unzip -p client.jar "data/minecraft/tags/item/$TAG.json" 2>/dev/null | tr -d ' \n' \
+              || echo "  (no such tag)"
             echo
           done
 
