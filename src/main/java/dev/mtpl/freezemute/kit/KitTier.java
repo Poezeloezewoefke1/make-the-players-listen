@@ -64,8 +64,11 @@ public enum KitTier {
 	/** The armour slots every kit fills, in the order they are handed out. */
 	public static final List<String> ARMOUR_SLOTS = List.of("helmet", "chestplate", "leggings", "boots");
 
-	/** The tools every kit comes with. */
-	public static final List<String> TOOL_SLOTS = List.of("sword", "pickaxe", "axe", "shovel");
+	/**
+	 * The tools every kit comes with. Every material a kit can be made of has a spear in 1.21.11,
+	 * the same as it has a sword, so it slots in as an ordinary piece of the set.
+	 */
+	public static final List<String> TOOL_SLOTS = List.of("sword", "spear", "pickaxe", "axe", "shovel");
 
 	/** The one item in a kit that has no material tier of its own. */
 	public static final String SHIELD = "shield";

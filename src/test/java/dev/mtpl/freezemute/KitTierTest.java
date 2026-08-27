@@ -26,7 +26,8 @@ class KitTierTest {
 			for (int roll = 0; roll < 200; roll++) {
 				List<Gear> gear = tier.rollGear(random);
 
-				assertEquals(8, gear.size(), tier + " should hand out four pieces of armour and four tools");
+				assertEquals(KitTier.ARMOUR_SLOTS.size() + KitTier.TOOL_SLOTS.size(), gear.size(),
+						tier + " should fill every armour slot and every tool slot");
 
 				Set<String> slots = new HashSet<>();
 

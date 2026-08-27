@@ -163,8 +163,9 @@ playing on the server for a while, rather than a shiny box-fresh kit. Without ta
 you; with them it goes to whoever the selector picks out - `/kitgive rich @a`, `/kitgive chungie
 Steve Alex`, `/kitgive random @a`.
 
-**A kit is gear and nothing else**: four pieces of armour, four tools and a shield. No food, no
-blocks, no loot, no experience bottles - nine items, all of them wearable or swingable.
+**A kit is gear and nothing else**: four pieces of armour, five tools (sword, spear, pickaxe,
+axe, shovel) and a shield. No food, no
+blocks, no loot, no experience bottles - ten items, all of them wearable or swingable.
 
 | Tier | Armour | Tools | Enchantments | Condition |
 |---|---|---|---|---|
@@ -201,7 +202,7 @@ the wrong name.
 | Chestplate | Protection | Unbreaking, Mending\* |
 | Leggings | Protection | Swift Sneak\*, Unbreaking, Mending\* |
 | Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Frost Walker, Unbreaking, Mending |
-| Sword | Sharpness | Looting, Fire Aspect, Unbreaking, Mending\* |
+| Sword, spear | Sharpness | Looting, Fire Aspect, Unbreaking, Mending\* |
 | Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending\* |
 | Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending\* |
 | Shield | Unbreaking | Mending\* |
@@ -246,7 +247,7 @@ the point of naming a tier after its enchantments.
 | Chestplate | Protection IV, Unbreaking III |
 | Leggings | Protection IV, Unbreaking III |
 | Boots | Protection IV, Feather Falling IV, Depth Strider III, Unbreaking III |
-| Sword | Sharpness V, Looting III, Fire Aspect II, Unbreaking III |
+| Sword, spear | Sharpness V, Looting III, Fire Aspect II, Unbreaking III |
 | Axe | Sharpness V, Efficiency V, Fortune III, Unbreaking III |
 | Pickaxe, shovel | Efficiency V, Fortune III, Unbreaking III |
 | Shield | Unbreaking III |

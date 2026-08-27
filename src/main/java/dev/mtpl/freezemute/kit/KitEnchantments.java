@@ -153,7 +153,7 @@ public final class KitEnchantments {
 			return "protection";
 		}
 
-		if (itemId.endsWith("_sword") || itemId.endsWith("_axe")) {
+		if (itemId.endsWith("_sword") || itemId.endsWith("_spear") || itemId.endsWith("_axe")) {
 			return "sharpness";
 		}
 
@@ -238,6 +238,7 @@ public final class KitEnchantments {
 		boolean armour = helmet || leggings || boots || itemId.endsWith("_chestplate");
 
 		boolean sword = itemId.endsWith("_sword");
+		boolean spear = itemId.endsWith("_spear");
 		boolean axe = itemId.endsWith("_axe");
 		boolean digger = itemId.endsWith("_pickaxe") || itemId.endsWith("_shovel") || axe;
 
@@ -257,7 +258,7 @@ public final class KitEnchantments {
 			add(options, power, "swift_sneak", null, EnchantPower.BEST, 3);
 		}
 
-		if (sword) {
+		if (sword || spear) {
 			add(options, power, "looting", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
 			add(options, power, "fire_aspect", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
 		}
@@ -271,7 +272,7 @@ public final class KitEnchantments {
 			add(options, power, "efficiency", null, EnchantPower.WEAK, cap(power, 2, 3, 4, 5));
 		}
 
-		if (armour || sword || digger || itemId.equals(KitTier.SHIELD)) {
+		if (armour || sword || spear || digger || itemId.equals(KitTier.SHIELD)) {
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
 			// Top tier only, the same as Swift Sneak and Soul Speed: in practice that means
 			// netherite pieces and nothing else, so diamond gear wears out for good.

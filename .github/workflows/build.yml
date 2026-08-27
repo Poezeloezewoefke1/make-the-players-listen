@@ -53,6 +53,15 @@ jobs:
             || echo "  (none)"
           echo "===== the copper items, for naming reference ====="
           echo "$ITEMS" | grep '^copper' || echo "  (none)"
+          echo "===== which enchantments each kit weapon may legitimately carry ====="
+          # The enchantable tags decide what an item is allowed to hold, so this says whether a
+          # spear really takes the sword enchantments the kits give it.
+          for TAG in sharp_weapon weapon durability mining fire_aspect; do
+            echo "--- $TAG ---"
+            unzip -p client.jar "data/minecraft/tags/item/enchantable/$TAG.json" 2>/dev/null \
+              | tr -d ' \n' || echo "  (no such tag)"
+            echo
+          done
 
       - name: dump the voice chat api we build against
         continue-on-error: true

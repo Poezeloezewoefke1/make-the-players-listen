@@ -31,6 +31,7 @@ class KitEnchantmentsTest {
 		assertEquals("protection", KitEnchantments.primaryFor("diamond_boots"));
 		assertEquals("sharpness", KitEnchantments.primaryFor("netherite_sword"));
 		assertEquals("sharpness", KitEnchantments.primaryFor("diamond_axe"));
+		assertEquals("sharpness", KitEnchantments.primaryFor("netherite_spear"));
 		assertEquals("efficiency", KitEnchantments.primaryFor("iron_pickaxe"));
 		assertEquals("efficiency", KitEnchantments.primaryFor("diamond_shovel"));
 		assertEquals("unbreaking", KitEnchantments.primaryFor(KitTier.SHIELD));
@@ -43,6 +44,27 @@ class KitEnchantmentsTest {
 						piece.itemId() + " has no main enchantment to build on");
 			}
 		}
+	}
+
+	@Test
+	void theSpearIsTreatedAsTheWeaponItIs() {
+		// Every material a kit uses has a spear, so it is an ordinary slot rather than a special
+		// case - and it carries what a sword of the same material carries.
+		assertTrue(KitTier.TOOL_SLOTS.contains("spear"));
+
+		List<String> spear = KitEnchantments.sideIds("netherite_spear", EnchantPower.BEST);
+		assertTrue(spear.contains("looting"));
+		assertTrue(spear.contains("fire_aspect"));
+		assertTrue(spear.contains("unbreaking"));
+		assertTrue(spear.contains("mending"));
+
+		// And not the ones that belong to other kinds of tool.
+		assertFalse(spear.contains("efficiency"));
+		assertFalse(spear.contains("fortune"));
+		assertFalse(spear.contains("feather_falling"));
+
+		// A diamond spear is diamond-grade, so no Mending, the same as the rest of that kit.
+		assertFalse(KitEnchantments.sideIds("diamond_spear", EnchantPower.GOOD).contains("mending"));
 	}
 
 	@Test
