@@ -172,7 +172,7 @@ blocks, no loot, no experience bottles - nine items, all of them wearable or swi
 | `copper` | copper | copper | none | 35-80% worn |
 | `iron` | iron | iron | weak - main enchantment at level 1-2, maybe one side | 25-65% worn |
 | `chungie` | iron and diamond, per slot | iron and diamond, per slot | iron parts weak, diamond parts middling | 20-58% worn |
-| `diamond` | diamond | diamond | good - Prot III, Sharpness III, Efficiency IV, plus 1-3 sides | 15-50% worn |
+| `diamond` | diamond | diamond | good - Prot III, Sharpness III, Efficiency IV, plus 1-3 sides. No Mending | 15-50% worn |
 | `rich` | diamond and netherite, per slot | diamond and netherite, per slot | diamond parts good, netherite parts maxed | 10-42% worn |
 | `netherite` | netherite | netherite | the best - everything the item can carry, at max level | 5-35% worn |
 | `diamondprot4nomendingunbreaking3` | diamond | diamond | Protection IV, Unbreaking III, Sharpness V, Efficiency V - the top rolls, but **no Mending, Swift Sneak or Soul Speed** | 12-45% worn |
@@ -197,18 +197,24 @@ the wrong name.
 
 | Item | Main enchantment | Sides it can pick up |
 |---|---|---|
-| Helmet | Protection | Aqua Affinity, Respiration, Unbreaking, Mending |
-| Chestplate | Protection | Unbreaking, Mending |
-| Leggings | Protection | Swift Sneak, Unbreaking, Mending |
+| Helmet | Protection | Aqua Affinity, Respiration, Unbreaking, Mending\* |
+| Chestplate | Protection | Unbreaking, Mending\* |
+| Leggings | Protection | Swift Sneak\*, Unbreaking, Mending\* |
 | Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Frost Walker, Unbreaking, Mending |
-| Sword | Sharpness | Looting, Fire Aspect, Unbreaking, Mending |
-| Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending |
-| Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending |
-| Shield | Unbreaking | Mending |
+| Sword | Sharpness | Looting, Fire Aspect, Unbreaking, Mending\* |
+| Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending\* |
+| Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending\* |
+| Shield | Unbreaking | Mending\* |
 
 So an enchanted chestplate always actually protects and an enchanted sword always actually hits
 harder - the sides are extras, never a substitute. A diamond helmet reads as Protection III and
 Aqua Affinity, not as whichever single enchantment a shuffle happened to land on.
+
+\* **Mending, Swift Sneak and Soul Speed are netherite only.** They need the top tier, which
+only netherite pieces reach - so the `netherite` tier gets them, the netherite half of a `rich`
+kit gets them, and nothing else does. A diamond kit never repairs itself, and neither does the
+diamond half of a mixed one. (The shield has no material of its own and follows the kit, so it
+picks up Mending on `rich` and `netherite`.)
 
 **No Thorns and no Knockback**, anywhere, at any tier. Armour only ever rolls plain Protection and weapons only
 ever roll Sharpness - Blast, Fire and Projectile Protection, Smite and Bane of Arthropods are all

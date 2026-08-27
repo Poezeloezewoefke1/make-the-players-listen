@@ -90,7 +90,6 @@ class KitEnchantmentsTest {
 		assertFalse(weak.contains("aqua_affinity"), "an iron helmet should not roll Aqua Affinity");
 		assertTrue(good.contains("aqua_affinity"), "a diamond helmet should be able to roll Aqua Affinity");
 		assertTrue(good.contains("respiration"));
-		assertTrue(good.contains("mending"));
 		assertTrue(best.size() >= good.size(), "netherite should draw on at least as much as diamond");
 
 		// The pieces that only the top tier ever sees.
@@ -163,6 +162,32 @@ class KitEnchantmentsTest {
 	}
 
 	@Test
+	void onlyNetheritePiecesRepairThemselves() {
+		// Mending, Swift Sneak and Soul Speed are the top tier's alone. On a mixed kit that
+		// splits the set: the netherite half gets them, the diamond half does not.
+		for (String reserved : List.of("mending", "swift_sneak", "soul_speed")) {
+			assertFalse(KitEnchantments.sideIds("diamond_leggings", EnchantPower.GOOD).contains(reserved),
+					"a diamond piece should not roll " + reserved);
+			assertFalse(KitEnchantments.sideIds("diamond_boots", EnchantPower.GOOD).contains(reserved));
+			assertFalse(KitEnchantments.sideIds("diamond_sword", EnchantPower.GOOD).contains(reserved));
+		}
+
+		// The diamond half of a rich kit rolls at good, so it is covered by the above.
+		assertEquals(EnchantPower.GOOD, KitTier.RICH.enchantPowerFor("diamond_leggings"));
+		assertEquals(EnchantPower.GOOD, KitTier.RICH.enchantPowerFor("diamond_boots"));
+
+		// The netherite half of the same kit, and the netherite tier, still get all three.
+		assertEquals(EnchantPower.BEST, KitTier.RICH.enchantPowerFor("netherite_leggings"));
+		assertTrue(KitEnchantments.sideIds("netherite_leggings", EnchantPower.BEST).contains("swift_sneak"));
+		assertTrue(KitEnchantments.sideIds("netherite_boots", EnchantPower.BEST).contains("soul_speed"));
+		assertTrue(KitEnchantments.sideIds("netherite_chestplate", EnchantPower.BEST).contains("mending"));
+
+		// A plain diamond kit no longer repairs itself anywhere.
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor("diamond_chestplate"));
+		assertFalse(KitEnchantments.sideIds("diamond_chestplate", EnchantPower.GOOD).contains("mending"));
+	}
+
+	@Test
 	void theOtherTiersKeepWhatThisOneBans() {
 		// Banning is per tier: netherite still gets all three.
 		for (String allowed : List.of("mending", "swift_sneak", "soul_speed")) {
@@ -174,8 +199,7 @@ class KitEnchantmentsTest {
 
 		// And the ordinary diamond tier is untouched: still capped at good, still gets Mending.
 		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor("diamond_helmet"));
-		assertTrue(KitTier.DIAMOND.allows("mending"));
-		assertTrue(KitEnchantments.sideIds("diamond_helmet", EnchantPower.GOOD).contains("mending"));
+		assertTrue(KitTier.DIAMOND.allows("mending"), "the tier does not ban it; the power puts it out of reach");
 	}
 
 	@Test

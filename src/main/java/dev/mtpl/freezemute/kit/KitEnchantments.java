@@ -41,6 +41,9 @@ import net.minecraft.util.Identifier;
  * it never hands out - which is how a diamond kit ends up carrying Protection IV and Unbreaking
  * III with no Mending, Swift Sneak or Soul Speed anywhere in it.
  *
+ * <p>Mending, Swift Sneak and Soul Speed are top tier only, which in practice means netherite
+ * pieces: a diamond kit, and the diamond half of a mixed one, never repairs itself.
+ *
  * <p>How good the rolls are follows the piece. The lower tiers roll their levels at random and
  * take one or two sides; netherite does not roll at all - it gets its main enchantment and every
  * side its item can carry, all at maximum level, because it is the top of the ladder.
@@ -270,7 +273,9 @@ public final class KitEnchantments {
 
 		if (armour || sword || digger || itemId.equals(KitTier.SHIELD)) {
 			add(options, power, "unbreaking", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 3));
-			add(options, power, "mending", null, EnchantPower.GOOD, 1);
+			// Top tier only, the same as Swift Sneak and Soul Speed: in practice that means
+			// netherite pieces and nothing else, so diamond gear wears out for good.
+			add(options, power, "mending", null, EnchantPower.BEST, 1);
 		}
 
 		// A shield's main enchantment is Unbreaking, which is also in the list above; nothing
