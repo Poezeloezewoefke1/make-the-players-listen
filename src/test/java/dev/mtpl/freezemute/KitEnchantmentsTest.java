@@ -123,13 +123,19 @@ class KitEnchantmentsTest {
 	@Test
 	void conflictingSidesArePreferenceOrderedForTheTopTier() {
 		// The best kit takes its pool in order rather than shuffling, so the first of two
-		// conflicting options is the one that lands. Fortune should beat Silk Touch, and Depth
-		// Strider should beat Frost Walker.
+		// conflicting options is the one that lands: Fortune should beat Silk Touch.
 		List<String> pickaxe = KitEnchantments.sideIds("netherite_pickaxe", EnchantPower.BEST);
 		assertTrue(pickaxe.indexOf("fortune") < pickaxe.indexOf("silk_touch"));
+	}
 
-		List<String> boots = KitEnchantments.sideIds("netherite_boots", EnchantPower.BEST);
-		assertTrue(boots.indexOf("depth_strider") < boots.indexOf("frost_walker"));
+	@Test
+	void frostWalkerIsInNoKit() {
+		for (String itemId : everyKitItemId()) {
+			for (EnchantPower power : ENCHANTED) {
+				assertFalse(KitEnchantments.sideIds(itemId, power).contains("frost_walker"),
+						itemId + " rolls Frost Walker at " + power);
+			}
+		}
 	}
 
 	@Test

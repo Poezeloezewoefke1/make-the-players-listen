@@ -143,7 +143,8 @@ jobs:
           weapon, Efficiency on a digging tool - with side enchantments on top, so a diamond
           helmet reads as Protection III and Aqua Affinity rather than one lucky roll. Netherite
           does not roll at all: it gets every enchantment its item can carry, at maximum level.
-          No Thorns, and no situational variants - plain Protection and plain Sharpness only.
+          No Thorns, no Knockback, no Frost Walker, and no situational variants - plain Protection
+          and plain Sharpness only.
 
           Simple Voice Chat is a soft dependency: the \`/vc\` commands are always there and always
           remember who is punished, and they start being enforced the moment the voice chat mod

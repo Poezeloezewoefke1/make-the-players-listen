@@ -249,9 +249,10 @@ public final class KitEnchantments {
 
 		if (boots) {
 			add(options, power, "feather_falling", null, EnchantPower.WEAK, cap(power, 1, 2, 3, 4));
-			add(options, power, "depth_strider", "walking", EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
+			// Depth Strider used to share a group with Frost Walker. Frost Walker is gone, so
+			// nothing conflicts with it any more and the group would be a group of one.
+			add(options, power, "depth_strider", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
 			add(options, power, "soul_speed", null, EnchantPower.BEST, 3);
-			add(options, power, "frost_walker", "walking", EnchantPower.GOOD, cap(power, 1, 1, 2, 2));
 		}
 
 		if (leggings) {

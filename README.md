@@ -250,7 +250,7 @@ the wrong name.
 | Helmet | Protection | Aqua Affinity, Respiration, Unbreaking, Mending\* |
 | Chestplate | Protection | Unbreaking, Mending\* |
 | Leggings | Protection | Swift Sneak\*, Unbreaking, Mending\* |
-| Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Frost Walker, Unbreaking, Mending |
+| Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Unbreaking, Mending |
 | Sword, spear | Sharpness | Looting, Fire Aspect, Unbreaking, Mending\* |
 | Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending\* |
 | Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending\* |
@@ -308,8 +308,12 @@ at maximum level, because it is the top of the ladder - so a netherite helmet is
 Aqua Affinity, Respiration III, Unbreaking III and Mending, every time.
 
 Enchantments that cannot sit together never do: a pickaxe gets Fortune or Silk Touch but never
-both, and boots get Depth Strider or Frost Walker. At the top tier the preferred one wins rather
-than a coin flip, so netherite boots get Depth Strider and a netherite pickaxe gets Fortune.
+both. At the top tier the preferred one wins rather than a coin flip, so a netherite pickaxe
+gets Fortune.
+
+No kit ever rolls **Thorns**, **Knockback** or **Frost Walker**, and armour only gets plain
+Protection - never the blast, fire or projectile variants. Weapons only get plain Sharpness,
+never Smite or Bane of Arthropods.
 
 Items and enchantments are looked up by id (`minecraft:diamond_sword`, `minecraft:mending`), so
 an id that does not exist in your version is skipped instead of breaking the command, and data
