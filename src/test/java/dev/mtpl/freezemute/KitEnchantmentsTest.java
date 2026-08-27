@@ -126,6 +126,40 @@ class KitEnchantmentsTest {
 	}
 
 	@Test
+	void theFixedDiamondTierGetsNetheriteGradeEnchantsWithoutMending() {
+		KitTier tier = KitTier.DIAMONDPROT4NOMENDINGUNBREAKING3;
+
+		// Diamond normally tops out below netherite, however good the tier is. This one ignores
+		// that, which is the whole point of it - Protection IV on diamond armour.
+		assertEquals(EnchantPower.BEST, tier.enchantPowerFor("diamond_helmet"));
+		assertEquals(EnchantPower.BEST, tier.enchantPowerFor("diamond_sword"));
+		assertEquals(EnchantPower.BEST, tier.enchantPowerFor("diamond_pickaxe"));
+		assertEquals(EnchantPower.BEST, tier.enchantPowerFor(KitTier.SHIELD));
+
+		assertFalse(tier.allowsMending(), "the name says no mending");
+
+		for (String itemId : everyKitItemId()) {
+			assertFalse(KitEnchantments.sideIds(itemId, EnchantPower.BEST, false).contains("mending"),
+					itemId + " could still roll Mending on the no-mending tier");
+		}
+
+		// Everything else the top tier gives is still there.
+		List<String> helmet = KitEnchantments.sideIds("diamond_helmet", EnchantPower.BEST, false);
+		assertTrue(helmet.contains("unbreaking"));
+		assertTrue(helmet.contains("aqua_affinity"));
+		assertTrue(helmet.contains("respiration"));
+	}
+
+	@Test
+	void theOrdinaryDiamondTierIsUnchanged() {
+		// The new tier must not have moved the normal one: diamond still caps at good, and
+		// still gets Mending.
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor("diamond_helmet"));
+		assertTrue(KitTier.DIAMOND.allowsMending());
+		assertTrue(KitEnchantments.sideIds("diamond_helmet", EnchantPower.GOOD).contains("mending"));
+	}
+
+	@Test
 	void unenchantedKitsHaveNoSidesEither() {
 		for (String itemId : everyKitItemId()) {
 			assertTrue(KitEnchantments.sideIds(itemId, EnchantPower.NONE).isEmpty(),

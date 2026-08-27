@@ -35,6 +35,10 @@ import net.minecraft.util.Identifier;
  * situational variants (Blast, Fire and Projectile Protection, Smite, Bane of Arthropods) are
  * left out so a piece is never quietly worse than it looks. Thorns is left out entirely.
  *
+ * <p>A tier can also say that the material does not get to cap its pieces, and that Mending is
+ * off the table - which is how a diamond kit ends up carrying Protection IV and Unbreaking III
+ * but nothing that repairs itself.
+ *
  * <p>How good the rolls are follows the piece. The lower tiers roll their levels at random and
  * take one or two sides; netherite does not roll at all - it gets its main enchantment and every
  * side its item can carry, all at maximum level, because it is the top of the ladder.
@@ -86,7 +90,9 @@ public final class KitEnchantments {
 	}
 
 	/** Enchants one piece of gear: its main enchantment first, then whatever sides it rolls. */
-	public static void apply(MinecraftServer server, ItemStack stack, String itemId, EnchantPower power, Random random) {
+	public static void apply(MinecraftServer server, ItemStack stack, String itemId, KitTier tier, Random random) {
+		EnchantPower power = tier.enchantPowerFor(itemId);
+
 		if (power == EnchantPower.NONE) {
 			return;
 		}
@@ -104,7 +110,7 @@ public final class KitEnchantments {
 			enchant(registry, stack, main, mainLevel(main, power, random));
 		}
 
-		List<Option> sides = new ArrayList<>(sidePool(itemId, power));
+		List<Option> sides = new ArrayList<>(sidePool(itemId, power, tier.allowsMending()));
 
 		// The top tier is not a roll: it takes its whole pool, in the order the pool declares,
 		// so "best" means the same thing every time rather than whatever the shuffle allowed.
@@ -158,9 +164,14 @@ public final class KitEnchantments {
 
 	/** The side enchantment ids this item can carry at this power, in order of preference. */
 	public static List<String> sideIds(String itemId, EnchantPower power) {
+		return sideIds(itemId, power, true);
+	}
+
+	/** The same, for a tier that does not hand out Mending. */
+	public static List<String> sideIds(String itemId, EnchantPower power, boolean allowMending) {
 		List<String> ids = new ArrayList<>();
 
-		for (Option option : sidePool(itemId, power)) {
+		for (Option option : sidePool(itemId, power, allowMending)) {
 			ids.add(option.id());
 		}
 
@@ -212,7 +223,7 @@ public final class KitEnchantments {
 	 * on more than just bigger numbers. Declaration order is preference order: at the top tier
 	 * the pool is taken as written, so the first of two conflicting options wins.
 	 */
-	private static List<Option> sidePool(String itemId, EnchantPower power) {
+	private static List<Option> sidePool(String itemId, EnchantPower power, boolean allowMending) {
 		List<Option> options = new ArrayList<>();
 
 		boolean helmet = itemId.endsWith("_helmet");
@@ -264,6 +275,10 @@ public final class KitEnchantments {
 		// should be able to turn up as both the main enchantment and a side.
 		String main = primaryFor(itemId);
 		options.removeIf(option -> option.id().equals(main));
+
+		if (!allowMending) {
+			options.removeIf(option -> option.id().equals("mending"));
+		}
 
 		return options;
 	}

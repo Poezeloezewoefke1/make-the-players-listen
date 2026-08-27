@@ -212,6 +212,7 @@ jobs:
           check "chungie" "the chungie tier registered"
           check "rich" "the rich tier registered"
           check "kitgive random" "the random tier registered"
+          check "diamondprot4nomendingunbreaking3" "the fixed diamond tier registered"
           check "Kit items: every id resolved" "every kit item id exists in this version"
           check "Nobody is muted or deafened in voice chat." "/vclist ran from the console"
           check "Simple Voice Chat is not installed" "/vcstatus reports the voice chat mod is absent"

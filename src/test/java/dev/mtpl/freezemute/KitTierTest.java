@@ -167,6 +167,21 @@ class KitTierTest {
 	}
 
 	@Test
+	void theFixedDiamondTierIsStraightDiamond() {
+		KitTier tier = KitTier.DIAMONDPROT4NOMENDINGUNBREAKING3;
+		Random random = new Random(9);
+
+		assertEquals("diamondprot4nomendingunbreaking3", tier.id());
+		assertFalse(tier.isMixed(), "it should never slip in a piece of anything else");
+
+		for (int roll = 0; roll < 200; roll++) {
+			for (Gear piece : tier.rollGear(random)) {
+				assertEquals("diamond", piece.material(), tier + " handed out a " + piece.itemId());
+			}
+		}
+	}
+
+	@Test
 	void cheaperGearIsMoreWornOut() {
 		int previousMin = Integer.MAX_VALUE;
 

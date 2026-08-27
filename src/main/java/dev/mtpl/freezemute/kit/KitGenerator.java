@@ -74,7 +74,7 @@ public final class KitGenerator {
 		}
 
 		wear(stack, tier, random);
-		KitEnchantments.apply(server, stack, id, tier.enchantPowerFor(id), random);
+		KitEnchantments.apply(server, stack, id, tier, random);
 		return Optional.of(stack);
 	}
 

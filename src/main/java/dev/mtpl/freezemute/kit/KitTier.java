@@ -21,33 +21,42 @@ import java.util.Set;
  */
 public enum KitTier {
 	/** Whatever they scraped together: mismatched leather, copper and gold, all of it nearly gone. */
-	POOR(60, 95, EnchantPower.NONE,
+	POOR(60, 95, EnchantPower.NONE, EnchantRules.NORMAL,
 			List.of(choice("leather", 5), choice("copper", 3), choice("golden", 2)),
 			List.of(choice("stone", 4), choice("wooden", 4), choice("golden", 2))),
 
-	COPPER(35, 80, EnchantPower.NONE,
+	COPPER(35, 80, EnchantPower.NONE, EnchantRules.NORMAL,
 			List.of(choice("copper", 1)),
 			List.of(choice("copper", 1))),
 
-	IRON(25, 65, EnchantPower.WEAK,
+	IRON(25, 65, EnchantPower.WEAK, EnchantRules.NORMAL,
 			List.of(choice("iron", 1)),
 			List.of(choice("iron", 1))),
 
 	/** Half kitted out: iron and diamond mixed, and which slots got the diamond is the roll. */
-	CHUNGIE(20, 58, EnchantPower.MIXED,
+	CHUNGIE(20, 58, EnchantPower.MIXED, EnchantRules.NORMAL,
 			List.of(choice("iron", 5), choice("diamond", 3)),
 			List.of(choice("iron", 4), choice("diamond", 4))),
 
-	DIAMOND(15, 50, EnchantPower.GOOD,
+	DIAMOND(15, 50, EnchantPower.GOOD, EnchantRules.NORMAL,
+			List.of(choice("diamond", 1)),
+			List.of(choice("diamond", 1))),
+
+	/**
+	 * Diamond gear carrying the top enchantments it can hold, with Mending left off: Protection
+	 * IV, Unbreaking III, Sharpness V, Efficiency V and the rest, but nothing that repairs
+	 * itself. Named for exactly what it hands out.
+	 */
+	DIAMONDPROT4NOMENDINGUNBREAKING3(12, 45, EnchantPower.BEST, EnchantRules.TOP_WITHOUT_MENDING,
 			List.of(choice("diamond", 1)),
 			List.of(choice("diamond", 1))),
 
 	/** Doing well for themselves: diamond and netherite mixed, again decided per slot. */
-	RICH(10, 42, EnchantPower.BEST,
+	RICH(10, 42, EnchantPower.BEST, EnchantRules.NORMAL,
 			List.of(choice("diamond", 5), choice("netherite", 3)),
 			List.of(choice("diamond", 4), choice("netherite", 4))),
 
-	NETHERITE(5, 35, EnchantPower.BEST,
+	NETHERITE(5, 35, EnchantPower.BEST, EnchantRules.NORMAL,
 			List.of(choice("netherite", 1)),
 			List.of(choice("netherite", 1)));
 
@@ -59,6 +68,23 @@ public enum KitTier {
 
 	/** The one item in a kit that has no material tier of its own. */
 	public static final String SHIELD = "shield";
+
+	/**
+	 * The two ways a tier can bend the usual enchantment rules.
+	 *
+	 * @param materialDecides normally a piece can only carry what its material allows, so diamond
+	 *     tops out below netherite however good the tier is. A tier that says false ignores that
+	 *     and hands every piece the tier's own ceiling, which is how diamond gear ends up with
+	 *     Protection IV
+	 * @param allowMending whether Mending may be rolled at all
+	 */
+	public record EnchantRules(boolean materialDecides, boolean allowMending) {
+		/** What every ordinary tier uses: the material caps the piece, and Mending is fair game. */
+		public static final EnchantRules NORMAL = new EnchantRules(true, true);
+
+		/** The best the item can carry regardless of what it is made of, but never Mending. */
+		public static final EnchantRules TOP_WITHOUT_MENDING = new EnchantRules(false, false);
+	}
 
 	/** One material a slot may come out as, and how often it should win the roll. */
 	public record Choice(String material, int weight) {
@@ -129,14 +155,16 @@ public enum KitTier {
 	private final int minWearPercent;
 	private final int maxWearPercent;
 	private final EnchantPower enchantCeiling;
+	private final EnchantRules enchantRules;
 	private final List<Choice> armourMaterials;
 	private final List<Choice> toolMaterials;
 
-	KitTier(int minWearPercent, int maxWearPercent, EnchantPower enchantPower,
+	KitTier(int minWearPercent, int maxWearPercent, EnchantPower enchantPower, EnchantRules enchantRules,
 			List<Choice> armourMaterials, List<Choice> toolMaterials) {
 		this.minWearPercent = minWearPercent;
 		this.maxWearPercent = maxWearPercent;
 		this.enchantCeiling = enchantPower;
+		this.enchantRules = enchantRules;
 		this.armourMaterials = armourMaterials;
 		this.toolMaterials = toolMaterials;
 	}
@@ -158,9 +186,21 @@ public enum KitTier {
 		return enchantCeiling;
 	}
 
+	/** True when this tier may hand out Mending. */
+	public boolean allowsMending() {
+		return enchantRules.allowMending();
+	}
+
 	/** What this tier actually rolls for one item, once its material is taken into account. */
 	public EnchantPower enchantPowerFor(String itemId) {
-		return enchantCeiling.min(EnchantPower.ofMaterial(itemId));
+		EnchantPower material = EnchantPower.ofMaterial(itemId);
+
+		// Leather, copper, stone, wood and gold are never enchanted, whatever the tier says.
+		if (material == EnchantPower.NONE) {
+			return EnchantPower.NONE;
+		}
+
+		return enchantRules.materialDecides() ? enchantCeiling.min(material) : enchantCeiling;
 	}
 
 	public List<Choice> armourMaterials() {
