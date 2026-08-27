@@ -253,6 +253,11 @@ Both take the same durations as `/mute` (`30m`, `2h`, `7d`, `1h30m`, or nothing 
 "until an operator lifts it"), both survive relogs and restarts, both expire on their own and
 tell the player when they do, and both follow a name change.
 
+Simple Voice Chat for 1.21.11 is `1.21.11-2.6.22`, and **it needs Fabric Loader 0.18.1 or
+later** - that is its requirement, not this mod's, but a server running an older loader will
+refuse to start once the voice chat mod is dropped in. This mod itself is happy with 0.16.0 and
+up either way.
+
 Simple Voice Chat is a **soft dependency**. The mod does not require it, does not ship any of it,
 and works exactly as before without it - the `/vc` commands still record punishments, which start
 being enforced the moment the voice chat mod is added. `/vcstatus` says which situation you are

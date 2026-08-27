@@ -37,6 +37,10 @@ jobs:
         continue-on-error: true
         run: |
           API=$(grep '^voicechat_api_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          echo "voicechat api versions published:"
+          curl -sS --max-time 60 \
+            https://maven.maxhenkel.de/repository/public/de/maxhenkel/voicechat/voicechat-api/maven-metadata.xml \
+            | grep -o '<version>[^<]*' | cut -d'>' -f2 | tail -15
           URL="https://maven.maxhenkel.de/repository/public/de/maxhenkel/voicechat/voicechat-api/${API}/voicechat-api-${API}.jar"
           echo "voicechat api: $API"
           curl -sSL --max-time 120 -o vcapi.jar "$URL"
