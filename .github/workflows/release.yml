@@ -76,7 +76,7 @@ jobs:
           fi
 
           NOTES=$(cat <<NOTE
-          Server-side moderation commands for **Minecraft $MC** (Fabric).
+          Server-side moderation and event tools for **Minecraft $MC** (Fabric).
 
           ### Install
 
@@ -102,6 +102,39 @@ jobs:
           | \`/vcdeafen <targets> [duration] [reason]\` | Deafens a player in voice chat - they hear nobody |
           | \`/vcunmute <name>\` / \`/vcundeafen <name>\` | Lifts one, or \`all\` to lift every one |
           | \`/vclist\` / \`/vcinfo <name>\` / \`/vcstatus\` | Who is punished, one player's status, and whether the voice chat plugin is enforcing |
+          | \`/lobby\` / \`/lobby <targets>\` / \`/lobby all\` | Go to the lobby, send players there, or pull everybody back |
+          | \`/lobby enable\` / \`/lobby disable\` / \`/lobby setspawn\` / \`/lobby status\` | Turn the routing on and off, set the spawn, see where things stand |
+          | \`/lobby course ...\` | Build parkour courses: \`create\`, \`checkpoint\`, \`undo\`, \`start\`, \`finish\`, \`tp\`, \`top\`, \`list\`, \`delete\` |
+          | \`/queue\` / \`/queue list\` | Line length, slots used, cap; and who is in, who is waiting, in order |
+          | \`/queue cap [slots]\` / \`/queue open\` / \`/queue close\` / \`/queue end\` | How many may be in the world, whether anybody is let through, and ending the session |
+          | \`/queue bypass <targets>\` / \`/queue early add|remove|list\` | Let somebody straight in, or put them on the list that never sees the queue |
+
+          ### The lobby
+
+          Off by default; \`/lobby enable\` turns it on. Everybody who is not staff and has no
+          early access lands in \`astra:lobby\` when they join, in adventure mode, and takes a
+          place in a strictly first come, first served line. Position and total sit on a boss
+          bar; the title and the sound cue fire when a slot actually opens, not when somebody
+          reaches the front.
+
+          The dimension ships as a data pack the mod writes into the world folder itself, so
+          the single jar is still the only file you need. It is a void world with permanent
+          noon, no mobs and a stone platform under the spawn.
+
+          Members can walk, run, jump and run the parkour, and nothing else: no breaking,
+          placing, hitting, dropping, inventory, item use, signs, books, chat or voice. That is
+          the freeze with the movement left switched on, through the same code. They are hidden
+          from each other and cannot collide; staff see everybody, keep every right, and never
+          take up a slot.
+
+          Two grace windows, both five minutes by default: a queued player who drops out keeps
+          their place, an admitted one keeps their slot. The whole queue is written to disk, so
+          a restart does not cost anybody their place. There is no AFK handling on purpose -
+          staff decide, and a kick voids the grace straight away.
+
+          Parkour courses are built by standing where each marker goes. The clock starts when
+          you step off the start pad, a fall puts you back on your last checkpoint rather than
+          killing you, and only a player's best time per course is kept.
 
           A kit is gear and nothing else - four pieces of armour, four tools and a shield, with
           no food, blocks or loot. It is rolled per player, so handing one command to a group
