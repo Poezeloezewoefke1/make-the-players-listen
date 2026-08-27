@@ -6,6 +6,9 @@ import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.FreezeEntry;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.util.Messages;
+import dev.mtpl.freezemute.voice.VoiceData;
+import dev.mtpl.freezemute.voice.VoiceData.Kind;
+import dev.mtpl.freezemute.voice.VoiceData.VoiceEntry;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -16,6 +19,7 @@ import net.minecraft.network.ClientConnection;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ConnectedClientData;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 
 /** Reminds players that they are still frozen or muted when they log back in. */
 @Mixin(PlayerManager.class)
@@ -27,6 +31,7 @@ public abstract class PlayerManagerMixin {
 		ModerationData data = ModerationData.get();
 		// Keep the stored name in sync so /unfreeze and /unmute keep working after a rename.
 		data.refreshName(player.getUuid(), player.getGameProfile().name());
+		VoiceData.get().refreshName(player.getUuid(), player.getGameProfile().name());
 
 		FreezeEntry freeze = data.freezeOf(player.getUuid());
 
@@ -39,6 +44,15 @@ public abstract class PlayerManagerMixin {
 
 		if (mute != null) {
 			player.sendMessage(Messages.youAreMuted(mute));
+		}
+
+		for (Kind kind : Kind.values()) {
+			VoiceEntry voice = VoiceData.get().entryOf(kind, player.getUuid());
+
+			if (voice != null) {
+				player.sendMessage(Text.literal("You are still " + kind.past() + " in voice chat "
+						+ Messages.describeRemaining(voice.until()) + "."));
+			}
 		}
 	}
 }

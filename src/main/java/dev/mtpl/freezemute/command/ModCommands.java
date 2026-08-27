@@ -13,5 +13,6 @@ public final class ModCommands {
 		FreezeCommand.register(dispatcher);
 		MuteCommand.register(dispatcher);
 		KitCommand.register(dispatcher);
+		VoiceCommand.register(dispatcher);
 	}
 }

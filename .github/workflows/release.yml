@@ -98,6 +98,10 @@ jobs:
           | \`/unmute <name>\` | Unmutes, also works while the player is offline |
           | \`/mutelist\` / \`/unmuteall\` | List everyone muted / unmute everybody |
           | \`/kitgive <tier> [targets]\` | Hands out a worn set of armour, tools and a shield with random enchantments. Tiers, weakest first: \`poor\`, \`copper\`, \`iron\`, \`chungie\`, \`diamond\`, \`rich\`, \`netherite\` - or \`random\` to roll the tier per player |
+          | \`/vcmute <targets> [duration] [reason]\` | Mutes a player in Simple Voice Chat - they cannot talk and nobody hears them. No duration means until it is lifted |
+          | \`/vcdeafen <targets> [duration] [reason]\` | Deafens a player in voice chat - they hear nobody |
+          | \`/vcunmute <name>\` / \`/vcundeafen <name>\` | Lifts one, or \`all\` to lift every one |
+          | \`/vclist\` / \`/vcinfo <name>\` / \`/vcstatus\` | Who is punished, one player's status, and whether the voice chat plugin is enforcing |
 
           A kit is gear and nothing else - four pieces of armour, four tools and a shield, with
           no food, blocks or loot. It is rolled per player, so handing one command to a group
@@ -107,6 +111,13 @@ jobs:
           helmet reads as Protection III and Aqua Affinity rather than one lucky roll. Netherite
           does not roll at all: it gets every enchantment its item can carry, at maximum level.
           No Thorns, and no situational variants - plain Protection and plain Sharpness only.
+
+          Simple Voice Chat is a soft dependency: the \`/vc\` commands are always there and always
+          remember who is punished, and they start being enforced the moment the voice chat mod
+          is installed. Nothing else changes without it.
+
+          The mod also checks GitHub for a newer release on every server start and installs it
+          for the next restart. Turn it off with \`autoUpdate\` in the config.
 
           Freezes and mutes survive relogs and restarts, and timed mutes expire on their own.
           The mute is applied where chat is delivered, so it also covers \`/msg\`, \`/tell\`,

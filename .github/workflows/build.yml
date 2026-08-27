@@ -128,6 +128,11 @@ jobs:
           ls -la run/mods
 
           echo "eula=true" > run/eula.txt
+
+          # Pin the settings rather than letting the mod write its defaults, so the smoke test
+          # never reaches out to GitHub and never touches the jar it is testing.
+          mkdir -p run/config/freezemute
+          echo '{"autoUpdate": false}' > run/config/freezemute/config.json
           {
             echo "online-mode=false"
             echo "level-type=minecraft:flat"
@@ -147,6 +152,10 @@ jobs:
             echo "mutelist"
             sleep 3
             echo "help kitgive"
+            sleep 3
+            echo "vclist"
+            sleep 3
+            echo "vcstatus"
             sleep 3
             echo "stop"
             sleep 20 ) | timeout 300 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee server.log || true
@@ -181,6 +190,9 @@ jobs:
           check "rich" "the rich tier registered"
           check "kitgive random" "the random tier registered"
           check "Kit items: every id resolved" "every kit item id exists in this version"
+          check "Nobody is muted or deafened in voice chat." "/vclist ran from the console"
+          check "Simple Voice Chat is not installed" "/vcstatus reports the voice chat mod is absent"
+          check "Auto update is off" "the config file was read rather than overwritten"
           refute "Kit items missing" "kit item ids that this version does not have"
           refute "Kit enchantments are off" "broken enchantment registry lookup"
           refute "Unknown or incomplete command" "unrecognised command"
@@ -199,3 +211,120 @@ jobs:
         with:
           name: mod-jar
           path: build/libs/
+
+  # The plugin that does the voice muting is loaded by Simple Voice Chat, not by us, so the only
+  # way to know it registered is to put the voice chat mod on a server and look.
+  voicechat:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: build
+        run: ./gradlew --no-daemon build
+
+      - name: start a server with simple voice chat installed
+        run: |
+          set -o pipefail
+          MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          LOADER=$(grep '^loader_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          INSTALLER=$(curl -sS --max-time 60 https://maven.fabricmc.net/net/fabricmc/fabric-installer/maven-metadata.xml \
+            | grep -o '<release>[^<]*' | cut -d'>' -f2)
+
+          curl -sSL --max-time 300 -o fabric-installer.jar \
+            "https://maven.fabricmc.net/net/fabricmc/fabric-installer/$INSTALLER/fabric-installer-$INSTALLER.jar"
+
+          mkdir -p run/mods
+          java -jar fabric-installer.jar server -dir run -mcversion "$MC" -loader "$LOADER" -downloadMinecraft
+          find build/libs -name '*.jar' ! -name '*-sources.jar' -exec cp {} run/mods/ \;
+
+          # Simple Voice Chat needs Fabric API; this mod does not, but the test server does now.
+          fetch() {
+            URL=$(curl -sS --max-time 60 \
+              "https://api.modrinth.com/v2/project/$1/version?loaders=%5B%22fabric%22%5D&game_versions=%5B%22$MC%22%5D" \
+              | jq -r 'first(.[] | .files[] | select(.primary) | .url) // empty')
+            if [ -z "$URL" ]; then
+              echo "MISSING: no $1 build published for $MC"
+              return 1
+            fi
+            echo "downloading $1: $URL"
+            curl -sSL --max-time 300 -o "run/mods/$1.jar" "$URL"
+          }
+
+          VOICE_INSTALLED=1
+          fetch fabric-api || VOICE_INSTALLED=0
+          fetch simple-voice-chat || VOICE_INSTALLED=0
+          echo "VOICE_INSTALLED=$VOICE_INSTALLED" >> "$GITHUB_ENV"
+          ls -la run/mods
+
+          echo "eula=true" > run/eula.txt
+          {
+            echo "online-mode=false"
+            echo "level-type=minecraft:flat"
+            echo "spawn-protection=0"
+            echo "max-players=5"
+            echo "sync-chunk-writes=false"
+          } > run/server.properties
+
+          LAUNCHER=$(ls run | grep -E '^fabric-server-(launch|launcher).*\.jar$' | head -1)
+
+          cd run
+          # Auto update is deliberately left on here: the running build is newer than the newest
+          # release, so the check has to come back with nothing to do. That exercises the GitHub
+          # request and the version comparison without ever swapping a jar out.
+          ( sleep 90
+            echo "vcstatus"
+            sleep 3
+            echo "vclist"
+            sleep 3
+            echo "stop"
+            sleep 20 ) | timeout 420 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee server.log || true
+
+          echo "===================== assertions ====================="
+          fail=0
+          check() {
+            if grep -qF "$1" server.log; then
+              echo "OK      : $2"
+            else
+              echo "MISSING : $2"
+              fail=1
+            fi
+          }
+
+          check "Done (" "server finished starting"
+          check "Auto update:" "the update check ran"
+          check "nothing to do" "the update check found nothing newer than the build under test"
+
+          if [ "$VOICE_INSTALLED" = "1" ]; then
+            check "Simple Voice Chat found" "the mod noticed the voice chat mod"
+            check "Voice chat plugin registered" "simple voice chat loaded this mod's plugin"
+            check "the plugin is active" "/vcstatus reports the plugin is enforcing"
+          else
+            echo "SKIPPED : simple voice chat has no build for $MC, plugin registration not checked"
+          fi
+
+          if grep -qE "Mixin apply failed|Critical injection failure|Exception in server tick loop" server.log; then
+            echo "FOUND BAD: startup failures"
+            grep -E "Mixin apply failed|Critical injection failure|Exception in server tick loop" server.log | head -5
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "voice chat test failed - last 80 lines of the server log:"
+            tail -80 server.log
+            exit 1
+          fi
+          echo "voice chat test passed"

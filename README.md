@@ -63,6 +63,19 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/kitgive <tier> [targets]` | Hands out worn armour, tools and a shield - see below. Without targets it gives it to you |
 | `/kitgive random [targets]` | Same, but rolls the tier as well, separately for each player |
 
+### Voice chat (Simple Voice Chat)
+
+| Command | What it does |
+|---|---|
+| `/vcmute <targets> [duration] [reason]` | Mutes them in voice chat - they cannot talk and nobody hears them. No duration means until it is lifted |
+| `/vcunmute <name>` | Unmutes, also works while the player is offline |
+| `/vcunmute all` | Unmutes everybody |
+| `/vcdeafen <targets> [duration] [reason]` | Deafens them - they hear nobody. No duration means until it is lifted |
+| `/vcundeafen <name>` / `/vcundeafen all` | Lifts a deafen, or all of them |
+| `/vclist` | Everyone muted or deafened, with the time left and the reason |
+| `/vcinfo <name>` | The voice chat status of one player |
+| `/vcstatus` | Whether Simple Voice Chat is installed and the plugin is enforcing |
+
 ### Durations
 
 `30s`, `10m`, `2h`, `7d`, `1w`, combinations such as `1h30m`, a bare number (`30` = 30 minutes),
@@ -225,6 +238,55 @@ an id that does not exist in your version is skipped instead of breaking the com
 pack enchantments work too. The mod checks every id it could hand out when it registers the
 commands and logs anything this version does not have, so a missing item shows up in the log
 rather than as a kit quietly arriving a piece short.
+
+## Voice chat
+
+The `/vc` commands moderate [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat).
+They are operators only, like the rest of the mod.
+
+- **`/vcmute`** drops the player's microphone packets at the server, so nothing they say ever
+  reaches anybody - it is not a client-side setting they can turn back off, and it is not a
+  per-listener mute. Audio already on its way from them is dropped too.
+- **`/vcdeafen`** drops every audio packet on its way to that player, so they hear nobody.
+
+Both take the same durations as `/mute` (`30m`, `2h`, `7d`, `1h30m`, or nothing at all for
+"until an operator lifts it"), both survive relogs and restarts, both expire on their own and
+tell the player when they do, and both follow a name change.
+
+Simple Voice Chat is a **soft dependency**. The mod does not require it, does not ship any of it,
+and works exactly as before without it - the `/vc` commands still record punishments, which start
+being enforced the moment the voice chat mod is added. `/vcstatus` says which situation you are
+in. Only one class in this mod touches the voice chat API, and Simple Voice Chat is what loads
+it, so a server without it never loads that class at all.
+
+## Updating itself
+
+The mod checks GitHub for a newer release every time the server starts. If there is one, it
+downloads the jar, checks it really is a build of this mod, and puts it in the mods folder in
+place of the running one. Fabric decides what to load before any mod code runs, so **the new
+version starts on the next restart** - a server that reboots on a schedule keeps itself current
+with nothing to do by hand.
+
+The check runs on its own thread, so a slow or unreachable GitHub never delays startup, and any
+failure is logged and otherwise ignored.
+
+The one thing that must never happen is two jars with the same mod id in the folder, because
+Fabric refuses to start at all in that state. So the old jar is only removed once the new one is
+downloaded and verified, and if it cannot be removed the download is thrown away and the server
+is left exactly as it was.
+
+**This does mean the server runs whatever that repository publishes.** Anybody who can publish a
+release there can put code on your server. It is your repository, which is the point, but it is
+worth knowing. Three settings control it:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `autoUpdate` | `true` | Turn the whole thing off with `false` |
+| `updateCheckOnly` | `false` | `true` logs that an update exists and downloads nothing |
+| `updateRepository` | `poezeloezewoefke1/make-the-players-listen` | The only repository ever contacted |
+
+Nothing outside that repository is fetched, only `https` is followed, the download is capped at
+32 MB, and a file that is not a `freezemute` jar is deleted rather than installed.
 
 ## Notes and limits
 

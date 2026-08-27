@@ -31,6 +31,12 @@ public final class FreezeMuteConfig {
 	public boolean notifyStaff = true;
 	/** How long to wait before telling staff about the same player again. */
 	public int staffNotifyCooldownSeconds = 10;
+	/** Check GitHub for a newer release on every server start and install it for the next one. */
+	public boolean autoUpdate = true;
+	/** Report that an update exists without installing it. */
+	public boolean updateCheckOnly = false;
+	/** Which repository the update comes from. Nothing outside this repository is ever fetched. */
+	public String updateRepository = "poezeloezewoefke1/make-the-players-listen";
 
 	public static FreezeMuteConfig get() {
 		return instance;
@@ -54,6 +60,9 @@ public final class FreezeMuteConfig {
 					config.muteBlocksSignsAndBooks = bool(object, "muteBlocksSignsAndBooks", config.muteBlocksSignsAndBooks);
 					config.notifyStaff = bool(object, "notifyStaff", config.notifyStaff);
 					config.staffNotifyCooldownSeconds = integer(object, "staffNotifyCooldownSeconds", config.staffNotifyCooldownSeconds);
+					config.autoUpdate = bool(object, "autoUpdate", config.autoUpdate);
+					config.updateCheckOnly = bool(object, "updateCheckOnly", config.updateCheckOnly);
+					config.updateRepository = string(object, "updateRepository", config.updateRepository);
 				} else {
 					FreezeMute.LOGGER.warn("{} is not a JSON object, using the default settings", file);
 				}
@@ -74,6 +83,9 @@ public final class FreezeMuteConfig {
 		object.addProperty("muteBlocksSignsAndBooks", config.muteBlocksSignsAndBooks);
 		object.addProperty("notifyStaff", config.notifyStaff);
 		object.addProperty("staffNotifyCooldownSeconds", config.staffNotifyCooldownSeconds);
+		object.addProperty("autoUpdate", config.autoUpdate);
+		object.addProperty("updateCheckOnly", config.updateCheckOnly);
+		object.addProperty("updateRepository", config.updateRepository);
 
 		try {
 			Path parent = file.getParent();
@@ -89,6 +101,14 @@ public final class FreezeMuteConfig {
 			}
 		} catch (Exception exception) {
 			FreezeMute.LOGGER.error("Could not write {}", file, exception);
+		}
+	}
+
+	private static String string(JsonObject object, String key, String fallback) {
+		try {
+			return object.has(key) ? object.get(key).getAsString() : fallback;
+		} catch (RuntimeException exception) {
+			return fallback;
 		}
 	}
 

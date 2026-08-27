@@ -13,6 +13,12 @@ base {
 repositories {
 	// Loom adds the Minecraft/Fabric repositories automatically; this is for the test deps.
 	mavenCentral()
+
+	// Simple Voice Chat's API, needed to compile the /vcmute and /vcdeafen plugin.
+	maven {
+		name = 'henkelmax'
+		url = 'https://maven.maxhenkel.de/repository/public'
+	}
 }
 
 dependencies {
@@ -22,6 +28,10 @@ dependencies {
 
 	// No Fabric API dependency on purpose: this mod only needs Fabric Loader,
 	// so the built jar is the only file that has to be dropped into /mods.
+
+	// Simple Voice Chat's API is compile-only and never shipped: the one class that uses it is
+	// loaded by the voice chat mod itself, so a server without it runs this mod unchanged.
+	compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
 
 	testImplementation platform("org.junit:junit-bom:5.11.4")
 	testImplementation "org.junit.jupiter:junit-jupiter"

@@ -26,6 +26,11 @@ public final class Permissions {
 	public static final String UNMUTE = "freezemute.unmute";
 	public static final String LIST = "freezemute.list";
 	public static final String KITGIVE = "freezemute.kitgive";
+	public static final String VC_MUTE = "freezemute.vcmute";
+	public static final String VC_UNMUTE = "freezemute.vcunmute";
+	public static final String VC_DEAFEN = "freezemute.vcdeafen";
+	public static final String VC_UNDEAFEN = "freezemute.vcundeafen";
+	public static final String VC_LIST = "freezemute.vclist";
 	/** Receives the "player is testing their punishment" messages. */
 	public static final String STAFF = "freezemute.staff";
 

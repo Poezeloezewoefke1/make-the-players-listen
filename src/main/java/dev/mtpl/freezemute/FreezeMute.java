@@ -7,6 +7,9 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import dev.mtpl.freezemute.command.Permissions;
 import dev.mtpl.freezemute.kit.KitEnchantments;
+import dev.mtpl.freezemute.update.AutoUpdater;
+import dev.mtpl.freezemute.voice.VoiceData;
+import dev.mtpl.freezemute.voice.VoiceSupport;
 
 import net.minecraft.server.MinecraftServer;
 
@@ -30,9 +33,12 @@ public final class FreezeMute implements ModInitializer {
 		Path directory = FabricLoader.getInstance().getConfigDir().resolve(MOD_ID);
 		FreezeMuteConfig.load(directory.resolve("config.json"));
 		ModerationData.get().load(directory.resolve("moderation.json"));
+		VoiceData.get().load(directory.resolve("voice.json"));
 		Permissions.logMode();
 		KitEnchantments.logStatus();
-		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute and /unmute");
+		VoiceSupport.logStatus();
+		AutoUpdater.start();
+		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute, /unmute and the /vc commands");
 	}
 
 	/**
