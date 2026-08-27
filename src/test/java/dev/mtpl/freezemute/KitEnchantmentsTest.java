@@ -126,7 +126,7 @@ class KitEnchantmentsTest {
 	}
 
 	@Test
-	void theFixedDiamondTierGetsNetheriteGradeEnchantsWithoutMending() {
+	void theFixedDiamondTierGetsNetheriteGradeEnchantsWithTheBannedOnesLeftOut() {
 		KitTier tier = KitTier.DIAMONDPROT4NOMENDINGUNBREAKING3;
 
 		// Diamond normally tops out below netherite, however good the tier is. This one ignores
@@ -136,26 +136,42 @@ class KitEnchantmentsTest {
 		assertEquals(EnchantPower.BEST, tier.enchantPowerFor("diamond_pickaxe"));
 		assertEquals(EnchantPower.BEST, tier.enchantPowerFor(KitTier.SHIELD));
 
-		assertFalse(tier.allowsMending(), "the name says no mending");
+		for (String banned : List.of("mending", "swift_sneak", "soul_speed")) {
+			assertFalse(tier.allows(banned), banned + " should be off the table on this tier");
 
-		for (String itemId : everyKitItemId()) {
-			assertFalse(KitEnchantments.sideIds(itemId, EnchantPower.BEST, false).contains("mending"),
-					itemId + " could still roll Mending on the no-mending tier");
+			for (String itemId : everyKitItemId()) {
+				assertFalse(KitEnchantments.sideIds(itemId, EnchantPower.BEST, tier.bannedEnchantments())
+								.contains(banned),
+						itemId + " could still roll " + banned + " on " + tier.id());
+			}
 		}
 
 		// Everything else the top tier gives is still there.
-		List<String> helmet = KitEnchantments.sideIds("diamond_helmet", EnchantPower.BEST, false);
+		List<String> helmet = KitEnchantments.sideIds("diamond_helmet", EnchantPower.BEST,
+				tier.bannedEnchantments());
 		assertTrue(helmet.contains("unbreaking"));
 		assertTrue(helmet.contains("aqua_affinity"));
 		assertTrue(helmet.contains("respiration"));
+
+		List<String> boots = KitEnchantments.sideIds("diamond_boots", EnchantPower.BEST,
+				tier.bannedEnchantments());
+		assertTrue(boots.contains("feather_falling"), "boots keep what is not banned");
+		assertTrue(boots.contains("depth_strider"));
 	}
 
 	@Test
-	void theOrdinaryDiamondTierIsUnchanged() {
-		// The new tier must not have moved the normal one: diamond still caps at good, and
-		// still gets Mending.
+	void theOtherTiersKeepWhatThisOneBans() {
+		// Banning is per tier: netherite still gets all three.
+		for (String allowed : List.of("mending", "swift_sneak", "soul_speed")) {
+			assertTrue(KitTier.NETHERITE.allows(allowed), allowed + " should still be fine on netherite");
+		}
+
+		assertTrue(KitEnchantments.sideIds("netherite_leggings", EnchantPower.BEST).contains("swift_sneak"));
+		assertTrue(KitEnchantments.sideIds("netherite_boots", EnchantPower.BEST).contains("soul_speed"));
+
+		// And the ordinary diamond tier is untouched: still capped at good, still gets Mending.
 		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor("diamond_helmet"));
-		assertTrue(KitTier.DIAMOND.allowsMending());
+		assertTrue(KitTier.DIAMOND.allows("mending"));
 		assertTrue(KitEnchantments.sideIds("diamond_helmet", EnchantPower.GOOD).contains("mending"));
 	}
 

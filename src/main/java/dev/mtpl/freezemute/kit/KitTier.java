@@ -43,11 +43,12 @@ public enum KitTier {
 			List.of(choice("diamond", 1))),
 
 	/**
-	 * Diamond gear carrying the top enchantments it can hold, with Mending left off: Protection
-	 * IV, Unbreaking III, Sharpness V, Efficiency V and the rest, but nothing that repairs
-	 * itself. Named for exactly what it hands out.
+	 * Diamond gear carrying the top enchantments it can hold, trimmed: Protection IV, Unbreaking
+	 * III, Sharpness V, Efficiency V and the rest, but nothing that repairs itself and none of
+	 * the movement extras. Named for exactly what it hands out.
 	 */
-	DIAMONDPROT4NOMENDINGUNBREAKING3(12, 45, EnchantPower.BEST, EnchantRules.TOP_WITHOUT_MENDING,
+	DIAMONDPROT4NOMENDINGUNBREAKING3(12, 45, EnchantPower.BEST,
+			EnchantRules.ignoringMaterialCap("mending", "swift_sneak", "soul_speed"),
 			List.of(choice("diamond", 1)),
 			List.of(choice("diamond", 1))),
 
@@ -76,14 +77,24 @@ public enum KitTier {
 	 *     tops out below netherite however good the tier is. A tier that says false ignores that
 	 *     and hands every piece the tier's own ceiling, which is how diamond gear ends up with
 	 *     Protection IV
-	 * @param allowMending whether Mending may be rolled at all
+	 * @param banned enchantment ids this tier never hands out, as either a main or a side
 	 */
-	public record EnchantRules(boolean materialDecides, boolean allowMending) {
-		/** What every ordinary tier uses: the material caps the piece, and Mending is fair game. */
-		public static final EnchantRules NORMAL = new EnchantRules(true, true);
+	public record EnchantRules(boolean materialDecides, Set<String> banned) {
+		/** What every ordinary tier uses: the material caps the piece and nothing is off limits. */
+		public static final EnchantRules NORMAL = new EnchantRules(true, Set.of());
 
-		/** The best the item can carry regardless of what it is made of, but never Mending. */
-		public static final EnchantRules TOP_WITHOUT_MENDING = new EnchantRules(false, false);
+		/**
+		 * Rules for a tier that hands every piece the tier's own ceiling whatever it is made of,
+		 * and never rolls the named enchantments. Listing them at the call site means a tier
+		 * named after its enchantments can be read off its own declaration.
+		 */
+		public static EnchantRules ignoringMaterialCap(String... banned) {
+			return new EnchantRules(false, Set.of(banned));
+		}
+
+		public boolean allows(String enchantment) {
+			return !banned.contains(enchantment);
+		}
 	}
 
 	/** One material a slot may come out as, and how often it should win the roll. */
@@ -186,9 +197,14 @@ public enum KitTier {
 		return enchantCeiling;
 	}
 
-	/** True when this tier may hand out Mending. */
-	public boolean allowsMending() {
-		return enchantRules.allowMending();
+	/** True when this tier may hand out that enchantment at all. */
+	public boolean allows(String enchantment) {
+		return enchantRules.allows(enchantment);
+	}
+
+	/** The enchantments this tier never hands out. */
+	public Set<String> bannedEnchantments() {
+		return enchantRules.banned();
 	}
 
 	/** What this tier actually rolls for one item, once its material is taken into account. */

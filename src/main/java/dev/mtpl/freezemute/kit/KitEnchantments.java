@@ -35,9 +35,9 @@ import net.minecraft.util.Identifier;
  * situational variants (Blast, Fire and Projectile Protection, Smite, Bane of Arthropods) are
  * left out so a piece is never quietly worse than it looks. Thorns is left out entirely.
  *
- * <p>A tier can also say that the material does not get to cap its pieces, and that Mending is
- * off the table - which is how a diamond kit ends up carrying Protection IV and Unbreaking III
- * but nothing that repairs itself.
+ * <p>A tier can also say that the material does not get to cap its pieces, and name enchantments
+ * it never hands out - which is how a diamond kit ends up carrying Protection IV and Unbreaking
+ * III with no Mending, Swift Sneak or Soul Speed anywhere in it.
  *
  * <p>How good the rolls are follows the piece. The lower tiers roll their levels at random and
  * take one or two sides; netherite does not roll at all - it gets its main enchantment and every
@@ -106,11 +106,12 @@ public final class KitEnchantments {
 		Set<String> usedGroups = new HashSet<>();
 		String main = primaryFor(itemId);
 
-		if (main != null) {
+		// A tier can ban its own main enchantment; nothing forces it back on.
+		if (main != null && tier.allows(main)) {
 			enchant(registry, stack, main, mainLevel(main, power, random));
 		}
 
-		List<Option> sides = new ArrayList<>(sidePool(itemId, power, tier.allowsMending()));
+		List<Option> sides = new ArrayList<>(sidePool(itemId, power, tier.bannedEnchantments()));
 
 		// The top tier is not a roll: it takes its whole pool, in the order the pool declares,
 		// so "best" means the same thing every time rather than whatever the shuffle allowed.
@@ -164,14 +165,14 @@ public final class KitEnchantments {
 
 	/** The side enchantment ids this item can carry at this power, in order of preference. */
 	public static List<String> sideIds(String itemId, EnchantPower power) {
-		return sideIds(itemId, power, true);
+		return sideIds(itemId, power, Set.of());
 	}
 
-	/** The same, for a tier that does not hand out Mending. */
-	public static List<String> sideIds(String itemId, EnchantPower power, boolean allowMending) {
+	/** The same, for a tier that keeps some enchantments off the table. */
+	public static List<String> sideIds(String itemId, EnchantPower power, Set<String> banned) {
 		List<String> ids = new ArrayList<>();
 
-		for (Option option : sidePool(itemId, power, allowMending)) {
+		for (Option option : sidePool(itemId, power, banned)) {
 			ids.add(option.id());
 		}
 
@@ -223,7 +224,7 @@ public final class KitEnchantments {
 	 * on more than just bigger numbers. Declaration order is preference order: at the top tier
 	 * the pool is taken as written, so the first of two conflicting options wins.
 	 */
-	private static List<Option> sidePool(String itemId, EnchantPower power, boolean allowMending) {
+	private static List<Option> sidePool(String itemId, EnchantPower power, Set<String> banned) {
 		List<Option> options = new ArrayList<>();
 
 		boolean helmet = itemId.endsWith("_helmet");
@@ -276,9 +277,7 @@ public final class KitEnchantments {
 		String main = primaryFor(itemId);
 		options.removeIf(option -> option.id().equals(main));
 
-		if (!allowMending) {
-			options.removeIf(option -> option.id().equals("mending"));
-		}
+		options.removeIf(option -> banned.contains(option.id()));
 
 		return options;
 	}

@@ -175,7 +175,7 @@ blocks, no loot, no experience bottles - nine items, all of them wearable or swi
 | `diamond` | diamond | diamond | good - Prot III, Sharpness III, Efficiency IV, plus 1-3 sides | 15-50% worn |
 | `rich` | diamond and netherite, per slot | diamond and netherite, per slot | diamond parts good, netherite parts maxed | 10-42% worn |
 | `netherite` | netherite | netherite | the best - everything the item can carry, at max level | 5-35% worn |
-| `diamondprot4nomendingunbreaking3` | diamond | diamond | Protection IV, Unbreaking III, Sharpness V, Efficiency V - the top rolls, but **no Mending** | 12-45% worn |
+| `diamondprot4nomendingunbreaking3` | diamond | diamond | Protection IV, Unbreaking III, Sharpness V, Efficiency V - the top rolls, but **no Mending, Swift Sneak or Soul Speed** | 12-45% worn |
 | `random` | a tier rolled per player | | whatever that tier gives | |
 
 `poor` is a grab bag on purpose: every slot rolls on its own out of leather, copper and gold, and
@@ -226,11 +226,25 @@ go above its tier's ceiling - a diamond sword in an `iron` kit still only rolls 
 | good (diamond) | at the cap - Prot III, Sharpness III, Efficiency IV | 1-3 | rolled, best of two |
 | best (netherite) | at the cap - Prot IV, Sharpness V, Efficiency V | all of them | maximum |
 
-`diamondprot4nomendingunbreaking3` is diamond gear carrying what netherite normally gets, minus
-Mending. Diamond usually caps below netherite however good the tier is; this one ignores that cap
-on purpose, which is how diamond armour ends up with Protection IV. Nothing in it repairs itself.
-It does not roll either - every piece comes out the same, which is the point of naming a tier
-after its enchantments.
+`diamondprot4nomendingunbreaking3` is diamond gear carrying what netherite normally gets, with
+three left out. Diamond usually caps below netherite however good the tier is; this one ignores
+that cap on purpose, which is how diamond armour ends up with Protection IV. **Mending, Swift
+Sneak and Soul Speed are never handed out on it** - nothing repairs itself and the leggings and
+boots skip the movement extras. It does not roll either: every piece comes out the same, which is
+the point of naming a tier after its enchantments.
+
+| Piece | What it gets |
+|---|---|
+| Helmet | Protection IV, Aqua Affinity, Respiration III, Unbreaking III |
+| Chestplate | Protection IV, Unbreaking III |
+| Leggings | Protection IV, Unbreaking III |
+| Boots | Protection IV, Feather Falling IV, Depth Strider III, Unbreaking III |
+| Sword | Sharpness V, Looting III, Fire Aspect II, Knockback II, Unbreaking III |
+| Axe | Sharpness V, Efficiency V, Fortune III, Unbreaking III |
+| Pickaxe, shovel | Efficiency V, Fortune III, Unbreaking III |
+| Shield | Unbreaking III |
+
+The ban is per tier, so `netherite` and `rich` still hand out all three.
 
 **Netherite does not roll.** It gets its main enchantment and every side its item can carry, all
 at maximum level, because it is the top of the ladder - so a netherite helmet is Protection IV,
