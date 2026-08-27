@@ -216,7 +216,33 @@ public enum KitTier {
 			return EnchantPower.NONE;
 		}
 
-		return enchantRules.materialDecides() ? enchantCeiling.min(material) : enchantCeiling;
+		if (!enchantRules.materialDecides()) {
+			return enchantCeiling;
+		}
+
+		// The shield is made of nothing in particular, so it is only ever as good as the weakest
+		// piece in the kit. Without that a mixed kit's shield would out-rank its own diamond half
+		// and pick up the netherite-only enchantments the rest of that half cannot have.
+		if (itemId.equals(SHIELD)) {
+			material = weakestMaterial();
+		}
+
+		return enchantCeiling.min(material);
+	}
+
+	/** The weakest material this tier can make a piece out of. */
+	private EnchantPower weakestMaterial() {
+		EnchantPower weakest = EnchantPower.BEST;
+
+		for (Choice choice : armourMaterials) {
+			weakest = weakest.min(EnchantPower.ofMaterial(choice.material() + "_helmet"));
+		}
+
+		for (Choice choice : toolMaterials) {
+			weakest = weakest.min(EnchantPower.ofMaterial(choice.material() + "_sword"));
+		}
+
+		return weakest;
 	}
 
 	public List<Choice> armourMaterials() {

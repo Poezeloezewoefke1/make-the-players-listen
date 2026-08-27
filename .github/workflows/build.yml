@@ -33,6 +33,27 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: list the item ids this version actually has
+        continue-on-error: true
+        run: |
+          MC=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          MANIFEST=https://piston-meta.mojang.com/mc/game/version_manifest_v2.json
+          VERSION_URL=$(curl -sS --max-time 60 "$MANIFEST" \
+            | jq -r --arg v "$MC" '.versions[] | select(.id==$v) | .url')
+          echo "version json for $MC: $VERSION_URL"
+          CLIENT=$(curl -sS --max-time 60 "$VERSION_URL" | jq -r '.downloads.client.url')
+          curl -sSL --max-time 300 -o client.jar "$CLIENT"
+          unzip -p client.jar assets/minecraft/lang/en_us.json > en_us.json
+          ITEMS=$(grep -o '"item\.minecraft\.[a-z0-9_]*"' en_us.json \
+            | sed 's/"item\.minecraft\.//; s/"//' | sort -u)
+          echo "===== item ids containing 'spear' ====="
+          echo "$ITEMS" | grep spear || echo "  (none - this version has no spear item)"
+          echo "===== every lang key containing 'spear' ====="
+          grep -o '"[a-z_]*\.minecraft\.[a-z0-9_]*"' en_us.json | grep spear | sort -u \
+            || echo "  (none)"
+          echo "===== the copper items, for naming reference ====="
+          echo "$ITEMS" | grep '^copper' || echo "  (none)"
+
       - name: dump the voice chat api we build against
         continue-on-error: true
         run: |

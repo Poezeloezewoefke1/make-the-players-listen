@@ -188,6 +188,23 @@ class KitEnchantmentsTest {
 	}
 
 	@Test
+	void aMixedKitsShieldDoesNotOutrankItsOwnWeakerHalf() {
+		// The shield is made of nothing in particular. If it followed the tier's ceiling it would
+		// pick up Mending on a rich kit, which the diamond half of that same kit cannot have.
+		assertEquals(EnchantPower.GOOD, KitTier.RICH.enchantPowerFor(KitTier.SHIELD));
+		assertFalse(KitEnchantments.sideIds(KitTier.SHIELD, KitTier.RICH.enchantPowerFor(KitTier.SHIELD))
+				.contains("mending"), "a rich kit's shield should not repair itself");
+
+		// An all-netherite kit has no weaker half, so its shield keeps Mending.
+		assertEquals(EnchantPower.BEST, KitTier.NETHERITE.enchantPowerFor(KitTier.SHIELD));
+		assertTrue(KitEnchantments.sideIds(KitTier.SHIELD, KitTier.NETHERITE.enchantPowerFor(KitTier.SHIELD))
+				.contains("mending"));
+
+		// And a diamond kit's shield is diamond-grade, as the rest of it is.
+		assertEquals(EnchantPower.GOOD, KitTier.DIAMOND.enchantPowerFor(KitTier.SHIELD));
+	}
+
+	@Test
 	void theOtherTiersKeepWhatThisOneBans() {
 		// Banning is per tier: netherite still gets all three.
 		for (String allowed : List.of("mending", "swift_sneak", "soul_speed")) {

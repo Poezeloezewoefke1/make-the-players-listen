@@ -213,8 +213,9 @@ Aqua Affinity, not as whichever single enchantment a shuffle happened to land on
 \* **Mending, Swift Sneak and Soul Speed are netherite only.** They need the top tier, which
 only netherite pieces reach - so the `netherite` tier gets them, the netherite half of a `rich`
 kit gets them, and nothing else does. A diamond kit never repairs itself, and neither does the
-diamond half of a mixed one. (The shield has no material of its own and follows the kit, so it
-picks up Mending on `rich` and `netherite`.)
+diamond half of a mixed one. (The shield is made of nothing in particular, so it counts as the
+weakest piece the kit can contain - which means a `rich` shield is diamond-grade and does not
+repair itself either. Only an all-netherite kit has a shield with Mending.)
 
 **No Thorns and no Knockback**, anywhere, at any tier. Armour only ever rolls plain Protection and weapons only
 ever roll Sharpness - Blast, Fire and Projectile Protection, Smite and Bane of Arthropods are all
