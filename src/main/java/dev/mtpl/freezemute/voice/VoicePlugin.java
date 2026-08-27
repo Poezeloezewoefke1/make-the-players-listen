@@ -4,6 +4,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import dev.mtpl.freezemute.FreezeMute;
+import dev.mtpl.freezemute.lobby.LobbyManager;
 
 import de.maxhenkel.voicechat.api.VoicechatApi;
 import de.maxhenkel.voicechat.api.VoicechatConnection;
@@ -32,6 +33,11 @@ import de.maxhenkel.voicechat.api.events.StaticSoundPacketEvent;
  * <p>Outgoing packets are also dropped when they came from a muted player. Cancelling the
  * microphone packet already stops those from being produced, but audio can also be sent by other
  * plugins, and a mute should mean nobody hears them either way.
+ *
+ * <p>The lobby rides on the same two rules. A member's microphone is cancelled, so nobody hears
+ * them, and audio from another member is cancelled on its way to them, so they hear nobody either.
+ * Staff are never members, which means a member still hears staff - being able to talk to the room
+ * you are holding people in is the point of holding them there.
  */
 public class VoicePlugin implements VoicechatPlugin {
 	/** Both registration routes are declared, so whichever one this build uses works. */
@@ -64,19 +70,23 @@ public class VoicePlugin implements VoicechatPlugin {
 	}
 
 	private void onMicrophone(MicrophonePacketEvent event) {
-		if (VoiceData.get().isEmpty()) {
+		if (VoiceData.get().isEmpty() && LobbyManager.memberCount() == 0) {
 			return;
 		}
 
 		UUID sender = uuidOf(event.getSenderConnection());
 
-		if (sender != null && VoiceData.get().isMuted(sender)) {
+		if (sender == null) {
+			return;
+		}
+
+		if (VoiceData.get().isMuted(sender) || LobbyManager.isMember(sender)) {
 			event.cancel();
 		}
 	}
 
 	private void onSound(SoundPacketEvent event) {
-		if (VoiceData.get().isEmpty()) {
+		if (VoiceData.get().isEmpty() && LobbyManager.memberCount() == 0) {
 			return;
 		}
 
@@ -89,7 +99,17 @@ public class VoicePlugin implements VoicechatPlugin {
 
 		UUID sender = uuidOf(event.getSenderConnection());
 
-		if (sender != null && VoiceData.get().isMuted(sender)) {
+		if (sender == null) {
+			return;
+		}
+
+		if (VoiceData.get().isMuted(sender)) {
+			event.cancel();
+			return;
+		}
+
+		// Member to member only: staff can still be heard in the lobby.
+		if (receiver != null && LobbyManager.isMember(sender) && LobbyManager.isMember(receiver)) {
 			event.cancel();
 		}
 	}

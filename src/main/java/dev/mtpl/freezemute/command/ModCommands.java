@@ -14,5 +14,7 @@ public final class ModCommands {
 		MuteCommand.register(dispatcher);
 		KitCommand.register(dispatcher);
 		VoiceCommand.register(dispatcher);
+		QueueCommand.register(dispatcher);
+		LobbyCommand.register(dispatcher);
 	}
 }

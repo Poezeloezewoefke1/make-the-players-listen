@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
+import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Messages;
 import dev.mtpl.freezemute.util.StaffAlerts;
 
@@ -15,6 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.network.message.MessageType;
 import net.minecraft.network.message.SentMessage;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 /**
  * The mute.
@@ -44,8 +47,9 @@ public abstract class ServerPlayerEntityMixin {
 		}
 
 		MuteEntry mute = ModerationData.get().muteOf(sender);
+		boolean inLobby = LobbyManager.isMember(sender);
 
-		if (mute == null) {
+		if (mute == null && !inLobby) {
 			return;
 		}
 
@@ -53,11 +57,19 @@ public abstract class ServerPlayerEntityMixin {
 
 		ServerPlayerEntity receiver = (ServerPlayerEntity) (Object) this;
 
-		if (sender.equals(receiver.getUuid())) {
-			// The sender is one of the receivers, which is a good moment to tell them why
-			// their message disappeared - exactly once per message.
+		if (!sender.equals(receiver.getUuid())) {
+			return;
+		}
+
+		// The sender is one of the receivers, which is a good moment to tell them why their
+		// message disappeared - exactly once per message.
+		if (mute != null) {
 			receiver.sendMessage(Messages.youAreMuted(mute));
 			StaffAlerts.mutedPlayerTriedToTalk(receiver, chat.message().getSignedContent());
+			return;
 		}
+
+		receiver.sendMessage(Text.literal("Chat is off in the lobby. Staff can still hear you if you need them.")
+				.formatted(Formatting.GRAY));
 	}
 }

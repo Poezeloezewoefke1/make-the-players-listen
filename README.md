@@ -1,11 +1,14 @@
 # Make The Players Listen
 
-A **server-side only** Fabric mod for **Minecraft 1.21.11** that gives operators two moderation
-tools:
+A **server-side only** Fabric mod for **Minecraft 1.21.11**:
 
 * **Freeze** a player so they cannot move *at all* - no walking, sprinting, jumping, swimming,
   flying, elytra, riding, ender pearls, and not even turning their head.
 * **Mute** a player so nothing they type reaches anybody, permanently or for a set time.
+* **Mute or deafen** a player in Simple Voice Chat.
+* **Hand out worn kits** of armour, tools and a shield in eight tiers.
+* **Hold a launch** in a lobby dimension with a first-come-first-served queue, a player cap,
+  crash grace windows and parkour courses with leaderboards.
 
 Nothing has to be installed on the client. Vanilla clients are affected exactly like modded
 ones, because everything is enforced on the server.
@@ -63,6 +66,36 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/kitgive <tier> [targets]` | Hands out worn armour, tools and a shield - see below. Without targets it gives it to you |
 | `/kitgive random [targets]` | Same, but rolls the tier as well, separately for each player |
 
+### Lobby and queue
+
+| Command | What it does |
+|---|---|
+| `/lobby` | Sends you to the lobby |
+| `/lobby <targets>` | Sends those players to the lobby and puts them in the queue |
+| `/lobby all` | The panic button: everybody who is not staff comes back, and the queue closes |
+| `/lobby enable` / `/lobby disable` | Turns the routing on and off. Off by default |
+| `/lobby setspawn` | Sets the lobby spawn to where you stand |
+| `/lobby status` | Whether the dimension exists, whether routing is on, the spawn, how many are waiting |
+| `/queue` / `/queue status` | Line length, slots used, cap |
+| `/queue list` | Who is in and who is waiting, in order, with the grace windows still running |
+| `/queue cap [slots]` | Shows or sets how many players may be in the world. `0` means no cap |
+| `/queue open` / `/queue close` | Whether anybody is let through |
+| `/queue end` | Session over: everybody to the lobby, the line cleared, the queue closed |
+| `/queue bypass <targets>` | Lets those players straight in, ignoring the cap and the order |
+| `/queue early add <targets>` / `/queue early remove <name>` / `/queue early list` | The list of people who never see the queue |
+
+### Parkour
+
+| Command | What it does |
+|---|---|
+| `/lobby course create <name>` | Starts a course with the start pad where you stand |
+| `/lobby course checkpoint <name>` | Adds a checkpoint where you stand, at the end of the course |
+| `/lobby course undo <name>` | Removes the last checkpoint |
+| `/lobby course start <name>` / `/lobby course finish <name>` | Moves the start or sets the finish to where you stand |
+| `/lobby course tp <name>` | Teleports you to a course start |
+| `/lobby course top <name>` | The ten fastest times, and your own best |
+| `/lobby course list` / `/lobby course delete <name>` | Lists courses, or deletes one and its times |
+
 ### Voice chat (Simple Voice Chat)
 
 | Command | What it does |
@@ -101,7 +134,14 @@ Operators, the console, RCON and command blocks can always use these commands. I
 moderator rank can use the commands without being a full operator:
 
 `freezemute.freeze`, `freezemute.unfreeze`, `freezemute.mute`, `freezemute.unmute`,
-`freezemute.list`, `freezemute.kitgive`, and `freezemute.staff` for the notifications below.
+`freezemute.list`, `freezemute.kitgive`, `freezemute.vcmute`, `freezemute.vcunmute`,
+`freezemute.vcdeafen`, `freezemute.vcundeafen`, `freezemute.vclist`, `freezemute.queue`,
+`freezemute.lobby`, `freezemute.lobby.course`, and `freezemute.staff` for the notifications below.
+
+One node is held by a player rather than checked on a command: **`freezemute.lobby.early`** skips
+the queue entirely. It is the node to give the camera and the crew. Unlike the others it does
+*not* fall back to operator status, because without a permission mod nobody could be granted it
+selectively - use `/queue early add` instead, which does the same thing and needs no extra mod.
 
 The mod does not depend on that API: without it, it just checks operator status. The log line at
 startup says which mode is in use.
@@ -117,6 +157,15 @@ startup says which mode is in use.
 | `muteBlocksSignsAndBooks` | `true` | Muted players cannot write signs or books either, which is the usual way around a mute |
 | `notifyStaff` | `true` | Staff are told when a muted player tries to talk (including what they tried to say) or a frozen player tries to run |
 | `staffNotifyCooldownSeconds` | `10` | How long before the same player is reported again |
+| `lobbyInstallDimension` | `true` | Write the `astra:lobby` data pack into the world folder on every start |
+| `lobbySpawnPlatform` | `true` | Lay a stone platform under the lobby spawn the first time the dimension is empty |
+| `lobbyPlatformRadius` | `12` | How wide that platform is, measured from the middle |
+| `lobbyIsolateMembers` | `true` | Hide lobby members from each other. Staff always see everybody |
+| `lobbyQueueGraceSeconds` | `300` | How long a queued player keeps their place after dropping out |
+| `lobbySlotGraceSeconds` | `300` | How long an admitted player keeps their slot after dropping out |
+| `lobbyAdmitPerSecond` | `1` | How many players may be let through per second |
+| `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint |
+| `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
 
 ## What "frozen" means exactly
 
@@ -268,6 +317,62 @@ pack enchantments work too. The mod checks every id it could hand out when it re
 commands and logs anything this version does not have, so a missing item shows up in the log
 rather than as a kit quietly arriving a piece short.
 
+## The lobby and the queue
+
+Off by default. Turn it on with `/lobby enable` and everybody who is not staff and has no early
+access lands in `astra:lobby` when they join, in adventure mode, and takes a place in line.
+
+**The dimension.** The mod writes a small data pack into the world folder (`<world>/datapacks/
+astra_lobby/`) during initialisation, which happens before the server loads the level - so the
+dimension is normally there on the very start that installs the mod. It is a void world with
+permanent noon, no mobs and a stone platform under the spawn, which is the right canvas to build a
+lobby on. If `/lobby enable` says the dimension is not there, restart once; that is the whole fix.
+
+**What members may do.** Walk, run, jump, and run the parkour. Nothing else: no breaking, placing,
+hitting, dropping, inventory, item use, signs, books, chat or voice. That is not a new set of
+rules - it is the freeze, with the movement handlers left out. The same mixins that hold a frozen
+player hold a lobby member, so anything that works for one works for the other.
+
+**Staff are never members.** They see everybody, keep chat and voice, keep every interaction, are
+never routed to the lobby and never take up a slot. Members can still hear staff over voice chat,
+which is the point of being able to talk to a room full of people you are holding.
+
+**Isolation.** Members are hidden from each other: the spawn packet that would introduce one member
+to another is refused on the way out, so the client is never told they exist, and their sounds go
+the same way. They also share a team with collisions and name tags switched off, so nobody gets
+shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
+
+**The line.** Strictly first come, first served. Position and total sit on a boss bar, where they
+can change every second without pushing anything out of chat. The title and the sound cue fire when
+a slot actually opens - not when somebody reaches the front, because being first still means
+waiting. `lobbyAdmitPerSecond` keeps a rush from letting thirty people in at once.
+
+**Grace windows.** Two of them, and they mean different things. A queued player who drops out keeps
+their **place in line**; an admitted player who drops out keeps their **slot**, so nobody else
+takes it. Both last five minutes by default. Because the worst crash is the one that takes the
+server with it, the whole queue is written to disk, so a restart does not cost anybody their place.
+
+There is no AFK handling on purpose - staff decide who is idle. A **kick voids the grace**
+immediately, for both windows, otherwise kicking somebody who has gone quiet would hold their slot
+for another five minutes and achieve nothing. A timeout or a closed window is not a kick and keeps
+the grace, which is exactly the distinction the windows exist for.
+
+**Getting people back.** `/lobby all` pulls everybody who is not staff back and closes the queue,
+keeping the line in the order people were let in so the session can resume fairly. `/queue end`
+does the same and clears the line as well. Being let back in puts a player exactly where they were
+standing when the lobby took them, in the game mode they were in - a builder in creative comes back
+in creative.
+
+**Parkour.** Build a course by standing where each marker goes. The clock starts the moment you
+step off the start pad, checkpoints have to be taken in order, and a fall puts you back on the last
+one you reached rather than killing you. Only a player's best time per course is kept, so the board
+is a leaderboard and not a log. Courses and times live in `config/freezemute/lobby.json` alongside
+the queue.
+
+**One server, two dimensions.** This is a lobby *in* the SMP, not a separate proxy behind it. A
+crash that takes the server down takes both, which is what the grace windows are for; they cannot
+help with a crash that is still happening.
+
 ## Voice chat
 
 The `/vc` commands moderate [Simple Voice Chat](https://modrinth.com/plugin/simple-voice-chat).
@@ -326,6 +431,12 @@ Nothing outside that repository is fetched, only `https` is followed, the downlo
 
 * You can only *apply* a freeze or a mute to a player who is online (the server needs their UUID).
   *Removing* one works offline, by name.
+* Lobby members are hidden from each other in the world, not in the player list. The tab list is
+  how staff and players alike see who is online, so it is left alone.
+* Weather is a property of the save rather than of a dimension, so rain in the overworld is rain
+  in the lobby. With permanent noon and no mobs it does not amount to much.
+* Changing `lobbyIsolateMembers` takes effect for people who enter the lobby afterwards; anybody
+  already standing in it stays as they were until they leave and come back.
 * The mod is pinned to Minecraft 1.21.11. To try it on another 1.21.x build, change
   `minecraft_version` / `yarn_mappings` in `gradle.properties` and the `minecraft` entry in
   `src/main/resources/fabric.mod.json`, then rebuild.

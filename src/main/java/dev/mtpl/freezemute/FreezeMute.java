@@ -7,6 +7,8 @@ import net.fabricmc.loader.api.FabricLoader;
 
 import dev.mtpl.freezemute.command.Permissions;
 import dev.mtpl.freezemute.kit.KitEnchantments;
+import dev.mtpl.freezemute.lobby.LobbyDimension;
+import dev.mtpl.freezemute.lobby.LobbyState;
 import dev.mtpl.freezemute.update.AutoUpdater;
 import dev.mtpl.freezemute.voice.VoiceData;
 import dev.mtpl.freezemute.voice.VoiceSupport;
@@ -34,11 +36,16 @@ public final class FreezeMute implements ModInitializer {
 		FreezeMuteConfig.load(directory.resolve("config.json"));
 		ModerationData.get().load(directory.resolve("moderation.json"));
 		VoiceData.get().load(directory.resolve("voice.json"));
+		LobbyState.get().load(directory.resolve("lobby.json"));
+		// Has to happen now: the server reads the world's data packs after mod initialisation and
+		// before it builds its dimensions, so writing the pack here is what makes astra:lobby exist.
+		LobbyDimension.install(FabricLoader.getInstance().getGameDir());
 		Permissions.logMode();
 		KitEnchantments.logStatus();
 		VoiceSupport.logStatus();
 		AutoUpdater.start();
-		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute, /unmute and the /vc commands");
+		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute, /unmute, /kitgive, "
+				+ "the /vc commands, /queue and /lobby");
 	}
 
 	/**

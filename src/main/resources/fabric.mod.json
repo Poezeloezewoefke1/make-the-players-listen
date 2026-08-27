@@ -3,7 +3,7 @@
 	"id": "freezemute",
 	"version": "${version}",
 	"name": "Make The Players Listen",
-	"description": "Server-side moderation commands for Fabric: freeze a player completely (walking, jumping, flying, riding and even looking around), mute a player's chat, and mute or deafen a player in Simple Voice Chat. Works with vanilla clients - nothing has to be installed client-side.",
+	"description": "Server-side moderation and event tools for Fabric: freeze a player completely (walking, jumping, flying, riding and even looking around), mute their chat, mute or deafen them in Simple Voice Chat, hand out worn kits, and hold a launch in a lobby dimension with a first-come-first-served queue, crash grace windows and parkour leaderboards. Works with vanilla clients - nothing has to be installed client-side.",
 	"authors": [
 		"poezeloezewoefke1"
 	],

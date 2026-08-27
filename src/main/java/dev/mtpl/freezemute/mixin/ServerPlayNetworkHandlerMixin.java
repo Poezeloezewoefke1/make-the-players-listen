@@ -5,6 +5,7 @@ import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.FreezeMuteConfig;
 import dev.mtpl.freezemute.FrozenConnection;
 import dev.mtpl.freezemute.ModerationData;
+import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.StaffAlerts;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -130,8 +131,9 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 	@Inject(method = "onPlayerInteractItem", at = @At("HEAD"), cancellable = true)
 	private void freezemute$refuseItemUse(PlayerInteractItemC2SPacket packet, CallbackInfo info) {
 		// Ender pearls and chorus fruit teleport a player server side, which would move them
-		// out of the freeze, so using items is refused while frozen.
-		if (freezemute$isFrozen(this.player)) {
+		// out of the freeze, so using items is refused while frozen. Lobby members are held to
+		// the same rule: whatever they walked in carrying stays in their pocket.
+		if (freezemute$isFrozen(this.player) || freezemute$isLobbyMember()) {
 			info.cancel();
 		}
 	}
@@ -217,16 +219,47 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 		return target != null && ModerationData.get().isFrozen(target.getUuid());
 	}
 
+	/**
+	 * Breaking, placing, hitting, dropping and inventory clicks.
+	 *
+	 * <p>The lobby reuses this, which is the whole point of it being a flag rather than a
+	 * subsystem: a member is refused exactly the things a frozen player is refused, while the
+	 * movement handlers above never ask about the lobby at all - so walking, jumping and a parkour
+	 * course all keep working.
+	 */
 	@Unique
 	private boolean freezemute$blocksInteractions() {
-		return FreezeMuteConfig.get().freezeBlocksInteractions && freezemute$isFrozen(this.player);
+		ServerPlayerEntity target = this.player;
+
+		if (target == null) {
+			return false;
+		}
+
+		if (freezemute$isLobbyMember()) {
+			return true;
+		}
+
+		return FreezeMuteConfig.get().freezeBlocksInteractions && freezemute$isFrozen(target);
+	}
+
+	@Unique
+	private boolean freezemute$isLobbyMember() {
+		return LobbyManager.isMember(this.player);
 	}
 
 	@Unique
 	private boolean freezemute$mutedAndBlocked() {
 		ServerPlayerEntity target = this.player;
-		return FreezeMuteConfig.get().muteBlocksSignsAndBooks
-				&& target != null
-				&& ModerationData.get().isMuted(target.getUuid());
+
+		if (target == null) {
+			return false;
+		}
+
+		if (freezemute$isLobbyMember()) {
+			// Writing on a sign is the way around a room with no chat in it, too.
+			return true;
+		}
+
+		return FreezeMuteConfig.get().muteBlocksSignsAndBooks && ModerationData.get().isMuted(target.getUuid());
 	}
 }

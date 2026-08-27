@@ -38,12 +38,41 @@ public final class FreezeMuteConfig {
 	/** Which repository the update comes from. Nothing outside this repository is ever fetched. */
 	public String updateRepository = "poezeloezewoefke1/make-the-players-listen";
 
+	// ------------------------------------------------------------------- lobby
+
+	/** Write the {@code astra:lobby} dimension datapack into the world folder on every start. */
+	public boolean lobbyInstallDimension = true;
+	/** Lay a stone platform under the lobby spawn the first time the dimension is empty. */
+	public boolean lobbySpawnPlatform = true;
+	/** How wide that platform is, measured from the middle. */
+	public int lobbyPlatformRadius = 12;
+	/** Hide lobby members from each other. Staff always see everybody. */
+	public boolean lobbyIsolateMembers = true;
+	/** How long a queued player keeps their place in line after dropping out. */
+	public int lobbyQueueGraceSeconds = 300;
+	/** How long an admitted player keeps their slot after dropping out. */
+	public int lobbySlotGraceSeconds = 300;
+	/** How many players may be let through per second, so a rush does not stall the server. */
+	public int lobbyAdmitPerSecond = 1;
+	/** Anything below this height in the lobby is caught and put back on the last checkpoint. */
+	public int lobbyVoidCatchY = -5;
+	/** Parkour checkpoints trigger within this many blocks. */
+	public double lobbyCheckpointRadius = 1.5D;
+
 	public static FreezeMuteConfig get() {
 		return instance;
 	}
 
 	public long staffNotifyCooldownMillis() {
 		return Math.max(0, staffNotifyCooldownSeconds) * 1000L;
+	}
+
+	public long lobbyQueueGraceMillis() {
+		return Math.max(0, lobbyQueueGraceSeconds) * 1000L;
+	}
+
+	public long lobbySlotGraceMillis() {
+		return Math.max(0, lobbySlotGraceSeconds) * 1000L;
 	}
 
 	public static void load(Path file) {
@@ -63,6 +92,15 @@ public final class FreezeMuteConfig {
 					config.autoUpdate = bool(object, "autoUpdate", config.autoUpdate);
 					config.updateCheckOnly = bool(object, "updateCheckOnly", config.updateCheckOnly);
 					config.updateRepository = string(object, "updateRepository", config.updateRepository);
+					config.lobbyInstallDimension = bool(object, "lobbyInstallDimension", config.lobbyInstallDimension);
+					config.lobbySpawnPlatform = bool(object, "lobbySpawnPlatform", config.lobbySpawnPlatform);
+					config.lobbyPlatformRadius = integer(object, "lobbyPlatformRadius", config.lobbyPlatformRadius);
+					config.lobbyIsolateMembers = bool(object, "lobbyIsolateMembers", config.lobbyIsolateMembers);
+					config.lobbyQueueGraceSeconds = integer(object, "lobbyQueueGraceSeconds", config.lobbyQueueGraceSeconds);
+					config.lobbySlotGraceSeconds = integer(object, "lobbySlotGraceSeconds", config.lobbySlotGraceSeconds);
+					config.lobbyAdmitPerSecond = integer(object, "lobbyAdmitPerSecond", config.lobbyAdmitPerSecond);
+					config.lobbyVoidCatchY = integer(object, "lobbyVoidCatchY", config.lobbyVoidCatchY);
+					config.lobbyCheckpointRadius = number(object, "lobbyCheckpointRadius", config.lobbyCheckpointRadius);
 				} else {
 					FreezeMute.LOGGER.warn("{} is not a JSON object, using the default settings", file);
 				}
@@ -86,6 +124,15 @@ public final class FreezeMuteConfig {
 		object.addProperty("autoUpdate", config.autoUpdate);
 		object.addProperty("updateCheckOnly", config.updateCheckOnly);
 		object.addProperty("updateRepository", config.updateRepository);
+		object.addProperty("lobbyInstallDimension", config.lobbyInstallDimension);
+		object.addProperty("lobbySpawnPlatform", config.lobbySpawnPlatform);
+		object.addProperty("lobbyPlatformRadius", config.lobbyPlatformRadius);
+		object.addProperty("lobbyIsolateMembers", config.lobbyIsolateMembers);
+		object.addProperty("lobbyQueueGraceSeconds", config.lobbyQueueGraceSeconds);
+		object.addProperty("lobbySlotGraceSeconds", config.lobbySlotGraceSeconds);
+		object.addProperty("lobbyAdmitPerSecond", config.lobbyAdmitPerSecond);
+		object.addProperty("lobbyVoidCatchY", config.lobbyVoidCatchY);
+		object.addProperty("lobbyCheckpointRadius", config.lobbyCheckpointRadius);
 
 		try {
 			Path parent = file.getParent();
@@ -123,6 +170,14 @@ public final class FreezeMuteConfig {
 	private static int integer(JsonObject object, String key, int fallback) {
 		try {
 			return object.has(key) ? object.get(key).getAsInt() : fallback;
+		} catch (RuntimeException exception) {
+			return fallback;
+		}
+	}
+
+	private static double number(JsonObject object, String key, double fallback) {
+		try {
+			return object.has(key) ? object.get(key).getAsDouble() : fallback;
 		} catch (RuntimeException exception) {
 			return fallback;
 		}

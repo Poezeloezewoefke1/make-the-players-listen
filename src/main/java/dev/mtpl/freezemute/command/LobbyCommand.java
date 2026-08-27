@@ -1,0 +1,403 @@
+package dev.mtpl.freezemute.command;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+
+import dev.mtpl.freezemute.lobby.Course;
+import dev.mtpl.freezemute.lobby.CourseRecord;
+import dev.mtpl.freezemute.lobby.LobbyDimension;
+import dev.mtpl.freezemute.lobby.LobbyManager;
+import dev.mtpl.freezemute.lobby.LobbyState;
+import dev.mtpl.freezemute.lobby.Spot;
+import dev.mtpl.freezemute.util.Messages;
+
+import net.minecraft.command.CommandSource;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+
+/**
+ * {@code /lobby} - the room itself, and the parkour in it.
+ *
+ * <p>{@code /lobby all} is the panic button: everybody who is not staff comes back, immediately,
+ * and the line they were in is kept so the session can pick up where it stopped.
+ */
+public final class LobbyCommand {
+	private LobbyCommand() {
+	}
+
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(CommandManager.literal("lobby")
+				.requires(source -> Permissions.check(source, Permissions.LOBBY))
+				.executes(context -> sendSelf(context.getSource()))
+				.then(CommandManager.literal("status")
+						.executes(context -> status(context.getSource())))
+				.then(CommandManager.literal("enable")
+						.executes(context -> setEnabled(context.getSource(), true)))
+				.then(CommandManager.literal("disable")
+						.executes(context -> setEnabled(context.getSource(), false)))
+				.then(CommandManager.literal("all")
+						.executes(context -> recall(context.getSource())))
+				.then(CommandManager.literal("setspawn")
+						.executes(context -> setSpawn(context.getSource())))
+				.then(course())
+				.then(CommandManager.argument("targets", EntityArgumentType.players())
+						.executes(context -> send(context.getSource(),
+								EntityArgumentType.getPlayers(context, "targets")))));
+	}
+
+	// ------------------------------------------------------------------- rooms
+
+	private static int sendSelf(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player == null) {
+			return status(source);
+		}
+
+		LobbyManager.sendToLobby(source.getServer(), player);
+		source.sendFeedback(() -> Messages.success("Off you go."), false);
+		return 1;
+	}
+
+	private static int send(ServerCommandSource source, Collection<ServerPlayerEntity> targets) {
+		MinecraftServer server = source.getServer();
+		LobbyState state = LobbyState.get();
+		long now = System.currentTimeMillis();
+		int count = 0;
+
+		for (ServerPlayerEntity target : targets) {
+			state.release(target.getUuid());
+			LobbyManager.sendToLobby(server, target);
+
+			if (!Permissions.isStaff(target)) {
+				state.enqueue(target.getUuid(), target.getGameProfile().name(), now);
+			}
+
+			count++;
+		}
+
+		int total = count;
+		source.sendFeedback(() -> Messages.success("Sent " + total + " player(s) to the lobby."), true);
+		return count;
+	}
+
+	/** The panic button: everybody back, the line kept, nothing let through until staff say so. */
+	private static int recall(ServerCommandSource source) {
+		LobbyState.get().setQueueOpen(false);
+		int moved = LobbyManager.recallEveryone(source.getServer());
+		source.sendFeedback(() -> Messages.success(moved + " player(s) pulled back to the lobby. "
+				+ "The queue is closed - run /queue open when you are ready."), true);
+		return moved;
+	}
+
+	private static int setSpawn(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player == null) {
+			source.sendError(Messages.failure("Stand where you want the spawn to be and run this again."));
+			return 0;
+		}
+
+		if (!LobbyManager.isInLobby(player)) {
+			source.sendError(Messages.failure("You are not in the lobby. Run /lobby first."));
+			return 0;
+		}
+
+		Spot spot = Spot.of(player);
+		LobbyState.get().setSpawn(spot);
+		source.sendFeedback(() -> Messages.success("Lobby spawn set to " + spot.describe() + "."), true);
+		return 1;
+	}
+
+	private static int setEnabled(ServerCommandSource source, boolean enabled) {
+		MinecraftServer server = source.getServer();
+
+		if (enabled && LobbyDimension.world(server) == null) {
+			source.sendError(Messages.failure("The lobby dimension does not exist yet. The data pack has been "
+					+ "written - restart the server once and it will be there."));
+			return 0;
+		}
+
+		LobbyState.get().setEnabled(enabled);
+
+		if (!enabled) {
+			// Leaving people stuck in an adventure-mode room nobody is watching would be worse
+			// than the queue jumping, so everybody comes out.
+			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+				if (LobbyManager.isMember(player)) {
+					LobbyManager.admit(server, player, false);
+				}
+			}
+		}
+
+		source.sendFeedback(() -> Messages.success(enabled
+				? "The lobby is on. Everybody who joins now waits in line."
+				: "The lobby is off and everybody has been let out."), true);
+		return 1;
+	}
+
+	private static int status(ServerCommandSource source) {
+		MinecraftServer server = source.getServer();
+		LobbyState state = LobbyState.get();
+		ServerWorld world = LobbyDimension.world(server);
+
+		source.sendFeedback(() -> Messages.header("Lobby"), false);
+		source.sendFeedback(() -> Messages.listEntry("  dimension: "
+				+ (world == null ? "not built yet - restart once" : "astra:lobby")), false);
+		source.sendFeedback(() -> Messages.listEntry("  routing: " + (state.enabled() ? "on" : "off")), false);
+		source.sendFeedback(() -> Messages.listEntry("  spawn: " + state.spawn().describe()), false);
+		source.sendFeedback(() -> Messages.listEntry("  waiting here: " + LobbyManager.memberCount()), false);
+		source.sendFeedback(() -> Messages.listEntry("  courses: " + state.courses().size()), false);
+		return 1;
+	}
+
+	// ----------------------------------------------------------------- parkour
+
+	private static LiteralArgumentBuilder<ServerCommandSource> course() {
+		return CommandManager.literal("course")
+				.requires(source -> Permissions.check(source, Permissions.LOBBY_COURSE))
+				.then(CommandManager.literal("list")
+						.executes(context -> courseList(context.getSource())))
+				.then(CommandManager.literal("create")
+						.then(CommandManager.argument("name", StringArgumentType.word())
+								.executes(context -> create(context.getSource(),
+										StringArgumentType.getString(context, "name")))))
+				.then(named("start", LobbyCommand::setStart))
+				.then(named("checkpoint", LobbyCommand::addCheckpoint))
+				.then(named("undo", LobbyCommand::undoCheckpoint))
+				.then(named("finish", LobbyCommand::setFinish))
+				.then(named("delete", LobbyCommand::delete))
+				.then(named("tp", LobbyCommand::teleport))
+				.then(named("top", LobbyCommand::top));
+	}
+
+	/** Every course sub-command but {@code create} takes the name of a course that already exists. */
+	private static LiteralArgumentBuilder<ServerCommandSource> named(String literal, CourseAction action) {
+		RequiredArgumentBuilder<ServerCommandSource, String> argument =
+				CommandManager.argument("name", StringArgumentType.word())
+						.suggests((context, builder) -> CommandSource.suggestMatching(
+								LobbyState.get().courseNames(), builder))
+						.executes(context -> action.run(context.getSource(),
+								StringArgumentType.getString(context, "name")));
+
+		return CommandManager.literal(literal).then(argument);
+	}
+
+	@FunctionalInterface
+	private interface CourseAction {
+		int run(ServerCommandSource source, String name);
+	}
+
+	private static int courseList(ServerCommandSource source) {
+		List<Course> courses = LobbyState.get().courses();
+
+		if (courses.isEmpty()) {
+			source.sendFeedback(() -> Messages.success("No courses yet. Stand on the start and run "
+					+ "/lobby course create <name>."), false);
+			return 0;
+		}
+
+		source.sendFeedback(() -> Messages.header("Courses (" + courses.size() + ")"), false);
+
+		for (Course course : courses) {
+			source.sendFeedback(() -> Messages.listEntry("  " + course.name() + " - "
+					+ course.checkpoints().size() + " checkpoint(s), "
+					+ (course.playable() ? "ready" : "no finish set yet")), false);
+		}
+
+		return courses.size();
+	}
+
+	private static int create(ServerCommandSource source, String name) {
+		Spot spot = standingIn(source);
+
+		if (spot == null) {
+			return 0;
+		}
+
+		LobbyState state = LobbyState.get();
+
+		if (state.course(name) != null) {
+			source.sendError(Messages.failure("There is already a course called " + name + "."));
+			return 0;
+		}
+
+		state.putCourse(Course.starting(name, spot));
+		source.sendFeedback(() -> Messages.success("Created " + name + " with the start where you stand. "
+				+ "Add checkpoints with /lobby course checkpoint " + name
+				+ " and set the end with /lobby course finish " + name + "."), true);
+		return 1;
+	}
+
+	private static int setStart(ServerCommandSource source, String name) {
+		return edit(source, name, (course, spot) -> course.withStart(spot), "start moved to");
+	}
+
+	private static int setFinish(ServerCommandSource source, String name) {
+		return edit(source, name, (course, spot) -> course.withFinish(spot), "finish set at");
+	}
+
+	private static int addCheckpoint(ServerCommandSource source, String name) {
+		Spot spot = standingIn(source);
+		Course course = existing(source, name);
+
+		if (spot == null || course == null) {
+			return 0;
+		}
+
+		Course updated = course.withCheckpoint(spot);
+		LobbyState.get().putCourse(updated);
+		source.sendFeedback(() -> Messages.success("Checkpoint " + updated.checkpoints().size()
+				+ " added to " + updated.name() + " at " + spot.describe() + "."), true);
+		return updated.checkpoints().size();
+	}
+
+	private static int undoCheckpoint(ServerCommandSource source, String name) {
+		Course course = existing(source, name);
+
+		if (course == null) {
+			return 0;
+		}
+
+		if (course.checkpoints().isEmpty()) {
+			source.sendError(Messages.failure(course.name() + " has no checkpoints to remove."));
+			return 0;
+		}
+
+		Course updated = course.withoutLastCheckpoint();
+		LobbyState.get().putCourse(updated);
+		source.sendFeedback(() -> Messages.success("Removed the last checkpoint from " + updated.name()
+				+ ", " + updated.checkpoints().size() + " left."), true);
+		return 1;
+	}
+
+	private static int delete(ServerCommandSource source, String name) {
+		if (!LobbyState.get().removeCourse(name)) {
+			source.sendError(Messages.failure("There is no course called " + name + "."));
+			return 0;
+		}
+
+		source.sendFeedback(() -> Messages.success("Deleted " + name + " and its times."), true);
+		return 1;
+	}
+
+	private static int teleport(ServerCommandSource source, String name) {
+		ServerPlayerEntity player = source.getPlayer();
+		Course course = existing(source, name);
+
+		if (course == null) {
+			return 0;
+		}
+
+		if (player == null) {
+			source.sendError(Messages.failure("Only a player can be teleported to a course."));
+			return 0;
+		}
+
+		ServerWorld lobby = LobbyDimension.world(source.getServer());
+
+		if (lobby == null) {
+			source.sendError(Messages.failure("The lobby dimension does not exist yet."));
+			return 0;
+		}
+
+		Spot start = course.start();
+		player.teleport(lobby, start.x(), start.y(), start.z(), Set.of(), start.yaw(), start.pitch(), true);
+		source.sendFeedback(() -> Messages.success("Teleported to the start of " + course.name() + "."), false);
+		return 1;
+	}
+
+	private static int top(ServerCommandSource source, String name) {
+		Course course = existing(source, name);
+
+		if (course == null) {
+			return 0;
+		}
+
+		List<CourseRecord> board = LobbyState.get().leaderboard(course.name());
+
+		if (board.isEmpty()) {
+			source.sendFeedback(() -> Messages.success("Nobody has finished " + course.name() + " yet."), false);
+			return 0;
+		}
+
+		source.sendFeedback(() -> Messages.header(course.name() + " - fastest times"), false);
+
+		int shown = Math.min(10, board.size());
+
+		for (int index = 0; index < shown; index++) {
+			CourseRecord record = board.get(index);
+			int place = index + 1;
+			source.sendFeedback(() -> Messages.listEntry("  " + place + ". " + record.name()
+					+ " - " + CourseRecord.format(record.millis())), false);
+		}
+
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player != null) {
+			CourseRecord own = LobbyState.get().personalBest(course.name(), player.getUuid());
+
+			if (own != null) {
+				source.sendFeedback(() -> Messages.success("Your best: " + CourseRecord.format(own.millis())), false);
+			}
+		}
+
+		return shown;
+	}
+
+	private static int edit(ServerCommandSource source, String name, CourseEdit edit, String what) {
+		Spot spot = standingIn(source);
+		Course course = existing(source, name);
+
+		if (spot == null || course == null) {
+			return 0;
+		}
+
+		Course updated = edit.apply(course, spot);
+		LobbyState.get().putCourse(updated);
+		source.sendFeedback(() -> Messages.success(updated.name() + " " + what + " " + spot.describe() + "."), true);
+		return 1;
+	}
+
+	@FunctionalInterface
+	private interface CourseEdit {
+		Course apply(Course course, Spot spot);
+	}
+
+	private static Course existing(ServerCommandSource source, String name) {
+		Course course = LobbyState.get().course(name);
+
+		if (course == null) {
+			source.sendError(Messages.failure("There is no course called " + name + "."));
+		}
+
+		return course;
+	}
+
+	/** A course is built by standing where you want the marker, so every edit needs a player. */
+	private static Spot standingIn(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player == null) {
+			source.sendError(Messages.failure("Stand where you want the marker and run this again."));
+			return null;
+		}
+
+		if (!LobbyManager.isInLobby(player)) {
+			source.sendError(Messages.failure("Courses are built in the lobby. Run /lobby first."));
+			return null;
+		}
+
+		return Spot.of(player);
+	}
+}

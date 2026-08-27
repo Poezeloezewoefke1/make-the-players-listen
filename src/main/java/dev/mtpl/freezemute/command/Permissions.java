@@ -31,6 +31,11 @@ public final class Permissions {
 	public static final String VC_DEAFEN = "freezemute.vcdeafen";
 	public static final String VC_UNDEAFEN = "freezemute.vcundeafen";
 	public static final String VC_LIST = "freezemute.vclist";
+	public static final String QUEUE = "freezemute.queue";
+	public static final String LOBBY = "freezemute.lobby";
+	public static final String LOBBY_COURSE = "freezemute.lobby.course";
+	/** Held by a player rather than checked on a command: whoever has it never sees the queue. */
+	public static final String EARLY_ACCESS = "freezemute.lobby.early";
 	/** Receives the "player is testing their punishment" messages. */
 	public static final String STAFF = "freezemute.staff";
 
@@ -89,6 +94,25 @@ public final class Permissions {
 
 		MinecraftServer server = FreezeMute.server();
 		return server != null && isOperator(server, player);
+	}
+
+	/**
+	 * True for players who skip the queue.
+	 *
+	 * <p>Unlike {@link #isStaff}, this does not fall back to operator status: without a permission
+	 * mod the node cannot be granted to anybody, and the early access list is the way in. Staff are
+	 * waved through separately, so nothing is lost.
+	 */
+	public static boolean hasEarlyAccess(ServerPlayerEntity player) {
+		if (PLAYER_CHECK == null) {
+			return false;
+		}
+
+		try {
+			return (boolean) PLAYER_CHECK.invoke(null, player, EARLY_ACCESS, 2);
+		} catch (ReflectiveOperationException | ClassCastException exception) {
+			return false;
+		}
 	}
 
 	private static boolean isOperator(MinecraftServer server, ServerPlayerEntity player) {
