@@ -9,6 +9,7 @@ import dev.mtpl.freezemute.command.Permissions;
 import dev.mtpl.freezemute.kit.KitEnchantments;
 import dev.mtpl.freezemute.lobby.LobbyDimension;
 import dev.mtpl.freezemute.lobby.LobbyState;
+import dev.mtpl.freezemute.lobby.PlayerWorld;
 import dev.mtpl.freezemute.update.AutoUpdater;
 import dev.mtpl.freezemute.voice.VoiceData;
 import dev.mtpl.freezemute.voice.VoiceSupport;
@@ -42,6 +43,7 @@ public final class FreezeMute implements ModInitializer {
 		LobbyDimension.install(FabricLoader.getInstance().getGameDir());
 		Permissions.logMode();
 		KitEnchantments.logStatus();
+		PlayerWorld.logStatus();
 		VoiceSupport.logStatus();
 		AutoUpdater.start();
 		LOGGER.info("Ready - operators can use /freeze, /unfreeze, /mute, /unmute, /kitgive, "

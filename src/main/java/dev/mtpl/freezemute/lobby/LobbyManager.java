@@ -91,13 +91,6 @@ public final class LobbyManager {
 		return anyMembers && FreezeMuteConfig.get().lobbyIsolateMembers;
 	}
 
-	/** Somebody who may skip the queue: staff, the early access node, or the early access list. */
-	public static boolean skipsQueue(ServerPlayerEntity player) {
-		return Permissions.isStaff(player)
-				|| Permissions.hasEarlyAccess(player)
-				|| LobbyState.get().hasEarlyAccess(player.getUuid());
-	}
-
 	// ------------------------------------------------------------------ routing
 
 	/**
@@ -119,7 +112,15 @@ public final class LobbyManager {
 		long now = System.currentTimeMillis();
 		boolean inLobby = isInLobby(player);
 
-		if (skipsQueue(player)) {
+		if (Permissions.isStaff(player)) {
+			// Staff are not queued and do not take up a slot - the cap is there to keep the world
+			// quiet enough to film in, and the people filming it are not the problem. They are not
+			// moved either: somebody who logged out while building the parkour logs back into it.
+			state.dequeue(uuid);
+			return;
+		}
+
+		if (Permissions.hasEarlyAccess(player) || state.hasEarlyAccess(uuid)) {
 			state.dequeue(uuid);
 			state.admit(uuid, name, now);
 
@@ -173,8 +174,18 @@ public final class LobbyManager {
 		becomeMember(server, player);
 	}
 
-	/** Applies everything that makes somebody a lobby member. Safe to call twice. */
+	/**
+	 * Applies everything that makes somebody a lobby member. Safe to call twice.
+	 *
+	 * <p>Staff are never members, even when they are standing in the lobby. {@code /lobby} is how
+	 * they go and look at the room, and a moderator who arrives in adventure mode unable to touch
+	 * anything is not much use to the people waiting in it.
+	 */
 	public static void becomeMember(MinecraftServer server, ServerPlayerEntity player) {
+		if (Permissions.isStaff(player)) {
+			return;
+		}
+
 		player.changeGameMode(GameMode.ADVENTURE);
 		// Nobody should die waiting in line, and a parkour fall is caught before the void anyway.
 		player.setInvulnerable(true);
@@ -382,12 +393,12 @@ public final class LobbyManager {
 	// ------------------------------------------------------------------- where
 
 	public static boolean isInLobby(ServerPlayerEntity player) {
-		ServerWorld world = player.getServerWorld();
+		ServerWorld world = PlayerWorld.of(player);
 		return world != null && LobbyDimension.KEY.equals(world.getRegistryKey());
 	}
 
 	private static void rememberWhereTheyWere(ServerPlayerEntity player) {
-		ServerWorld world = player.getServerWorld();
+		ServerWorld world = PlayerWorld.of(player);
 
 		if (world == null) {
 			return;

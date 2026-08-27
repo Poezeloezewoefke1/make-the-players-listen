@@ -42,9 +42,6 @@ public final class LobbyDimension {
 
 	/** Where a fresh lobby puts people, until staff run {@code /lobby setspawn}. */
 	public static final Spot DEFAULT_SPAWN = new Spot(0.5D, 65.0D, 0.5D, 0.0F, 0.0F);
-	/** The platform sits one block under the default spawn. */
-	private static final int PLATFORM_Y = 64;
-
 	private static final String PACK_NAME = "astra_lobby";
 
 	private static volatile boolean platformChecked;

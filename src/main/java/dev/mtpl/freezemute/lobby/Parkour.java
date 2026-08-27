@@ -67,7 +67,7 @@ public final class Parkour {
 		UUID uuid = player.getUuid();
 
 		if (player.getY() < config.lobbyVoidCatchY) {
-			catchFall(player, state);
+			catchFall(server, player, state);
 			return;
 		}
 
@@ -176,7 +176,7 @@ public final class Parkour {
 	}
 
 	/** Puts a runner back on their last checkpoint, or on the lobby spawn if they were not running. */
-	private static void catchFall(ServerPlayerEntity player, LobbyState state) {
+	private static void catchFall(MinecraftServer server, ServerPlayerEntity player, LobbyState state) {
 		Run run = RUNS.get(player.getUuid());
 		Spot target = state.spawn();
 
@@ -188,7 +188,8 @@ public final class Parkour {
 			}
 		}
 
-		ServerWorld world = player.getServerWorld();
+		// The caller only reaches here for somebody standing in the lobby, so that is the world.
+		ServerWorld world = LobbyDimension.world(server);
 
 		if (world != null) {
 			player.setVelocity(0.0D, 0.0D, 0.0D);
