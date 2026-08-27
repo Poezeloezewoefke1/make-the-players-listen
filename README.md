@@ -201,7 +201,7 @@ the wrong name.
 | Chestplate | Protection | Unbreaking, Mending |
 | Leggings | Protection | Swift Sneak, Unbreaking, Mending |
 | Boots | Protection | Feather Falling, Depth Strider, Soul Speed, Frost Walker, Unbreaking, Mending |
-| Sword | Sharpness | Looting, Fire Aspect, Knockback, Unbreaking, Mending |
+| Sword | Sharpness | Looting, Fire Aspect, Unbreaking, Mending |
 | Axe | Sharpness | Efficiency, Fortune, Silk Touch, Unbreaking, Mending |
 | Pickaxe, shovel | Efficiency | Fortune, Silk Touch, Unbreaking, Mending |
 | Shield | Unbreaking | Mending |
@@ -210,7 +210,7 @@ So an enchanted chestplate always actually protects and an enchanted sword alway
 harder - the sides are extras, never a substitute. A diamond helmet reads as Protection III and
 Aqua Affinity, not as whichever single enchantment a shuffle happened to land on.
 
-**No Thorns**, anywhere, at any tier. Armour only ever rolls plain Protection and weapons only
+**No Thorns and no Knockback**, anywhere, at any tier. Armour only ever rolls plain Protection and weapons only
 ever roll Sharpness - Blast, Fire and Projectile Protection, Smite and Bane of Arthropods are all
 left out, so a piece is never quietly worse than it looks.
 
@@ -239,7 +239,7 @@ the point of naming a tier after its enchantments.
 | Chestplate | Protection IV, Unbreaking III |
 | Leggings | Protection IV, Unbreaking III |
 | Boots | Protection IV, Feather Falling IV, Depth Strider III, Unbreaking III |
-| Sword | Sharpness V, Looting III, Fire Aspect II, Knockback II, Unbreaking III |
+| Sword | Sharpness V, Looting III, Fire Aspect II, Unbreaking III |
 | Axe | Sharpness V, Efficiency V, Fortune III, Unbreaking III |
 | Pickaxe, shovel | Efficiency V, Fortune III, Unbreaking III |
 | Shield | Unbreaking III |

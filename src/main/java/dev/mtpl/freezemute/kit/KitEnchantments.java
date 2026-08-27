@@ -33,7 +33,9 @@ import net.minecraft.util.Identifier;
  *
  * <p>Armour only ever rolls plain Protection and weapons only ever roll Sharpness: the
  * situational variants (Blast, Fire and Projectile Protection, Smite, Bane of Arthropods) are
- * left out so a piece is never quietly worse than it looks. Thorns is left out entirely.
+ * left out so a piece is never quietly worse than it looks. Thorns and Knockback are left out
+ * entirely - Knockback because shoving people away is rarely what anybody wants from a kit
+ * sword.
  *
  * <p>A tier can also say that the material does not get to cap its pieces, and name enchantments
  * it never hands out - which is how a diamond kit ends up carrying Protection IV and Unbreaking
@@ -255,7 +257,6 @@ public final class KitEnchantments {
 		if (sword) {
 			add(options, power, "looting", null, EnchantPower.MIXED, cap(power, 1, 2, 3, 3));
 			add(options, power, "fire_aspect", null, EnchantPower.MIXED, cap(power, 1, 1, 2, 2));
-			add(options, power, "knockback", null, EnchantPower.WEAK, cap(power, 1, 1, 2, 2));
 		}
 
 		if (digger) {

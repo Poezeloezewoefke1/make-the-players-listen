@@ -52,12 +52,15 @@ class KitEnchantmentsTest {
 	}
 
 	@Test
-	void thornsIsNeverHandedOut() {
-		for (String itemId : everyKitItemId()) {
-			for (EnchantPower power : ENCHANTED) {
-				assertFalse(KitEnchantments.sideIds(itemId, power).contains("thorns"),
-						itemId + " could roll Thorns at " + power);
-				assertFalse("thorns".equals(KitEnchantments.primaryFor(itemId)));
+	void thornsAndKnockbackAreNeverHandedOut() {
+		for (String unwanted : List.of("thorns", "knockback")) {
+			for (String itemId : everyKitItemId()) {
+				for (EnchantPower power : ENCHANTED) {
+					assertFalse(KitEnchantments.sideIds(itemId, power).contains(unwanted),
+							itemId + " could roll " + unwanted + " at " + power);
+					assertFalse(unwanted.equals(KitEnchantments.primaryFor(itemId)),
+							itemId + " has " + unwanted + " as its main enchantment");
+				}
 			}
 		}
 	}
