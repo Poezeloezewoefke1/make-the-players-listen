@@ -80,7 +80,7 @@ public class VoicePlugin implements VoicechatPlugin {
 			return;
 		}
 
-		UUID receiver = uuidOf(event.getConnection());
+		UUID receiver = uuidOf(event.getReceiverConnection());
 
 		if (receiver != null && VoiceData.get().isDeafened(receiver)) {
 			event.cancel();

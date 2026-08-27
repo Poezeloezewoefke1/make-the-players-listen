@@ -33,6 +33,25 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: dump the voice chat api we build against
+        continue-on-error: true
+        run: |
+          API=$(grep '^voicechat_api_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          URL="https://maven.maxhenkel.de/repository/public/de/maxhenkel/voicechat/voicechat-api/${API}/voicechat-api-${API}.jar"
+          echo "voicechat api: $API"
+          curl -sSL --max-time 120 -o vcapi.jar "$URL"
+          mkdir -p vcapi && unzip -o -q vcapi.jar -d vcapi
+          for CLASS in \
+            de/maxhenkel/voicechat/api/events/SoundPacketEvent \
+            de/maxhenkel/voicechat/api/events/MicrophonePacketEvent \
+            de/maxhenkel/voicechat/api/events/EntitySoundPacketEvent \
+            de/maxhenkel/voicechat/api/events/EventRegistration \
+            de/maxhenkel/voicechat/api/VoicechatConnection \
+            de/maxhenkel/voicechat/api/VoicechatPlugin; do
+            echo "===== $CLASS ====="
+            javap -cp vcapi "$(echo "$CLASS" | tr '/' '.')" || echo "  (not in this jar)"
+          done
+
       - name: dump the pinned mappings for the classes we build against
         continue-on-error: true
         run: |
