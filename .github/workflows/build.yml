@@ -218,8 +218,6 @@ jobs:
             sleep 3
             echo "lobby status"
             sleep 3
-            echo "lobby leave"
-            sleep 3
             echo "queue status"
             sleep 3
             echo "queue cap 8"
@@ -302,6 +300,8 @@ jobs:
             echo "lobby enable"
             sleep 5
             echo "lobby status"
+            sleep 3
+            echo "lobby leave"
             sleep 3
             echo "queue status"
             sleep 3
