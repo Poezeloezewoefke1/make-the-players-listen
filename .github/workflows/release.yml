@@ -102,7 +102,8 @@ jobs:
           | \`/vcdeafen <targets> [duration] [reason]\` | Deafens a player in voice chat - they hear nobody |
           | \`/vcunmute <name>\` / \`/vcundeafen <name>\` | Lifts one, or \`all\` to lift every one |
           | \`/vclist\` / \`/vcinfo <name>\` / \`/vcstatus\` | Who is punished, one player's status, and whether the voice chat plugin is enforcing |
-          | \`/lobby\` / \`/lobby <targets>\` / \`/lobby all\` | Go to the lobby, send players there, or pull everybody back |
+          | \`/lobby\` / \`/lobby leave\` | Go and look at the room, and come back to where you were |
+          | \`/lobby <targets>\` / \`/lobby all\` | Send players to the lobby, or pull everybody back |
           | \`/lobby enable\` / \`/lobby disable\` / \`/lobby setspawn\` / \`/lobby status\` | Turn the routing on and off, set the spawn, see where things stand |
           | \`/lobby course ...\` | Build parkour courses: \`create\`, \`checkpoint\`, \`undo\`, \`start\`, \`finish\`, \`tp\`, \`top\`, \`list\`, \`delete\` |
           | \`/queue\` / \`/queue list\` | Line length, slots used, cap; and who is in, who is waiting, in order |

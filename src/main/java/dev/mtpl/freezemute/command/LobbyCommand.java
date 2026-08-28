@@ -45,6 +45,8 @@ public final class LobbyCommand {
 						.executes(context -> setEnabled(context.getSource(), true)))
 				.then(CommandManager.literal("disable")
 						.executes(context -> setEnabled(context.getSource(), false)))
+				.then(CommandManager.literal("leave")
+						.executes(context -> leave(context.getSource())))
 				.then(CommandManager.literal("all")
 						.executes(context -> recall(context.getSource())))
 				.then(CommandManager.literal("setspawn")
@@ -89,6 +91,30 @@ public final class LobbyCommand {
 		int total = count;
 		source.sendFeedback(() -> Messages.success("Sent " + total + " player(s) to the lobby."), true);
 		return count;
+	}
+
+	/**
+	 * The way back out for staff who went in to look at the room.
+	 *
+	 * <p>It puts them where they were standing when they ran {@code /lobby}, in the game mode they
+	 * were in, and touches neither the queue nor the slots - staff never held either.
+	 */
+	private static int leave(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player == null) {
+			source.sendError(Messages.failure("Only a player can leave the lobby."));
+			return 0;
+		}
+
+		if (!LobbyManager.isInLobby(player)) {
+			source.sendError(Messages.failure("You are not in the lobby."));
+			return 0;
+		}
+
+		LobbyManager.sendToWorld(source.getServer(), player,
+				Messages.success("Back to where you were."));
+		return 1;
 	}
 
 	/** The panic button: everybody back, the line kept, nothing let through until staff say so. */

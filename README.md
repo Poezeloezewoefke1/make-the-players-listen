@@ -71,6 +71,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | Command | What it does |
 |---|---|
 | `/lobby` | Sends you to the lobby |
+| `/lobby leave` | Puts you back where you were standing when you went in |
 | `/lobby <targets>` | Sends those players to the lobby and puts them in the queue |
 | `/lobby all` | The panic button: everybody who is not staff comes back, and the queue closes |
 | `/lobby enable` / `/lobby disable` | Turns the routing on and off. Off by default |

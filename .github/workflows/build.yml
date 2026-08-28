@@ -218,6 +218,8 @@ jobs:
             sleep 3
             echo "lobby status"
             sleep 3
+            echo "lobby leave"
+            sleep 3
             echo "queue status"
             sleep 3
             echo "queue cap 8"
@@ -341,6 +343,7 @@ jobs:
           check "cap 8" "the cap set on the previous run survived the restart"
           check "The lobby is on." "/lobby enable turned the lobby on"
           check "dimension: astra:lobby" "/lobby status found the dimension"
+          check "Only a player can leave the lobby." "/lobby leave is registered"
           check "routing: on" "/lobby status reports the lobby is routing"
           check "Nobody is waiting and nobody is in." "/queue list ran"
           check "Nobody is on the early access list." "/queue early list ran"
