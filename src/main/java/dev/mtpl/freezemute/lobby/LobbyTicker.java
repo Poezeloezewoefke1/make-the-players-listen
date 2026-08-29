@@ -124,7 +124,9 @@ public final class LobbyTicker {
 				LobbyManager.becomeMember(server, player);
 			}
 
-			if (!state.isAdmitted(uuid) && state.waiting(uuid) == null) {
+			if (!state.joinedAtAPoint() && !state.isAdmitted(uuid) && state.waiting(uuid) == null) {
+				// Only when there is nowhere to ask. With a queue point set, standing in the room
+				// is not the same as wanting a place in the line.
 				state.enqueue(uuid, player.getGameProfile().name(), now);
 			}
 		}

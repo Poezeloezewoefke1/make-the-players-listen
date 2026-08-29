@@ -95,6 +95,7 @@ public final class LobbyState {
 	private volatile boolean queueOpen = true;
 	private volatile int cap;
 	private volatile Spot spawn = LobbyDimension.DEFAULT_SPAWN;
+	private volatile Spot queuePoint;
 	private volatile Path file;
 
 	private LobbyState() {
@@ -136,6 +137,27 @@ public final class LobbyState {
 
 	public Spot spawn() {
 		return spawn;
+	}
+
+	/**
+	 * Where players go to ask for a place in line, or null when there is nowhere to ask.
+	 *
+	 * <p>Its presence decides how the queue is joined. With a point set, arriving in the lobby
+	 * puts nobody in the line - they wander, they do the parkour, and they join when they walk up
+	 * and right click. Without one, everybody who arrives is queued automatically, which is what
+	 * the lobby did before there was anywhere to click.
+	 */
+	public Spot queuePoint() {
+		return queuePoint;
+	}
+
+	public boolean joinedAtAPoint() {
+		return queuePoint != null;
+	}
+
+	public void setQueuePoint(Spot value) {
+		queuePoint = value;
+		save();
 	}
 
 	public void setSpawn(Spot value) {
@@ -506,6 +528,7 @@ public final class LobbyState {
 			queueOpen = true;
 			cap = 0;
 			spawn = LobbyDimension.DEFAULT_SPAWN;
+			queuePoint = null;
 
 			if (!Files.isRegularFile(path)) {
 				return;
@@ -539,6 +562,7 @@ public final class LobbyState {
 		queueOpen = readBoolean(object, "queueOpen", true);
 		cap = Math.max(0, readInt(object, "cap", 0));
 		spawn = Spot.fromJson(object.getAsJsonObject("spawn"), LobbyDimension.DEFAULT_SPAWN);
+		queuePoint = Spot.fromJson(object.getAsJsonObject("queuePoint"), null);
 
 		JsonArray waitingArray = object.getAsJsonArray("queue");
 
@@ -673,6 +697,10 @@ public final class LobbyState {
 		root.addProperty("queueOpen", queueOpen);
 		root.addProperty("cap", cap);
 		root.add("spawn", spawn.toJson());
+
+		if (queuePoint != null) {
+			root.add("queuePoint", queuePoint.toJson());
+		}
 
 		JsonArray waitingArray = new JsonArray();
 

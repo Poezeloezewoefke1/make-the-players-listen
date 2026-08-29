@@ -69,6 +69,8 @@ public final class LobbyManager {
 	/** Three seconds is far longer than entity tracking needs, and costs nothing after that. */
 	private static final int SETTLE_TICKS = 60;
 	private static final int SETTLE_EVERY = 5;
+	private static final Map<UUID, Long> LAST_CLICK = new ConcurrentHashMap<>();
+	private static final long CLICK_COOLDOWN_MILLIS = 500L;
 
 	private static int settleTick;
 	/** Set while at least one member is in the lobby, so the packet filter can leave early. */
@@ -190,6 +192,14 @@ public final class LobbyManager {
 			return;
 		}
 
+		if (state.joinedAtAPoint()) {
+			// There is somewhere to ask, so nobody is put in the line for simply turning up.
+			sendToLobby(server, player);
+			player.sendMessage(Text.literal("Welcome. Right click the pedestal to join the queue - "
+					+ "until then you are free to wander and try the parkour.").formatted(Formatting.YELLOW));
+			return;
+		}
+
 		if (state.queueOpen() && state.queueSize() == 0 && hasFreeSlot(state)) {
 			// Nobody is ahead of them and there is room right now, so there is nothing to wait
 			// for. Showing them a queue they would leave a second later is worse than not
@@ -207,6 +217,56 @@ public final class LobbyManager {
 		sendToLobby(server, player);
 		player.sendMessage(Text.literal("You are in the queue at place " + state.position(uuid)
 				+ " of " + state.queueSize() + ". You will be let in automatically.").formatted(Formatting.YELLOW));
+	}
+
+	/**
+	 * A member right clicked while standing at the queue point, so they are asking for a place.
+	 *
+	 * <p>The click is judged by where the player is standing rather than by what they hit. That
+	 * way it works against a block, an armour stand, or whatever NPC somebody puts on the pedestal
+	 * later, without this having to understand any of them.
+	 */
+	public static void clickedQueuePoint(MinecraftServer server, ServerPlayerEntity player) {
+		LobbyState state = LobbyState.get();
+		UUID uuid = player.getUuid();
+
+		long now = System.currentTimeMillis();
+		Long last = LAST_CLICK.get(uuid);
+
+		if (last != null && now - last < CLICK_COOLDOWN_MILLIS) {
+			// One right click can arrive as two packets; only answer the first.
+			return;
+		}
+
+		LAST_CLICK.put(uuid, now);
+
+		if (state.isAdmitted(uuid)) {
+			return;
+		}
+
+		if (state.waiting(uuid) != null) {
+			player.sendMessage(Text.literal("You are already in the queue, at place "
+					+ state.position(uuid) + " of " + state.queueSize() + ".").formatted(Formatting.YELLOW));
+			return;
+		}
+
+		state.enqueue(uuid, player.getGameProfile().name(), now);
+		playCue(player);
+		player.sendMessage(Text.literal("You are in the queue at place " + state.position(uuid)
+				+ " of " + state.queueSize() + ". You will be let in automatically - have a go at the "
+				+ "parkour while you wait.").formatted(Formatting.GREEN));
+	}
+
+	/** True when the player is close enough to the queue point for a right click to count. */
+	public static boolean atQueuePoint(ServerPlayerEntity player) {
+		Spot point = LobbyState.get().queuePoint();
+
+		if (point == null || player == null) {
+			return false;
+		}
+
+		double radius = Math.max(1.0D, FreezeMuteConfig.get().lobbyQueuePointRadius);
+		return point.distanceSquared(player.getX(), player.getY(), player.getZ()) <= radius * radius;
 	}
 
 	/** True when the cap would let one more player through right now. */
@@ -405,6 +465,7 @@ public final class LobbyManager {
 		anyMembers = !MEMBERS.isEmpty();
 		PENDING.remove(uuid);
 		SETTLING.remove(uuid);
+		LAST_CLICK.remove(uuid);
 		removeBar(player);
 	}
 

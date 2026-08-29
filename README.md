@@ -76,6 +76,8 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/lobby all` | The panic button: everybody who is not staff comes back, and the queue closes |
 | `/lobby enable` / `/lobby disable` | Turns the routing on and off. Off by default |
 | `/lobby setspawn` | Sets the lobby spawn to where you stand |
+| `/lobby generate` | Says what it would build. `/lobby generate confirm` builds it |
+| `/lobby queuepoint` / `/lobby queuepoint clear` | Where players right click to join the queue, or back to queueing everybody automatically |
 | `/lobby status` | Whether the dimension exists, whether routing is on, the spawn, how many are waiting |
 | `/queue` / `/queue status` | Line length, slots used, cap |
 | `/queue list` | Who is in and who is waiting, in order, with the grace windows still running |
@@ -346,6 +348,23 @@ which is the point of being able to talk to a room full of people you are holdin
 to another is refused on the way out, so the client is never told they exist, and their sounds go
 the same way. They also share a team with collisions and name tags switched off, so nobody gets
 shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
+
+**Building the room.** `/lobby generate confirm`, standing in the lobby, lays a finished one
+around you: a 41x41 floor with a wall and lanterns, a black pedestal to stand an NPC on, and a
+parkour course of 24 jumps spiralling up out of the middle - registered as a course as it is laid,
+so its timer and leaderboard work straight away. It replaces every block in that area, which is
+why plain `/lobby generate` only describes it and makes you type `confirm`. Build your own instead
+if you would rather; nothing depends on the generated one.
+
+**Two ways to join the queue.** If a **queue point** is set - `/lobby generate` sets one at the
+pedestal, or `/lobby queuepoint` puts one where you stand - then arriving in the lobby queues
+nobody. Players wander, try the parkour, and take a place in line by **right clicking within four
+blocks of the point**. Anything standing there works: the bare pedestal, an armour stand, whatever
+NPC you put on it. The click is judged by where the player is, not by what they hit, so the mod
+never has to recognise your NPC.
+
+With no queue point set, everybody who arrives is queued automatically, which is what the lobby
+did before there was anywhere to ask. `/lobby queuepoint clear` goes back to that.
 
 **Set a cap first.** The queue exists to hold people back from a cap, so with `/queue cap 0` -
 the default - there is nothing to wait for and nobody is held: a player who joins when there is

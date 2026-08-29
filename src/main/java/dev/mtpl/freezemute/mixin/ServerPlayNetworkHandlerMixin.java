@@ -157,6 +157,7 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 	private void freezemute$refuseBlockInteraction(PlayerInteractBlockC2SPacket packet, CallbackInfo info) {
 		if (freezemute$blocksInteractions()) {
 			info.cancel();
+			freezemute$queuePointClick();
 		}
 	}
 
@@ -165,7 +166,32 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 		// Also stops a frozen player from hitting anyone standing next to them.
 		if (freezemute$blocksInteractions()) {
 			info.cancel();
+			freezemute$queuePointClick();
 		}
+	}
+
+	/**
+	 * The one thing a lobby member is allowed to do with their hands.
+	 *
+	 * <p>The interaction is still refused - nothing is opened, nothing is hit - and then, if they
+	 * were standing at the queue point, it is read as asking for a place in the line. Judging it by
+	 * where they stand rather than by what they clicked means it works against the pedestal, an
+	 * armour stand, or any NPC put there later, without this having to recognise any of them.
+	 */
+	@Unique
+	private void freezemute$queuePointClick() {
+		ServerPlayerEntity target = this.player;
+		MinecraftServer server = FreezeMute.server();
+
+		if (target == null || server == null || !LobbyManager.isMember(target)) {
+			return;
+		}
+
+		server.execute(() -> {
+			if (LobbyManager.isMember(target) && LobbyManager.atQueuePoint(target)) {
+				LobbyManager.clickedQueuePoint(server, target);
+			}
+		});
 	}
 
 	@Inject(method = "onClickSlot", at = @At("HEAD"), cancellable = true)

@@ -9,7 +9,9 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 
+import dev.mtpl.freezemute.FreezeMuteConfig;
 import dev.mtpl.freezemute.lobby.Course;
+import dev.mtpl.freezemute.lobby.LobbyBuilder;
 import dev.mtpl.freezemute.lobby.CourseRecord;
 import dev.mtpl.freezemute.lobby.LobbyDimension;
 import dev.mtpl.freezemute.lobby.LobbyManager;
@@ -51,6 +53,14 @@ public final class LobbyCommand {
 						.executes(context -> recall(context.getSource())))
 				.then(CommandManager.literal("setspawn")
 						.executes(context -> setSpawn(context.getSource())))
+				.then(CommandManager.literal("generate")
+						.executes(context -> explainGenerate(context.getSource()))
+						.then(CommandManager.literal("confirm")
+								.executes(context -> generate(context.getSource()))))
+				.then(CommandManager.literal("queuepoint")
+						.executes(context -> setQueuePoint(context.getSource()))
+						.then(CommandManager.literal("clear")
+								.executes(context -> clearQueuePoint(context.getSource()))))
 				.then(course())
 				.then(CommandManager.argument("targets", EntityArgumentType.players())
 						.executes(context -> send(context.getSource(),
@@ -145,6 +155,80 @@ public final class LobbyCommand {
 		return 1;
 	}
 
+	/**
+	 * {@code /lobby generate} on its own only says what it would do. Laying a room over whatever
+	 * somebody spent an evening building, because they typed one word, would be unforgivable.
+	 */
+	private static int explainGenerate(ServerCommandSource source) {
+		source.sendFeedback(() -> Messages.header("This will build a lobby"), false);
+		source.sendFeedback(() -> Messages.listEntry("  a 41x41 floor with a wall around it, "
+				+ "a pedestal to put an NPC on, and a parkour course"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it replaces every block in that area, "
+				+ "and moves the lobby spawn and the queue point"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it is built around where you are standing"), false);
+		source.sendFeedback(() -> Messages.failure("Run /lobby generate confirm if that is what you want."), false);
+		return 1;
+	}
+
+	private static int generate(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+		MinecraftServer server = source.getServer();
+		ServerWorld lobby = LobbyDimension.world(server);
+
+		if (lobby == null) {
+			source.sendError(Messages.failure("The lobby dimension does not exist yet. Restart the server once."));
+			return 0;
+		}
+
+		if (player != null && !LobbyManager.isInLobby(player)) {
+			source.sendError(Messages.failure("Stand in the lobby first - run /lobby, then come back to this."));
+			return 0;
+		}
+
+		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
+		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre);
+
+		source.sendFeedback(() -> Messages.success("Built the lobby: " + result.blocks() + " blocks, spawn at "
+				+ result.spawn().describe() + "."), true);
+		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
+				+ result.queuePoint().describe() + " - stand an NPC on it if you like, or leave it bare"), false);
+		source.sendFeedback(() -> Messages.listEntry("  players right click there to join the queue; "
+				+ "arriving in the lobby no longer queues them on its own"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the parkour course '" + result.course().name() + "' has "
+				+ result.course().checkpoints().size() + " checkpoints - /lobby course top "
+				+ result.course().name() + " for the times"), false);
+		return result.blocks();
+	}
+
+	private static int setQueuePoint(ServerCommandSource source) {
+		ServerPlayerEntity player = source.getPlayer();
+
+		if (player == null) {
+			source.sendError(Messages.failure("Stand where the queue point should be and run this again."));
+			return 0;
+		}
+
+		if (!LobbyManager.isInLobby(player)) {
+			source.sendError(Messages.failure("The queue point belongs in the lobby. Run /lobby first."));
+			return 0;
+		}
+
+		Spot spot = Spot.of(player);
+		LobbyState.get().setQueuePoint(spot);
+		source.sendFeedback(() -> Messages.success("Queue point set at " + spot.describe()
+				+ ". Players right click within "
+				+ (int) FreezeMuteConfig.get().lobbyQueuePointRadius + " blocks of it to join the queue, "
+				+ "and arriving in the lobby no longer queues them on its own."), true);
+		return 1;
+	}
+
+	private static int clearQueuePoint(ServerCommandSource source) {
+		LobbyState.get().setQueuePoint(null);
+		source.sendFeedback(() -> Messages.success("Queue point cleared. Everybody who arrives in the lobby "
+				+ "is put in the queue automatically again."), true);
+		return 1;
+	}
+
 	private static int setEnabled(ServerCommandSource source, boolean enabled) {
 		MinecraftServer server = source.getServer();
 
@@ -210,6 +294,9 @@ public final class LobbyCommand {
 				+ (world == null ? "not built yet - restart once" : "astra:lobby")), false);
 		source.sendFeedback(() -> Messages.listEntry("  routing: " + (state.enabled() ? "on" : "off")), false);
 		source.sendFeedback(() -> Messages.listEntry("  spawn: " + state.spawn().describe()), false);
+		source.sendFeedback(() -> Messages.listEntry("  joining the queue: " + (state.joinedAtAPoint()
+				? "right click the queue point at " + state.queuePoint().describe()
+				: "automatic on arrival, there is no queue point")), false);
 		source.sendFeedback(() -> Messages.listEntry("  waiting here: " + LobbyManager.memberCount()), false);
 		source.sendFeedback(() -> Messages.listEntry("  courses: " + state.courses().size()), false);
 		return 1;

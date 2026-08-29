@@ -58,6 +58,8 @@ public final class FreezeMuteConfig {
 	public int lobbyVoidCatchY = -5;
 	/** Parkour checkpoints trigger within this many blocks. */
 	public double lobbyCheckpointRadius = 1.5D;
+	/** How close you have to stand to the queue point for a right click to count. */
+	public double lobbyQueuePointRadius = 4.0D;
 
 	public static FreezeMuteConfig get() {
 		return instance;
@@ -101,6 +103,7 @@ public final class FreezeMuteConfig {
 					config.lobbyAdmitPerSecond = integer(object, "lobbyAdmitPerSecond", config.lobbyAdmitPerSecond);
 					config.lobbyVoidCatchY = integer(object, "lobbyVoidCatchY", config.lobbyVoidCatchY);
 					config.lobbyCheckpointRadius = number(object, "lobbyCheckpointRadius", config.lobbyCheckpointRadius);
+					config.lobbyQueuePointRadius = number(object, "lobbyQueuePointRadius", config.lobbyQueuePointRadius);
 				} else {
 					FreezeMute.LOGGER.warn("{} is not a JSON object, using the default settings", file);
 				}
@@ -133,6 +136,7 @@ public final class FreezeMuteConfig {
 		object.addProperty("lobbyAdmitPerSecond", config.lobbyAdmitPerSecond);
 		object.addProperty("lobbyVoidCatchY", config.lobbyVoidCatchY);
 		object.addProperty("lobbyCheckpointRadius", config.lobbyCheckpointRadius);
+		object.addProperty("lobbyQueuePointRadius", config.lobbyQueuePointRadius);
 
 		try {
 			Path parent = file.getParent();
