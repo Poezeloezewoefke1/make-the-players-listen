@@ -160,12 +160,15 @@ public final class LobbyCommand {
 	 * somebody spent an evening building, because they typed one word, would be unforgivable.
 	 */
 	private static int explainGenerate(ServerCommandSource source) {
-		source.sendFeedback(() -> Messages.header("This will build a lobby"), false);
-		source.sendFeedback(() -> Messages.listEntry("  a 41x41 floor with a wall around it, "
-				+ "a pedestal to put an NPC on, and a parkour course"), false);
-		source.sendFeedback(() -> Messages.listEntry("  it replaces every block in that area, "
-				+ "and moves the lobby spawn and the queue point"), false);
-		source.sendFeedback(() -> Messages.listEntry("  it is built around where you are standing"), false);
+		source.sendFeedback(() -> Messages.header("This will build an island"), false);
+		source.sendFeedback(() -> Messages.listEntry("  tiered ground with cliffs, a beach and a lagoon "
+				+ "around it, palms, rocks, a jetty, a lighthouse, a shelter and balloons overhead"), false);
+		source.sendFeedback(() -> Messages.listEntry("  a plaza on top with a pedestal for an NPC, "
+				+ "and a parkour course spiralling up off it"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it replaces everything within about 36 blocks "
+				+ "of you, and moves the lobby spawn and the queue point"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the water sits 12 blocks below where you stand, "
+				+ "so stand where you want the top of the island"), false);
 		source.sendFeedback(() -> Messages.failure("Run /lobby generate confirm if that is what you want."), false);
 		return 1;
 	}
@@ -188,7 +191,7 @@ public final class LobbyCommand {
 		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
 		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre);
 
-		source.sendFeedback(() -> Messages.success("Built the lobby: " + result.blocks() + " blocks, spawn at "
+		source.sendFeedback(() -> Messages.success("Built the island: " + result.blocks() + " blocks, spawn at "
 				+ result.spawn().describe() + "."), true);
 		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
 				+ result.queuePoint().describe() + " - stand an NPC on it if you like, or leave it bare"), false);

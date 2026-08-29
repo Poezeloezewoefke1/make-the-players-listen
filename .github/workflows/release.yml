@@ -105,7 +105,7 @@ jobs:
           | \`/lobby\` / \`/lobby leave\` | Go and look at the room, and come back to where you were |
           | \`/lobby <targets>\` / \`/lobby all\` | Send players to the lobby, or pull everybody back |
           | \`/lobby enable\` / \`/lobby disable\` / \`/lobby setspawn\` / \`/lobby status\` | Turn the routing on and off, set the spawn, see where things stand |
-          | \`/lobby generate confirm\` | Build a finished lobby: floor, wall, NPC pedestal and a parkour course |
+          | \`/lobby generate confirm\` | Build an island: tiered ground, beach, lagoon, palms, jetty, lighthouse, balloons, plaza, NPC pedestal and a parkour course |
           | \`/lobby queuepoint\` / \`/lobby queuepoint clear\` | Where players right click to join the queue, or back to queueing everybody automatically |
           | \`/lobby course ...\` | Build parkour courses: \`create\`, \`checkpoint\`, \`undo\`, \`start\`, \`finish\`, \`tp\`, \`top\`, \`list\`, \`delete\` |
           | \`/queue\` / \`/queue list\` | Line length, slots used, cap; and who is in, who is waiting, in order |
@@ -122,10 +122,13 @@ jobs:
 
           The dimension ships as a data pack the mod writes into the world folder itself, so
           the single jar is still the only file you need. It is a void world with permanent
-          noon, no mobs and a stone platform under the spawn. \`/lobby generate confirm\` lays a
-          finished room on top of that: a 41x41 floor with a wall and lanterns, a pedestal to
-          stand an NPC on, and a parkour course of 24 jumps that is registered as it is built,
-          so its timer and leaderboard work immediately.
+          noon, no mobs and a stone platform under the spawn. \`/lobby generate confirm\` lays an
+          island on top of that: ground in three tiers with cliffs between them, a beach running
+          into a lagoon, palms, rocks, a jetty on stilts, a lighthouse, a shelter and balloons
+          overhead, with a plaza on top carrying the NPC pedestal and a parkour course of 24
+          jumps that is registered as it is built, so its timer and leaderboard work immediately.
+          It is generated rather than hand built and will not pass for a showcase spawn, but it
+          is a place rather than a box, and the seed comes from where you build it.
 
           Where a **queue point** is set - and generating a lobby sets one at the pedestal -
           arriving queues nobody. Players wander, try the parkour, and take a place in line by

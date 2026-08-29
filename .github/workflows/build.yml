@@ -306,7 +306,7 @@ jobs:
             echo "lobby generate"
             sleep 3
             echo "lobby generate confirm"
-            sleep 8
+            sleep 25
             echo "lobby course list"
             sleep 3
             echo "lobby status"
@@ -324,7 +324,7 @@ jobs:
             echo "lobby disable"
             sleep 3
             echo "stop"
-            sleep 20 ) | timeout 360 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee second.log || true
+            sleep 20 ) | timeout 420 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee second.log || true
 
           echo "===================== assertions ====================="
           fail=0
@@ -352,9 +352,9 @@ jobs:
           check "The lobby is on." "/lobby enable turned the lobby on"
           check "dimension: astra:lobby" "/lobby status found the dimension"
           check "Only a player can leave the lobby." "/lobby leave is registered"
-          check "This will build a lobby" "/lobby generate says what it would do before doing it"
-          check "Built the lobby:" "/lobby generate confirm built the room"
-          check "Lobby: built the room at" "the builder logged what it laid"
+          check "This will build an island" "/lobby generate says what it would do before doing it"
+          check "Built the island:" "/lobby generate confirm built the island"
+          check "Lobby: built the island at" "the builder logged what it laid"
           check "the queue point is the black pedestal" "the NPC pedestal became the queue point"
           check "spawn - 2 checkpoint(s), ready" "the parkour course was registered as it was built"
           check "right click the queue point" "arriving no longer queues people on its own"

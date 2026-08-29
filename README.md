@@ -349,12 +349,20 @@ to another is refused on the way out, so the client is never told they exist, an
 the same way. They also share a team with collisions and name tags switched off, so nobody gets
 shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
 
-**Building the room.** `/lobby generate confirm`, standing in the lobby, lays a finished one
-around you: a 41x41 floor with a wall and lanterns, a black pedestal to stand an NPC on, and a
-parkour course of 24 jumps spiralling up out of the middle - registered as a course as it is laid,
-so its timer and leaderboard work straight away. It replaces every block in that area, which is
-why plain `/lobby generate` only describes it and makes you type `confirm`. Build your own instead
-if you would rather; nothing depends on the generated one.
+**Building the island.** `/lobby generate confirm`, standing in the lobby, lays one around you:
+ground in three tiers with cliffs between them, a sand beach running down into a lagoon, palms,
+rock outcrops, a jetty on stilts out over the water, a banded lighthouse, a shelter, and hot air
+balloons overhead. On top is a plaza with a black pedestal for an NPC, and a parkour course of 24
+jumps spiralling up off it - registered as a course as it is laid, so its timer and leaderboard
+work straight away.
+
+It is generated, not hand built, and it is honest to say it will not pass for a showcase spawn
+somebody spent a week on. What it will do is give you a place rather than a box. Everything comes
+from one seed taken from where you build it, so the same spot gives the same island and a
+different spot gives a different one. It replaces everything within about 36 blocks, which is why
+plain `/lobby generate` only describes it and makes you type `confirm`, and the water sits 12
+blocks below your feet - so stand where you want the *top* of the island to be. Build your own
+instead if you would rather; nothing depends on the generated one.
 
 **Two ways to join the queue.** If a **queue point** is set - `/lobby generate` sets one at the
 pedestal, or `/lobby queuepoint` puts one where you stand - then arriving in the lobby queues
