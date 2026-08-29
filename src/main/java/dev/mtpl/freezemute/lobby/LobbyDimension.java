@@ -187,11 +187,24 @@ public final class LobbyDimension {
 	 * would silently take the dimension away. The pack contains nothing that can go stale, so
 	 * claiming to support every format is honest rather than reckless.
 	 */
+	/**
+	 * Deliberately wide, and written twice over.
+	 *
+	 * <p>The pack format number changes with almost every Minecraft release, and a pack the server
+	 * thinks is incompatible is not enabled - which would quietly take the dimension away. Saying
+	 * it supports everything is honest here: the pack contains two files that cannot go stale.
+	 *
+	 * <p>The range is spelled both ways because the field for it was renamed. Builds up to pack
+	 * format 81 read {@code supported_formats}; past that they insist on {@code min_format} and
+	 * {@code max_format} and log an error for every start if they are missing. Both cost one line.
+	 */
 	private static final String PACK_MCMETA = """
 			{
 			  "pack": {
 			    "description": "Astra lobby dimension, written by Make The Players Listen",
 			    "pack_format": 88,
+			    "min_format": 4,
+			    "max_format": 999999,
 			    "supported_formats": { "min_inclusive": 4, "max_inclusive": 999999 }
 			  }
 			}

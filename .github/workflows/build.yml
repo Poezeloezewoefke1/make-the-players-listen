@@ -270,6 +270,7 @@ jobs:
           refute "Kit items missing" "kit item ids that this version does not have"
           refute "Kit enchantments are off" "broken enchantment registry lookup"
           refute "player world lookup is off" "a broken player world lookup"
+          refute "astra_lobby pack metadata" "complaints about the lobby data pack's metadata"
           refute "Unknown or incomplete command" "unrecognised command"
           refute "Mixin apply failed|Mixin transformation of|was not found in|Critical injection failure|Error injecting" "mixin failures"
           refute "Failed to start the minecraft server|Exception in server tick loop" "server crashes"
