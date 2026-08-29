@@ -169,7 +169,9 @@ public final class Parkour {
 			message.append(" - a personal best");
 		}
 
-		if (place > 0) {
+		// Only when this run is the one on the board. Saying "place three" after a slower run
+		// would be reporting where their best time stands, which is not what they just did.
+		if (best && place > 0) {
 			message.append(place == 1 ? ", and the fastest on the board" : ", place " + place + " on the board");
 		}
 

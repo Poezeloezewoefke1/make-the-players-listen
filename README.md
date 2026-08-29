@@ -72,7 +72,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 |---|---|
 | `/lobby` | Sends you to the lobby |
 | `/lobby leave` | Puts you back where you were standing when you went in |
-| `/lobby <targets>` | Sends those players to the lobby and puts them in the queue |
+| `/lobby <targets>` | Sends those players to the lobby, queueing them the same way arriving would |
 | `/lobby all` | The panic button: everybody who is not staff comes back, and the queue closes |
 | `/lobby enable` / `/lobby disable` | Turns the routing on and off. Off by default |
 | `/lobby setspawn` | Sets the lobby spawn to where you stand |
@@ -85,6 +85,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/queue open` / `/queue close` | Whether anybody is let through |
 | `/queue end` | Session over: everybody to the lobby, the line cleared, the queue closed |
 | `/queue bypass <targets>` | Lets those players straight in, ignoring the cap and the order |
+| `/queue remove <name>` | Takes one player out of the line and hands back any slot they hold. Works on a name, so it reaches somebody who is offline on their grace window |
 | `/queue early add <targets>` / `/queue early remove <name>` / `/queue early list` | The list of people who never see the queue |
 
 ### Parkour
@@ -167,7 +168,7 @@ startup says which mode is in use.
 | `lobbyQueueGraceSeconds` | `300` | How long a queued player keeps their place after dropping out |
 | `lobbySlotGraceSeconds` | `300` | How long an admitted player keeps their slot after dropping out |
 | `lobbyAdmitPerSecond` | `1` | How many players may be let through per second |
-| `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint |
+| `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint. The catch also follows the spawn, triggering 24 blocks below it, so a lobby built high up does not turn a missed jump into a very long fall |
 | `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
 
 ## What "frozen" means exactly
@@ -372,7 +373,10 @@ NPC you put on it. The click is judged by where the player is, not by what they 
 never has to recognise your NPC.
 
 With no queue point set, everybody who arrives is queued automatically, which is what the lobby
-did before there was anywhere to ask. `/lobby queuepoint clear` goes back to that.
+did before there was anywhere to ask. `/lobby queuepoint clear` goes back to that. One thing worth
+knowing about that mode: standing in the lobby is what puts somebody in the line, so `/queue
+remove` on a player who is still in the room sends them to the back of it rather than out of it -
+the command says so when that is what will happen.
 
 **Set a cap first.** The queue exists to hold people back from a cap, so with `/queue cap 0` -
 the default - there is nothing to wait for and nobody is held: a player who joins when there is
@@ -399,6 +403,12 @@ keeping the line in the order people were let in so the session can resume fairl
 does the same and clears the line as well. Being let back in puts a player exactly where they were
 standing when the lobby took them, in the game mode they were in - a builder in creative comes back
 in creative.
+
+**The queue is written a second behind itself.** Every arrival, admission and grace window ticking
+down changes it, and writing the whole file for each of those would turn a hundred people
+disconnecting at once into a hundred file writes. Changes are collapsed and flushed once a second,
+and a clean stop closes the gap - so the most a crash can cost is a second of queue order, which is
+what the grace windows exist to make survivable.
 
 **Parkour.** Build a course by standing where each marker goes. The clock starts the moment you
 step off the start pad, checkpoints have to be taken in order, and a fall puts you back on the last

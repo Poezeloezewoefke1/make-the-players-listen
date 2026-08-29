@@ -51,6 +51,11 @@ public final class LobbyState {
 			return offlineSince <= 0L;
 		}
 
+		/** Whether they have been gone long enough to lose their place. */
+		public boolean graceRanOut(long now, long graceMillis) {
+			return !online() && now - offlineSince >= graceMillis;
+		}
+
 		public Waiting online(String currentName) {
 			return new Waiting(uuid, currentName, joinedAt, 0L);
 		}
@@ -64,6 +69,11 @@ public final class LobbyState {
 	public record Admitted(UUID uuid, String name, long since, long offlineSince) {
 		public boolean online() {
 			return offlineSince <= 0L;
+		}
+
+		/** Whether they have been gone long enough to lose their slot. */
+		public boolean graceRanOut(long now, long graceMillis) {
+			return !online() && now - offlineSince >= graceMillis;
 		}
 
 		public Admitted online(String currentName) {

@@ -198,8 +198,20 @@ public final class QueueCommand {
 			player.sendMessage(Messages.failure("You have been taken out of the queue."));
 		}
 
-		source.sendFeedback(() -> Messages.success(name + " is out of the queue"
-				+ (held != null ? " and no longer holds a slot." : ".")), true);
+		String slot = held != null ? " and no longer holds a slot" : "";
+
+		if (!state.joinedAtAPoint() && player != null && LobbyManager.isMember(player)) {
+			// With nowhere to ask for a place, standing in the lobby is what puts somebody in the
+			// line, so they are back in it within the second - at the end of it. That is a useful
+			// thing to be able to do, but it is not what the command appears to say, so it says
+			// what will actually happen instead.
+			source.sendFeedback(() -> Messages.success(name + " is out of the queue" + slot
+					+ ", and goes to the back of it - everybody standing in the lobby is queued "
+					+ "automatically while there is no queue point."), true);
+			return 1;
+		}
+
+		source.sendFeedback(() -> Messages.success(name + " is out of the queue" + slot + "."), true);
 		return 1;
 	}
 

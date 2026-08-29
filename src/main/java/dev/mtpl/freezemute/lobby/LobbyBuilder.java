@@ -589,7 +589,7 @@ public final class LobbyBuilder {
 			}
 
 			int height = 18;
-            int placed = 0;
+			int placed = 0;
 
 			for (int y = 0; y <= height; y++) {
 				int radius = y > height - 4 ? 3 : 2;

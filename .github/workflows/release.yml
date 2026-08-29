@@ -110,7 +110,8 @@ jobs:
           | \`/lobby course ...\` | Build parkour courses: \`create\`, \`checkpoint\`, \`undo\`, \`start\`, \`finish\`, \`tp\`, \`top\`, \`list\`, \`delete\` |
           | \`/queue\` / \`/queue list\` | Line length, slots used, cap; and who is in, who is waiting, in order |
           | \`/queue cap [slots]\` / \`/queue open\` / \`/queue close\` / \`/queue end\` | How many may be in the world, whether anybody is let through, and ending the session |
-          | \`/queue bypass <targets>\` / \`/queue early add|remove|list\` | Let somebody straight in, or put them on the list that never sees the queue |
+          | \`/queue bypass <targets>\` / \`/queue remove <name>\` | Let somebody straight in, or take one person out of the line |
+          | \`/queue early add|remove|list\` | The list of people who never see the queue |
 
           ### The lobby
 

@@ -91,7 +91,7 @@ public final class LobbyTicker {
 		long slotGrace = config.lobbySlotGraceMillis();
 
 		for (Waiting entry : state.queue()) {
-			if (!entry.online() && now - entry.offlineSince() >= queueGrace) {
+			if (entry.graceRanOut(now, queueGrace)) {
 				state.dequeue(entry.uuid());
 				FreezeMute.LOGGER.info("Lobby: {} lost their place in line after {}s offline",
 						entry.name(), queueGrace / 1000L);
@@ -99,7 +99,7 @@ public final class LobbyTicker {
 		}
 
 		for (Admitted entry : state.admitted()) {
-			if (!entry.online() && now - entry.offlineSince() >= slotGrace) {
+			if (entry.graceRanOut(now, slotGrace)) {
 				state.release(entry.uuid());
 				FreezeMute.LOGGER.info("Lobby: {} lost their slot after {}s offline",
 						entry.name(), slotGrace / 1000L);
