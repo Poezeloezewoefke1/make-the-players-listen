@@ -2,7 +2,7 @@ package dev.mtpl.freezemute.lobby;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,6 +64,13 @@ public final class LobbyManager {
 	private static final Map<UUID, Integer> PENDING = new ConcurrentHashMap<>();
 	/** Long enough for the join to finish, short enough that nobody notices the delay. */
 	private static final int JOIN_DELAY_TICKS = 10;
+	/** Members who arrived recently, and how many ticks their hiding is still being re-stated. */
+	private static final Map<UUID, Integer> SETTLING = new ConcurrentHashMap<>();
+	/** Three seconds is far longer than entity tracking needs, and costs nothing after that. */
+	private static final int SETTLE_TICKS = 60;
+	private static final int SETTLE_EVERY = 5;
+
+	private static int settleTick;
 	/** Set while at least one member is in the lobby, so the packet filter can leave early. */
 	private static volatile boolean anyMembers;
 
@@ -246,12 +253,20 @@ public final class LobbyManager {
 		LobbyDimension.ensurePlatform(lobby, state.spawn());
 
 		if (!isInLobby(player)) {
+			// Before becomeMember, which puts them in adventure mode - otherwise adventure is
+			// what gets remembered and what they are handed back on the way out.
 			rememberWhereTheyWere(player);
 		}
 
+		// Before the teleport, not after. Entity tracking introduces the new arrival to the room
+		// on the following tick, and the filter that hides them can only do its job if they are
+		// already flagged by then. Flagging afterwards leaves a one tick window in which the
+		// packet naming them goes out unfiltered - which is exactly how one player ends up
+		// visible to another while the other stays hidden.
+		becomeMember(server, player);
+
 		Spot spawn = state.spawn();
 		player.teleport(lobby, spawn.x(), spawn.y(), spawn.z(), Set.<PositionFlag>of(), spawn.yaw(), spawn.pitch(), true);
-		becomeMember(server, player);
 	}
 
 	/**
@@ -389,6 +404,7 @@ public final class LobbyManager {
 		MEMBER_ENTITY_IDS.values().removeIf(uuid::equals);
 		anyMembers = !MEMBERS.isEmpty();
 		PENDING.remove(uuid);
+		SETTLING.remove(uuid);
 		removeBar(player);
 	}
 
@@ -555,21 +571,105 @@ public final class LobbyManager {
 	 * cleared everyone's view, so all that is left is to keep it that way.
 	 */
 	private static void hideFromOtherMembers(MinecraftServer server, ServerPlayerEntity player) {
-		if (!FreezeMuteConfig.get().lobbyIsolateMembers) {
+		// Doing it once, here, is not enough: at this moment the arriving player has not been
+		// introduced to anybody yet, so there is nothing to take back. The work is repeated for a
+		// few seconds by reassertHiding, which is what actually catches them.
+		SETTLING.put(player.getUuid(), SETTLE_TICKS);
+	}
+
+	/**
+	 * Tells the clients of everybody involved to drop each other, repeatedly, for the first few
+	 * seconds after somebody joins the room.
+	 *
+	 * <p>Refusing the packet that introduces two members is the main mechanism, but it only works
+	 * if both of them are flagged when it goes out, and there are ways to become a member after
+	 * the introduction has already happened - being made an operator and then not, a teleport in
+	 * from outside, a respawn. Rather than reason about each of those, the pairing is simply
+	 * re-stated until it is certainly true. Once nobody is settling this does nothing at all.
+	 */
+	private static void reassertHiding(MinecraftServer server) {
+		if (SETTLING.isEmpty()) {
 			return;
 		}
 
-		Set<ServerPlayerEntity> others = new HashSet<>();
+		if (!FreezeMuteConfig.get().lobbyIsolateMembers) {
+			SETTLING.clear();
+			return;
+		}
 
-		for (ServerPlayerEntity other : server.getPlayerManager().getPlayerList()) {
-			if (other != player && isMember(other)) {
-				others.add(other);
+		List<ServerPlayerEntity> members = new ArrayList<>();
+
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (isMember(player)) {
+				members.add(player);
 			}
 		}
 
-		for (ServerPlayerEntity other : others) {
-			forget(player, other);
-			forget(other, player);
+		for (UUID uuid : Set.copyOf(SETTLING.keySet())) {
+			Integer remaining = SETTLING.get(uuid);
+			ServerPlayerEntity settling = server.getPlayerManager().getPlayer(uuid);
+
+			if (remaining == null || remaining <= 0 || settling == null || !isMember(settling)) {
+				SETTLING.remove(uuid);
+				continue;
+			}
+
+			SETTLING.put(uuid, remaining - SETTLE_EVERY);
+
+			int[] ids = members.stream()
+					.filter(other -> other != settling)
+					.mapToInt(ServerPlayerEntity::getId)
+					.toArray();
+
+			if (ids.length == 0) {
+				continue;
+			}
+
+			// One packet tells the newcomer to forget the whole room.
+			forget(settling, ids);
+
+			// And one each tells the room to forget the newcomer.
+			for (ServerPlayerEntity other : members) {
+				if (other != settling) {
+					forget(other, settling.getId());
+				}
+			}
+		}
+	}
+
+	/**
+	 * Keeps the entity id list honest.
+	 *
+	 * <p>The filter runs on a network thread and cannot go looking through the player list, so it
+	 * reads a snapshot of which entity ids belong to members. Rebuilding that snapshot from the
+	 * players who are actually here means it can never drift out of step with who is a member -
+	 * which it otherwise does the moment somebody respawns and comes back as a new entity.
+	 */
+	private static void refreshEntityIds(MinecraftServer server) {
+		if (MEMBERS.isEmpty()) {
+			MEMBER_ENTITY_IDS.clear();
+			return;
+		}
+
+		Map<Integer, UUID> fresh = new HashMap<>();
+
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (isMember(player)) {
+				fresh.put(player.getId(), player.getUuid());
+			}
+		}
+
+		// Add before removing, so the filter never reads an empty map mid-refresh.
+		MEMBER_ENTITY_IDS.putAll(fresh);
+		MEMBER_ENTITY_IDS.keySet().retainAll(fresh.keySet());
+	}
+
+	/** Per-tick upkeep for the room: who is here, who can see whom. */
+	public static void tickMembers(MinecraftServer server) {
+		refreshEntityIds(server);
+
+		if (settleTick++ % SETTLE_EVERY == 0) {
+			reassertHiding(server);
 		}
 	}
 
@@ -579,11 +679,11 @@ public final class LobbyManager {
 	 * <p>Kept deliberately small: the entity is removed client side, and the spawn packet that
 	 * would bring it back is refused on the way out for as long as both are members.
 	 */
-	private static void forget(ServerPlayerEntity viewer, ServerPlayerEntity subject) {
+	private static void forget(ServerPlayerEntity viewer, int... entityIds) {
 		ServerPlayNetworkHandler handler = viewer.networkHandler;
 
-		if (handler != null) {
-			handler.sendPacket(new EntitiesDestroyS2CPacket(subject.getId()));
+		if (handler != null && entityIds.length > 0) {
+			handler.sendPacket(new EntitiesDestroyS2CPacket(entityIds));
 		}
 	}
 
@@ -628,6 +728,7 @@ public final class LobbyManager {
 		MEMBERS.clear();
 		MEMBER_ENTITY_IDS.clear();
 		PENDING.clear();
+		SETTLING.clear();
 		anyMembers = false;
 
 		for (ServerBossBar bar : BARS.values()) {

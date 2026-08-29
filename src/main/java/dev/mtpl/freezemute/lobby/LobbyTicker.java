@@ -41,8 +41,10 @@ public final class LobbyTicker {
 		boolean display = ticks % DISPLAY_EVERY == 0;
 		long now = System.currentTimeMillis();
 
-		// Players whose join has settled enough to be moved.
+		// Players whose join has settled enough to be moved, then the upkeep that keeps members
+		// hidden from each other.
 		LobbyManager.tickPending(server);
+		LobbyManager.tickMembers(server);
 
 		if (LobbyManager.memberCount() > 0) {
 			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
@@ -103,7 +105,17 @@ public final class LobbyTicker {
 		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
 			UUID uuid = player.getUuid();
 
-			if (!LobbyManager.isInLobby(player) || Permissions.isStaff(player)) {
+			if (!LobbyManager.isInLobby(player)) {
+				continue;
+			}
+
+			if (Permissions.isStaff(player)) {
+				if (LobbyManager.isMember(player)) {
+					// Made an operator while standing in the room: they stop being held by it,
+					// and stop being hidden from the people who still are.
+					LobbyManager.stopBeingMember(server, player);
+				}
+
 				continue;
 			}
 
