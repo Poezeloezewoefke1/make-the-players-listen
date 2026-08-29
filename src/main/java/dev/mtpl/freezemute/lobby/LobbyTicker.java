@@ -41,6 +41,9 @@ public final class LobbyTicker {
 		boolean display = ticks % DISPLAY_EVERY == 0;
 		long now = System.currentTimeMillis();
 
+		// Players whose join has settled enough to be moved.
+		LobbyManager.tickPending(server);
+
 		if (LobbyManager.memberCount() > 0) {
 			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
 				if (LobbyManager.isMember(player) && LobbyManager.isInLobby(player)) {
@@ -54,6 +57,7 @@ public final class LobbyTicker {
 		}
 
 		sweepGrace(server, state, now);
+		LobbyManager.returnEscapees(server);
 		collectStrays(server, state, now);
 		admit(server, state);
 		updateBars(server, state);

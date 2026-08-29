@@ -60,6 +60,10 @@ public final class LobbyManager {
 	/** Entity id to player id, for the packet filter that does the hiding. */
 	private static final Map<Integer, UUID> MEMBER_ENTITY_IDS = new ConcurrentHashMap<>();
 	private static final Map<UUID, ServerBossBar> BARS = new ConcurrentHashMap<>();
+	/** Players who have just joined, counting down the ticks until it is safe to move them. */
+	private static final Map<UUID, Integer> PENDING = new ConcurrentHashMap<>();
+	/** Long enough for the join to finish, short enough that nobody notices the delay. */
+	private static final int JOIN_DELAY_TICKS = 10;
 	/** Set while at least one member is in the lobby, so the packet filter can leave early. */
 	private static volatile boolean anyMembers;
 
@@ -101,6 +105,43 @@ public final class LobbyManager {
 	 * which is what the grace window is for.
 	 */
 	public static void onJoin(MinecraftServer server, ServerPlayerEntity player) {
+		if (!LobbyState.get().enabled()) {
+			return;
+		}
+
+		// Not yet. A player is still being handed their chunks and their player list at this
+		// point, and moving them to another dimension in the middle of that leaves the client
+		// stuck on the loading screen. The routing is done from the tick loop a moment later,
+		// once the join has finished the way vanilla expects it to.
+		PENDING.put(player.getUuid(), JOIN_DELAY_TICKS);
+	}
+
+	/**
+	 * Routes the players whose join has settled. Called once per tick.
+	 */
+	public static void tickPending(MinecraftServer server) {
+		if (PENDING.isEmpty()) {
+			return;
+		}
+
+		for (Map.Entry<UUID, Integer> entry : PENDING.entrySet()) {
+			int remaining = entry.getValue() - 1;
+
+			if (remaining > 0) {
+				PENDING.put(entry.getKey(), remaining);
+				continue;
+			}
+
+			PENDING.remove(entry.getKey());
+			ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.getKey());
+
+			if (player != null) {
+				route(server, player);
+			}
+		}
+	}
+
+	private static void route(MinecraftServer server, ServerPlayerEntity player) {
 		LobbyState state = LobbyState.get();
 
 		if (!state.enabled()) {
@@ -142,13 +183,52 @@ public final class LobbyManager {
 			return;
 		}
 
-		LobbyState.Waiting waiting = state.enqueue(uuid, name, now);
+		if (state.queueOpen() && state.queueSize() == 0 && hasFreeSlot(state)) {
+			// Nobody is ahead of them and there is room right now, so there is nothing to wait
+			// for. Showing them a queue they would leave a second later is worse than not
+			// showing them one at all.
+			state.admit(uuid, name, now);
+
+			if (inLobby) {
+				sendToWorld(server, player, null);
+			}
+
+			return;
+		}
+
+		state.enqueue(uuid, name, now);
 		sendToLobby(server, player);
 		player.sendMessage(Text.literal("You are in the queue at place " + state.position(uuid)
 				+ " of " + state.queueSize() + ". You will be let in automatically.").formatted(Formatting.YELLOW));
+	}
 
-		if (!waiting.online()) {
-			FreezeMute.LOGGER.warn("Lobby: {} rejoined but their queue entry still says offline", name);
+	/** True when the cap would let one more player through right now. */
+	public static boolean hasFreeSlot(LobbyState state) {
+		return state.cap() <= 0 || state.slotsUsed() < state.cap();
+	}
+
+	/**
+	 * Puts back anybody who is flagged as a member but is not in the lobby any more.
+	 *
+	 * <p>A queued player has more ways out of that room than the interaction blocks cover:
+	 * {@code /kill} goes through invulnerability and respawns them in the world, dying at all
+	 * makes a whole new entity, and any teleport command another mod provides - {@code /home},
+	 * {@code /tpa}, {@code /spawn} - simply moves them. Rather than trying to name every one of
+	 * those, the lobby checks where its members actually are and walks them back.
+	 */
+	public static void returnEscapees(MinecraftServer server) {
+		if (MEMBERS.isEmpty() || !PlayerWorld.available()) {
+			// Without the world lookup every member looks like an escapee, and walking them
+			// back once a second forever would be far worse than the hole it plugs.
+			return;
+		}
+
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (isMember(player) && !isInLobby(player)) {
+				FreezeMute.LOGGER.info("Lobby: {} left the lobby without being let in, putting them back",
+						player.getGameProfile().name());
+				sendToLobby(server, player);
+			}
 		}
 	}
 
@@ -190,8 +270,12 @@ public final class LobbyManager {
 		// Nobody should die waiting in line, and a parkour fall is caught before the void anyway.
 		player.setInvulnerable(true);
 
-		MEMBERS.add(player.getUuid());
-		MEMBER_ENTITY_IDS.put(player.getId(), player.getUuid());
+		UUID uuid = player.getUuid();
+		MEMBERS.add(uuid);
+		// Dying makes a whole new entity with a new id, so drop whatever id they had before -
+		// a stale one leaves the hiding filter looking for somebody who no longer exists.
+		MEMBER_ENTITY_IDS.values().removeIf(uuid::equals);
+		MEMBER_ENTITY_IDS.put(player.getId(), uuid);
 		anyMembers = true;
 
 		joinTeam(server, player);
@@ -283,7 +367,7 @@ public final class LobbyManager {
 	public static void stopBeingMember(MinecraftServer server, ServerPlayerEntity player) {
 		UUID uuid = player.getUuid();
 		MEMBERS.remove(uuid);
-		MEMBER_ENTITY_IDS.remove(player.getId());
+		MEMBER_ENTITY_IDS.values().removeIf(uuid::equals);
 		anyMembers = !MEMBERS.isEmpty();
 
 		leaveTeam(server, player);
@@ -302,8 +386,9 @@ public final class LobbyManager {
 		state.markAdmittedOffline(uuid, now);
 
 		MEMBERS.remove(uuid);
-		MEMBER_ENTITY_IDS.remove(player.getId());
+		MEMBER_ENTITY_IDS.values().removeIf(uuid::equals);
 		anyMembers = !MEMBERS.isEmpty();
+		PENDING.remove(uuid);
 		removeBar(player);
 	}
 
@@ -542,6 +627,7 @@ public final class LobbyManager {
 	public static void forgetEveryone() {
 		MEMBERS.clear();
 		MEMBER_ENTITY_IDS.clear();
+		PENDING.clear();
 		anyMembers = false;
 
 		for (ServerBossBar bar : BARS.values()) {

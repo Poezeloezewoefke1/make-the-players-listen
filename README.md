@@ -347,6 +347,11 @@ to another is refused on the way out, so the client is never told they exist, an
 the same way. They also share a team with collisions and name tags switched off, so nobody gets
 shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
 
+**Set a cap first.** The queue exists to hold people back from a cap, so with `/queue cap 0` -
+the default - there is nothing to wait for and nobody is held: a player who joins when there is
+room and no line simply goes straight in, without a trip through the lobby. Set `/queue cap 8`
+before `/lobby enable`, or use `/queue close` to hold everybody while the doors are shut.
+
 **The line.** Strictly first come, first served. Position and total sit on a boss bar, where they
 can change every second without pushing anything out of chat. The title and the sound cue fire when
 a slot actually opens - not when somebody reaches the front, because being first still means

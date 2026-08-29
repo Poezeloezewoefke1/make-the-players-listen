@@ -154,21 +154,49 @@ public final class LobbyCommand {
 			return 0;
 		}
 
-		LobbyState.get().setEnabled(enabled);
+		LobbyState state = LobbyState.get();
+		state.setEnabled(enabled);
 
 		if (!enabled) {
 			// Leaving people stuck in an adventure-mode room nobody is watching would be worse
-			// than the queue jumping, so everybody comes out.
+			// than the queue jumping, so everybody comes out - and they are let go rather than
+			// recorded as admitted, or turning the lobby back on would wave them all through.
 			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
 				if (LobbyManager.isMember(player)) {
-					LobbyManager.admit(server, player, false);
+					state.dequeue(player.getUuid());
+					state.release(player.getUuid());
+					LobbyManager.sendToWorld(server, player, null);
 				}
 			}
+
+			source.sendFeedback(() -> Messages.success("The lobby is off and everybody has been let out."), true);
+			return 1;
 		}
 
-		source.sendFeedback(() -> Messages.success(enabled
-				? "The lobby is on. Everybody who joins now waits in line."
-				: "The lobby is off and everybody has been let out."), true);
+		// Everybody already on the server is sorted out now rather than the next time they
+		// happen to reconnect; a cap that only applies to future arrivals is not a cap.
+		int held = 0;
+		long now = System.currentTimeMillis();
+
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (Permissions.isStaff(player) || Permissions.hasEarlyAccess(player)
+					|| state.hasEarlyAccess(player.getUuid())) {
+				continue;
+			}
+
+			if (LobbyManager.hasFreeSlot(state)) {
+				state.admit(player.getUuid(), player.getGameProfile().name(), now);
+				continue;
+			}
+
+			state.enqueue(player.getUuid(), player.getGameProfile().name(), now);
+			LobbyManager.sendToLobby(server, player);
+			held++;
+		}
+
+		int moved = held;
+		source.sendFeedback(() -> Messages.success("The lobby is on. Everybody who joins now waits in line"
+				+ (moved == 0 ? "." : ", and " + moved + " already on the server went to it.")), true);
 		return 1;
 	}
 
