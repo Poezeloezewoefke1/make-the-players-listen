@@ -67,7 +67,7 @@ public final class Parkour {
 		FreezeMuteConfig config = FreezeMuteConfig.get();
 		UUID uuid = player.getUuid();
 
-		if (player.getY() < catchLevel(state, config)) {
+		if (player.getY() < catchLevel(config.lobbyVoidCatchY, state.spawn().y())) {
 			catchFall(server, player, state);
 			return;
 		}
@@ -186,8 +186,11 @@ public final class Parkour {
 	 * missed jump a four second fall to y -5. So the catch also tracks the spawn: whichever of
 	 * the two is higher wins, and a fall is over about twenty blocks after it starts.
 	 */
-	private static double catchLevel(LobbyState state, FreezeMuteConfig config) {
-		return Math.max(config.lobbyVoidCatchY, state.spawn().y() - 24.0D);
+	static double catchLevel(double configured, double spawnY) {
+		// Never above the floor people are standing on. A catch height set carelessly high would
+		// otherwise mean everybody in the room is permanently falling, and gets teleported back
+		// to the spawn twenty times a second for as long as they stay.
+		return Math.min(spawnY - 4.0D, Math.max(configured, spawnY - 24.0D));
 	}
 
 	/** Puts a runner back on their last checkpoint, or on the lobby spawn if they were not running. */

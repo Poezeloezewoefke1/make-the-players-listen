@@ -138,33 +138,37 @@ public final class AutoUpdater {
 		Path download = modsFolder.resolve(FreezeMute.MOD_ID + "-" + version + ".jar.part");
 		Files.deleteIfExists(download);
 
-		if (!download(assetUrl, download)) {
+		// In a finally, because a download that throws - a hang, a broken connection, a file
+		// bigger than the limit - would otherwise leave its half written part behind, and leave
+		// another one on every start after that.
+		try {
+			if (!download(assetUrl, download)) {
+				return;
+			}
+
+			if (!isOurMod(download)) {
+				FreezeMute.LOGGER.warn("Auto update: the downloaded file is not a {} jar, throwing it away",
+						FreezeMute.MOD_ID);
+				return;
+			}
+
+			// Only now, with a verified jar on disk, is the running one allowed to go. If it
+			// cannot be moved out of the way the download is deleted: two jars with one mod id
+			// would stop the server starting at all, which is far worse than a version behind.
+			if (!retire(current)) {
+				FreezeMute.LOGGER.warn("Auto update: could not remove {}, so the update was thrown away. "
+						+ "Replace it by hand to update.", current.getFileName());
+				return;
+			}
+
+			Path target = modsFolder.resolve(FreezeMute.MOD_ID + "-" + version + ".jar");
+			Files.move(download, target, StandardCopyOption.REPLACE_EXISTING);
+
+			FreezeMute.LOGGER.info("Auto update: installed {} as {} - it starts on the next server restart",
+					version, target.getFileName());
+		} finally {
 			Files.deleteIfExists(download);
-			return;
 		}
-
-		if (!isOurMod(download)) {
-			FreezeMute.LOGGER.warn("Auto update: the downloaded file is not a {} jar, throwing it away",
-					FreezeMute.MOD_ID);
-			Files.deleteIfExists(download);
-			return;
-		}
-
-		// Only now, with a verified jar on disk, is the running one allowed to go. If it cannot
-		// be moved out of the way the download is deleted: two jars with one mod id would stop
-		// the server from starting at all, which is far worse than being a version behind.
-		if (!retire(current)) {
-			FreezeMute.LOGGER.warn("Auto update: could not remove {}, so the update was thrown away. "
-					+ "Replace it by hand to update.", current.getFileName());
-			Files.deleteIfExists(download);
-			return;
-		}
-
-		Path target = modsFolder.resolve(FreezeMute.MOD_ID + "-" + version + ".jar");
-		Files.move(download, target, StandardCopyOption.REPLACE_EXISTING);
-
-		FreezeMute.LOGGER.info("Auto update: installed {} as {} - it starts on the next server restart",
-				version, target.getFileName());
 	}
 
 	/** Deletes the running jar, or failing that renames it so Fabric stops loading it. */
