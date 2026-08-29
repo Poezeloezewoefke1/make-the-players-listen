@@ -178,7 +178,7 @@ class LobbyStateTest {
 				.withFinish(new Spot(10.0D, 80.0D, 0.0D, 0.0F, 0.0F)));
 		state.recordTime("tower", new CourseRecord(ZOE, "Zoe", 42_000L, 4000L));
 
-		state.load(file);
+		restart();
 
 		assertTrue(state.enabled());
 		assertEquals(8, state.cap());
@@ -204,6 +204,45 @@ class LobbyStateTest {
 		assertEquals(1, course.checkpoints().size());
 		assertTrue(course.playable());
 		assertEquals(42_000L, state.leaderboard("tower").get(0).millis());
+	}
+
+	/** What a restart does: the pending write is closed, then the file is read back. */
+	private void restart() {
+		state.flush();
+		state.load(file);
+	}
+
+	@Test
+	void changesAreWrittenOnceRatherThanOnEveryChange() throws Exception {
+		state.setCap(4);
+		state.enqueue(STEVE, "Steve", 1000L);
+
+		assertFalse(java.nio.file.Files.exists(file), "nothing should have been written yet");
+
+		state.flush();
+		assertTrue(java.nio.file.Files.exists(file), "the flush is what writes it");
+
+		long written = java.nio.file.Files.size(file);
+		state.flush();
+		assertEquals(written, java.nio.file.Files.size(file), "a flush with nothing pending writes nothing new");
+	}
+
+	@Test
+	void aFlushWithNothingToSayDoesNotCreateAFile() {
+		state.flush();
+		assertFalse(java.nio.file.Files.exists(file));
+	}
+
+	@Test
+	void loadingClearsAWriteThatWasStillPending() throws Exception {
+		// Reading a file has to cancel whatever was queued to be written, or the load is undone
+		// by a flush of the state it just replaced.
+		state.setCap(9);
+		state.load(directory.resolve("somewhere-else.json"));
+		state.flush();
+
+		assertFalse(java.nio.file.Files.exists(directory.resolve("somewhere-else.json")));
+		assertEquals(0, state.cap());
 	}
 
 	@Test

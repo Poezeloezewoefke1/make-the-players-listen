@@ -56,6 +56,7 @@ class QueuePointTest {
 	@Test
 	void thePointSurvivesARestart() {
 		state.setQueuePoint(new Spot(0.5D, 65.0D, -16.5D, 90.0F, 0.0F));
+		state.flush();
 		state.load(file);
 
 		assertTrue(state.joinedAtAPoint());
@@ -69,6 +70,7 @@ class QueuePointTest {
 	void aClearedPointStaysClearedAcrossARestart() {
 		state.setQueuePoint(new Spot(1.0D, 2.0D, 3.0D, 0.0F, 0.0F));
 		state.setQueuePoint(null);
+		state.flush();
 		state.load(file);
 
 		assertFalse(state.joinedAtAPoint());

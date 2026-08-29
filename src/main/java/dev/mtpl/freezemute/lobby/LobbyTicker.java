@@ -1,6 +1,8 @@
 package dev.mtpl.freezemute.lobby;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import dev.mtpl.freezemute.FreezeMute;
@@ -31,13 +33,24 @@ public final class LobbyTicker {
 	}
 
 	public static void tick(MinecraftServer server) {
-		LobbyState state = LobbyState.get();
-
-		if (!state.enabled() || server == null) {
+		if (server == null) {
 			return;
 		}
 
+		LobbyState state = LobbyState.get();
 		ticks++;
+		boolean second = ticks % TICKS_PER_SECOND == 0;
+
+		if (second) {
+			// Before the switch, not after it: building a lobby and setting courses up are done
+			// with the routing turned off, and those changes have to reach the disk too.
+			state.flush();
+		}
+
+		if (!state.enabled()) {
+			return;
+		}
+
 		boolean display = ticks % DISPLAY_EVERY == 0;
 		long now = System.currentTimeMillis();
 
@@ -54,7 +67,7 @@ public final class LobbyTicker {
 			}
 		}
 
-		if (ticks % TICKS_PER_SECOND != 0) {
+		if (!second) {
 			return;
 		}
 
@@ -165,14 +178,16 @@ public final class LobbyTicker {
 		}
 	}
 
-	/** Refreshes the boss bar of everybody still waiting. */
+	/** Refreshes the boss bar of everybody still waiting, and takes away everybody else's. */
 	private static void updateBars(MinecraftServer server, LobbyState state) {
 		List<Waiting> queue = state.queue();
 		int total = queue.size();
 		boolean open = state.queueOpen();
+		Set<UUID> waiting = new HashSet<>();
 
 		for (int index = 0; index < total; index++) {
 			Waiting entry = queue.get(index);
+			waiting.add(entry.uuid());
 
 			if (!entry.online()) {
 				continue;
@@ -184,5 +199,7 @@ public final class LobbyTicker {
 				LobbyManager.updateBar(player, index + 1, total, open);
 			}
 		}
+
+		LobbyManager.dropBarsNotWaiting(waiting);
 	}
 }

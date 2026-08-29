@@ -1,5 +1,6 @@
 package dev.mtpl.freezemute.lobby;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,12 +67,12 @@ public final class Parkour {
 		FreezeMuteConfig config = FreezeMuteConfig.get();
 		UUID uuid = player.getUuid();
 
-		if (player.getY() < config.lobbyVoidCatchY) {
+		if (player.getY() < catchLevel(state, config)) {
 			catchFall(server, player, state);
 			return;
 		}
 
-		List<Course> courses = state.courses();
+		Collection<Course> courses = state.courseValues();
 
 		if (courses.isEmpty()) {
 			return;
@@ -173,6 +174,18 @@ public final class Parkour {
 		}
 
 		player.sendMessage(Text.literal(message.toString()).formatted(Formatting.GREEN));
+	}
+
+	/**
+	 * How far somebody has to fall before they are caught.
+	 *
+	 * <p>The configured height is an absolute one, which is right for a lobby built near it and
+	 * a very long drop for one built high up - an island with its water at y 53 would make a
+	 * missed jump a four second fall to y -5. So the catch also tracks the spawn: whichever of
+	 * the two is higher wins, and a fall is over about twenty blocks after it starts.
+	 */
+	private static double catchLevel(LobbyState state, FreezeMuteConfig config) {
+		return Math.max(config.lobbyVoidCatchY, state.spawn().y() - 24.0D);
 	}
 
 	/** Puts a runner back on their last checkpoint, or on the lobby spawn if they were not running. */

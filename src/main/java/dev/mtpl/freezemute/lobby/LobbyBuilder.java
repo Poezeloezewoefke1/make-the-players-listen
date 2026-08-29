@@ -1,7 +1,9 @@
 package dev.mtpl.freezemute.lobby;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import dev.mtpl.freezemute.FreezeMute;
@@ -47,47 +49,109 @@ public final class LobbyBuilder {
 	public record Result(int blocks, Spot spawn, Spot queuePoint, Course course) {
 	}
 
+	/** One block of the island, in world coordinates. Applied in order, so later ones win. */
+	public record Placement(int x, int y, int z, Material material) {
+	}
+
+	/** Everything a build decided, before any of it touches a world. */
+	public record Plan(List<Placement> placements, Spot spawn, Spot queuePoint, Course course) {
+	}
+
+	/**
+	 * Works out the whole island without a world to put it in.
+	 *
+	 * <p>Being able to ask for the island as a list rather than as a side effect is what makes it
+	 * checkable: whether the lagoon holds water, whether the plaza is stood on solid ground,
+	 * whether the jetty is over the sea instead of buried in a hill, are all questions about this
+	 * list, and none of them need Minecraft to answer.
+	 *
+	 * @param sea the height the water surface sits at
+	 */
+	public static Plan plan(int originX, int originZ, int sea) {
+		Random random = new Random(originX * 341873128712L + originZ * 132897987541L);
+		Site site = new Site(originX, originZ, sea, random);
+
+		site.ground();
+		site.plaza();
+		site.palms();
+		site.rocks();
+		site.jetty();
+		site.lighthouse();
+		site.pavilion();
+		site.balloons();
+		site.water();
+
+		int pedestalX = originX;
+		int pedestalY = sea + SUMMIT + 1;
+		int pedestalZ = originZ - 5;
+		site.pedestal(pedestalX, pedestalY, pedestalZ);
+
+		Course course = site.course();
+
+		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ + 2.5D, 0.0F, 0.0F);
+		Spot queuePoint = new Spot(pedestalX + 0.5D, pedestalY + 1.0D, pedestalZ + 0.5D, 180.0F, 0.0F);
+
+		return new Plan(List.copyOf(site.order), spawn, queuePoint, course);
+	}
+
 	public static Result build(ServerWorld world, Spot centre) {
 		int originX = (int) Math.floor(centre.x());
 		int originZ = (int) Math.floor(centre.z());
 		// The plaza is where the player stands, so the water sits SUMMIT below it.
 		int sea = (int) Math.floor(centre.y()) - SUMMIT;
-		Random random = new Random(originX * 341873128712L + originZ * 132897987541L);
 
-		Site site = new Site(world, originX, originZ, sea, random);
+		Plan plan = plan(originX, originZ, sea);
 
-		int blocks = site.ground();
-		blocks += site.plaza();
-		blocks += site.palms();
-		blocks += site.rocks();
-		blocks += site.jetty();
-		blocks += site.lighthouse();
-		blocks += site.pavilion();
-		blocks += site.balloons();
-		blocks += site.water();
-
-		BlockPos pedestal = new BlockPos(originX, sea + SUMMIT + 1, originZ - 5);
-		blocks += site.pedestal(pedestal);
-
-		LaidCourse laid = site.course();
-		blocks += laid.blocks();
-
-		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ + 2.5D, 0.0F, 0.0F);
-		Spot queuePoint = new Spot(pedestal.getX() + 0.5D, pedestal.getY() + 1.0D, pedestal.getZ() + 0.5D,
-				180.0F, 0.0F);
+		for (Placement placement : plan.placements()) {
+			world.setBlockState(new BlockPos(placement.x(), placement.y(), placement.z()),
+					block(placement.material()).getDefaultState());
+		}
 
 		LobbyState state = LobbyState.get();
-		state.setSpawn(spawn);
-		state.setQueuePoint(queuePoint);
-		state.putCourse(laid.course());
+		state.setSpawn(plan.spawn());
+		state.setQueuePoint(plan.queuePoint());
+		state.putCourse(plan.course());
 
 		FreezeMute.LOGGER.info("Lobby: built the island at {} {} {} - {} blocks, spawn {}, queue point {}",
-				originX, sea, originZ, blocks, spawn.describe(), queuePoint.describe());
+				originX, sea, originZ, plan.placements().size(), plan.spawn().describe(),
+				plan.queuePoint().describe());
 
-		return new Result(blocks, spawn, queuePoint, laid.course());
+		return new Result(plan.placements().size(), plan.spawn(), plan.queuePoint(), plan.course());
 	}
 
-	private record LaidCourse(Course course, int blocks) {
+	/** The only place in the island that knows what a Minecraft block is. */
+	private static Block block(Material material) {
+		return switch (material) {
+			case AIR -> Blocks.AIR;
+			case WATER -> Blocks.WATER;
+			case STONE -> Blocks.STONE;
+			case ANDESITE -> Blocks.ANDESITE;
+			case POLISHED_ANDESITE -> Blocks.POLISHED_ANDESITE;
+			case SMOOTH_STONE -> Blocks.SMOOTH_STONE;
+			case MOSSY_COBBLESTONE -> Blocks.MOSSY_COBBLESTONE;
+			case DIRT -> Blocks.DIRT;
+			case GRASS -> Blocks.GRASS_BLOCK;
+			case SAND -> Blocks.SAND;
+			case JUNGLE_LOG -> Blocks.JUNGLE_LOG;
+			case JUNGLE_LEAVES -> Blocks.JUNGLE_LEAVES;
+			case OAK_LOG -> Blocks.OAK_LOG;
+			case OAK_PLANKS -> Blocks.OAK_PLANKS;
+			case OAK_FENCE -> Blocks.OAK_FENCE;
+			case WHITE_CONCRETE -> Blocks.WHITE_CONCRETE;
+			case RED_CONCRETE -> Blocks.RED_CONCRETE;
+			case WHITE_WOOL -> Blocks.WHITE_WOOL;
+			case RED_WOOL -> Blocks.RED_WOOL;
+			case BLUE_WOOL -> Blocks.BLUE_WOOL;
+			case ORANGE_WOOL -> Blocks.ORANGE_WOOL;
+			case YELLOW_WOOL -> Blocks.YELLOW_WOOL;
+			case SEA_LANTERN -> Blocks.SEA_LANTERN;
+			case POLISHED_BLACKSTONE -> Blocks.POLISHED_BLACKSTONE;
+			case POLISHED_BLACKSTONE_BRICKS -> Blocks.POLISHED_BLACKSTONE_BRICKS;
+			case QUARTZ -> Blocks.QUARTZ_BLOCK;
+			case GOLD -> Blocks.GOLD_BLOCK;
+			case EMERALD -> Blocks.EMERALD_BLOCK;
+			case DIAMOND -> Blocks.DIAMOND_BLOCK;
+		};
 	}
 
 	/** One block of the parkour, in world coordinates. */
@@ -153,14 +217,15 @@ public final class LobbyBuilder {
 
 	/** One island being laid, holding the numbers every part of it needs. */
 	private static final class Site {
-		private final ServerWorld world;
+		private final List<Placement> order = new ArrayList<>();
+		/** The island as it stands so far, so a later step can ask what an earlier one left. */
+		private final Map<Long, Material> current = new HashMap<>();
 		private final int originX;
 		private final int originZ;
 		private final int sea;
 		private final Random random;
 
-		Site(ServerWorld world, int originX, int originZ, int sea, Random random) {
-			this.world = world;
+		Site(int originX, int originZ, int sea, Random random) {
 			this.originX = originX;
 			this.originZ = originZ;
 			this.sea = sea;
@@ -247,16 +312,16 @@ public final class LobbyBuilder {
 			int placed = 0;
 
 			for (int y = bottom; y <= top; y++) {
-				Block block;
+				Material block;
 
 				if (y == top) {
-					block = beach ? Blocks.SAND : Blocks.GRASS_BLOCK;
+					block = beach ? Material.SAND : Material.GRASS;
 				} else if (y >= top - 2) {
-					block = beach ? Blocks.SAND : Blocks.DIRT;
+					block = beach ? Material.SAND : Material.DIRT;
 				} else if (y <= bottom + 1) {
-					block = Blocks.ANDESITE;
+					block = Material.ANDESITE;
 				} else {
-					block = Blocks.STONE;
+					block = Material.STONE;
 				}
 
 				placed += set(dx, y, dz, block);
@@ -277,7 +342,7 @@ public final class LobbyBuilder {
 			int placed = 0;
 
 			for (int y = sea - 7; y <= floor; y++) {
-				placed += set(dx, y, dz, y >= floor - 1 ? Blocks.SAND : Blocks.ANDESITE);
+				placed += set(dx, y, dz, y >= floor - 1 ? Material.SAND : Material.ANDESITE);
 			}
 
 			return placed;
@@ -296,8 +361,8 @@ public final class LobbyBuilder {
 					}
 
 					for (int y = sea - 6; y <= sea; y++) {
-						if (world.getBlockState(at(dx, y, dz)).isAir()) {
-							placed += set(dx, y, dz, Blocks.WATER);
+						if (materialAt(originX + dx, y, originZ + dz) == Material.AIR) {
+							placed += set(dx, y, dz, Material.WATER);
 						}
 					}
 				}
@@ -321,19 +386,18 @@ public final class LobbyBuilder {
 						continue;
 					}
 
-					Block block = distance > PLAZA_RADIUS - 1 ? Blocks.POLISHED_ANDESITE : Blocks.SMOOTH_STONE;
+					Material block = distance > PLAZA_RADIUS - 1 ? Material.POLISHED_ANDESITE : Material.SMOOTH_STONE;
 
 					if (distance > PLAZA_RADIUS) {
-						block = Blocks.MOSSY_COBBLESTONE;
+						block = Material.MOSSY_COBBLESTONE;
 					}
 
 					placed += set(dx, y, dz, block);
 
-					// Anything the terrain left standing where the plaza goes.
+					// Anything the terrain left standing where the plaza goes. Cleared without
+					// asking first, so it also empties a room built here before this one.
 					for (int height = 1; height <= 6; height++) {
-						if (!world.getBlockState(at(dx, y + height, dz)).isAir()) {
-							placed += set(dx, y + height, dz, Blocks.AIR);
-						}
+						placed += set(dx, y + height, dz, Material.AIR);
 					}
 				}
 			}
@@ -345,21 +409,24 @@ public final class LobbyBuilder {
 		 * Where the NPC goes. Nothing is spawned on it: whatever people use for NPCs is their own
 		 * business, and a right click anywhere near this spot joins the queue either way.
 		 */
-		int pedestal(BlockPos middle) {
+		int pedestal(int middleX, int middleY, int middleZ) {
 			int placed = 0;
 
 			for (int dx = -1; dx <= 1; dx++) {
 				for (int dz = -1; dz <= 1; dz++) {
 					boolean corner = dx != 0 && dz != 0;
-					placed += put(middle.getX() + dx, middle.getY(), middle.getZ() + dz,
-							corner ? Blocks.POLISHED_BLACKSTONE : Blocks.POLISHED_BLACKSTONE_BRICKS);
+					placed += put(middleX + dx, middleY, middleZ + dz,
+							corner ? Material.POLISHED_BLACKSTONE : Material.POLISHED_BLACKSTONE_BRICKS);
+					// Standing room on top of it, whatever the plaza left there.
+					placed += put(middleX + dx, middleY + 1, middleZ + dz, Material.AIR);
+					placed += put(middleX + dx, middleY + 2, middleZ + dz, Material.AIR);
 				}
 			}
 
-			placed += put(middle.getX() - 2, middle.getY(), middle.getZ(), Blocks.OAK_FENCE);
-			placed += put(middle.getX() - 2, middle.getY() + 1, middle.getZ(), Blocks.SEA_LANTERN);
-			placed += put(middle.getX() + 2, middle.getY(), middle.getZ(), Blocks.OAK_FENCE);
-			placed += put(middle.getX() + 2, middle.getY() + 1, middle.getZ(), Blocks.SEA_LANTERN);
+			placed += put(middleX - 2, middleY, middleZ, Material.OAK_FENCE);
+			placed += put(middleX - 2, middleY + 1, middleZ, Material.SEA_LANTERN);
+			placed += put(middleX + 2, middleY, middleZ, Material.OAK_FENCE);
+			placed += put(middleX + 2, middleY + 1, middleZ, Material.SEA_LANTERN);
 			return placed;
 		}
 
@@ -413,26 +480,29 @@ public final class LobbyBuilder {
 					z += step % 2 == 1 ? leanZ : 0;
 				}
 
-				placed += set(x, base + step, z, Blocks.JUNGLE_LOG);
+				placed += set(x, base + step, z, Material.JUNGLE_LOG);
 			}
 
 			int crown = base + height;
-			placed += set(x, crown + 1, z, Blocks.JUNGLE_LEAVES);
+			placed += set(x, crown + 1, z, Material.JUNGLE_LEAVES);
 
-			// Four fronds, each drooping as it goes out. Every leaf stays within three blocks of
-			// the trunk, which is well inside the distance at which leaves start decaying.
+			// Four fronds, each running out level and then stepping down at the tip.
+			//
+			// The step down needs a leaf under the one before it as well. Minecraft measures how
+			// far a leaf is from its tree by stepping between blocks that touch face to face, and
+			// rots anything more than six steps away - a tip that sits diagonally off the end of
+			// the frond touches it at a corner only, which is not a connection at all, so every
+			// palm would quietly drop its tips.
 			int[][] directions = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
 
 			for (int[] direction : directions) {
-				for (int reach = 1; reach <= 3; reach++) {
-					int drop = reach == 3 ? 1 : 0;
-					placed += set(x + direction[0] * reach, crown - drop, z + direction[1] * reach,
-							Blocks.JUNGLE_LEAVES);
-				}
-			}
+				int outX = direction[0];
+				int outZ = direction[1];
 
-			for (int[] direction : directions) {
-				placed += set(x + direction[0], crown, z + direction[1], Blocks.JUNGLE_LEAVES);
+				placed += set(x + outX, crown, z + outZ, Material.JUNGLE_LEAVES);
+				placed += set(x + outX * 2, crown, z + outZ * 2, Material.JUNGLE_LEAVES);
+				placed += set(x + outX * 2, crown - 1, z + outZ * 2, Material.JUNGLE_LEAVES);
+				placed += set(x + outX * 3, crown - 1, z + outZ * 3, Material.JUNGLE_LEAVES);
 			}
 
 			return placed;
@@ -460,7 +530,7 @@ public final class LobbyBuilder {
 							}
 
 							placed += set(dx + ox, top + oy, dz + oz,
-									random.nextInt(3) == 0 ? Blocks.MOSSY_COBBLESTONE : Blocks.ANDESITE);
+									random.nextInt(3) == 0 ? Material.MOSSY_COBBLESTONE : Material.ANDESITE);
 						}
 					}
 				}
@@ -482,27 +552,25 @@ public final class LobbyBuilder {
 				int dz = reach;
 
 				for (int dx = -1; dx <= 1; dx++) {
-					placed += set(dx, deck, dz, Blocks.OAK_PLANKS);
+					placed += set(dx, deck, dz, Material.OAK_PLANKS);
 
 					for (int height = 1; height <= 6; height++) {
-						if (!world.getBlockState(at(dx, deck + height, dz)).isAir()) {
-							placed += set(dx, deck + height, dz, Blocks.AIR);
-						}
+						placed += set(dx, deck + height, dz, Material.AIR);
 					}
 				}
 
 				if (reach % 5 == 0) {
 					for (int dx = -1; dx <= 1; dx += 2) {
 						for (int y = sea - 4; y < deck; y++) {
-							placed += set(dx, y, dz, Blocks.OAK_LOG);
+							placed += set(dx, y, dz, Material.OAK_LOG);
 						}
 
-						placed += set(dx, deck + 1, dz, Blocks.OAK_FENCE);
-						placed += set(dx, deck + 2, dz, Blocks.SEA_LANTERN);
+						placed += set(dx, deck + 1, dz, Material.OAK_FENCE);
+						placed += set(dx, deck + 2, dz, Material.SEA_LANTERN);
 					}
 				} else {
-					placed += set(-1, deck + 1, dz, Blocks.OAK_FENCE);
-					placed += set(1, deck + 1, dz, Blocks.OAK_FENCE);
+					placed += set(-1, deck + 1, dz, Material.OAK_FENCE);
+					placed += set(1, deck + 1, dz, Material.OAK_FENCE);
 				}
 			}
 
@@ -538,15 +606,15 @@ public final class LobbyBuilder {
 						boolean shell = distance > radius - 0.9D;
 
 						if (y == height) {
-							placed += set(dx + ox, base + y, dz + oz, Blocks.POLISHED_ANDESITE);
+							placed += set(dx + ox, base + y, dz + oz, Material.POLISHED_ANDESITE);
 						} else if (y == height - 2 && !shell) {
-							placed += set(dx + ox, base + y, dz + oz, Blocks.SEA_LANTERN);
+							placed += set(dx + ox, base + y, dz + oz, Material.SEA_LANTERN);
 						} else if (shell) {
 							placed += set(dx + ox, base + y, dz + oz,
-									y > height - 4 ? Blocks.OAK_FENCE
-											: band ? Blocks.WHITE_CONCRETE : Blocks.RED_CONCRETE);
+									y > height - 4 ? Material.OAK_FENCE
+											: band ? Material.WHITE_CONCRETE : Material.RED_CONCRETE);
 						} else if (y == 0) {
-							placed += set(dx + ox, base + y, dz + oz, Blocks.STONE);
+							placed += set(dx + ox, base + y, dz + oz, Material.STONE);
 						}
 					}
 				}
@@ -569,7 +637,7 @@ public final class LobbyBuilder {
 
 			for (int ox = -3; ox <= 3; ox++) {
 				for (int oz = -3; oz <= 3; oz++) {
-					placed += set(dx + ox, base, dz + oz, Blocks.OAK_PLANKS);
+					placed += set(dx + ox, base, dz + oz, Material.OAK_PLANKS);
 				}
 			}
 
@@ -578,7 +646,7 @@ public final class LobbyBuilder {
 				int oz = (corner & 2) == 0 ? -3 : 3;
 
 				for (int y = 1; y <= 4; y++) {
-					placed += set(dx + ox, base + y, dz + oz, Blocks.OAK_LOG);
+					placed += set(dx + ox, base + y, dz + oz, Material.OAK_LOG);
 				}
 			}
 
@@ -591,7 +659,7 @@ public final class LobbyBuilder {
 							continue;
 						}
 
-						placed += set(dx + ox, base + 5 + layer, dz + oz, Blocks.RED_CONCRETE);
+						placed += set(dx + ox, base + 5 + layer, dz + oz, Material.RED_CONCRETE);
 					}
 				}
 			}
@@ -601,7 +669,7 @@ public final class LobbyBuilder {
 
 		/** Balloons overhead, because the sky above an island should have something in it. */
 		int balloons() {
-			Block[] colours = { Blocks.RED_WOOL, Blocks.BLUE_WOOL, Blocks.ORANGE_WOOL, Blocks.YELLOW_WOOL };
+			Material[] colours = { Material.RED_WOOL, Material.BLUE_WOOL, Material.ORANGE_WOOL, Material.YELLOW_WOOL };
 			int placed = 0;
 
 			for (int count = 0; count < 4; count++) {
@@ -609,7 +677,7 @@ public final class LobbyBuilder {
 				int dx = (int) Math.round(Math.cos(angle) * (COAST - 6));
 				int dz = (int) Math.round(Math.sin(angle) * (COAST - 6));
 				int y = sea + 30 + random.nextInt(10);
-				Block skin = colours[count % colours.length];
+				Material skin = colours[count % colours.length];
 				int radius = 4;
 
 				for (int ox = -radius; ox <= radius; ox++) {
@@ -622,18 +690,18 @@ public final class LobbyBuilder {
 							}
 
 							boolean stripe = ((ox + oz + radius) / 2) % 2 == 0;
-							placed += set(dx + ox, y + oy, dz + oz, stripe ? skin : Blocks.WHITE_WOOL);
+							placed += set(dx + ox, y + oy, dz + oz, stripe ? skin : Material.WHITE_WOOL);
 						}
 					}
 				}
 
 				for (int rope = 1; rope <= 3; rope++) {
-					placed += set(dx, y - radius - rope, dz, Blocks.OAK_FENCE);
+					placed += set(dx, y - radius - rope, dz, Material.OAK_FENCE);
 				}
 
 				for (int ox = -1; ox <= 1; ox++) {
 					for (int oz = -1; oz <= 1; oz++) {
-						placed += set(dx + ox, y - radius - 4, dz + oz, Blocks.OAK_PLANKS);
+						placed += set(dx + ox, y - radius - 4, dz + oz, Material.OAK_PLANKS);
 					}
 				}
 			}
@@ -644,23 +712,23 @@ public final class LobbyBuilder {
 		// ---------------------------------------------------------- the parkour
 
 		/** A rising spiral out over the lagoon, registered as a course as it is laid. */
-		LaidCourse course() {
+		Course course() {
 			List<Step> steps = courseSteps(originX, originZ, sea + SUMMIT + 2);
 			List<Spot> pads = new ArrayList<>();
 			int blocks = 0;
 
 			for (Step step : steps) {
-				Block block = Blocks.QUARTZ_BLOCK;
+				Material block = Material.QUARTZ;
 
 				if (step.start()) {
-					block = Blocks.GOLD_BLOCK;
+					block = Material.GOLD;
 				} else if (step.finish()) {
-					block = Blocks.DIAMOND_BLOCK;
+					block = Material.DIAMOND;
 				} else if (step.checkpoint()) {
-					block = Blocks.EMERALD_BLOCK;
+					block = Material.EMERALD;
 				}
 
-				world.setBlockState(new BlockPos(step.x(), step.y(), step.z()), block.getDefaultState());
+				put(step.x(), step.y(), step.z(), block);
 				blocks++;
 
 				if (step.pad()) {
@@ -674,22 +742,29 @@ public final class LobbyBuilder {
 				course = course.withCheckpoint(pads.get(index));
 			}
 
-			return new LaidCourse(course.withFinish(pads.get(pads.size() - 1)), blocks);
+			return course.withFinish(pads.get(pads.size() - 1));
 		}
 
 		// ----------------------------------------------------------- the basics
 
-		private BlockPos at(int dx, int y, int dz) {
-			return new BlockPos(originX + dx, y, originZ + dz);
+		/** Coordinates packed into one long, so the plan can be looked up without allocating. */
+		private static long key(int x, int y, int z) {
+			return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y + 2048L) & 0xFFFL;
 		}
 
-		private int set(int dx, int y, int dz, Block block) {
-			world.setBlockState(at(dx, y, dz), block.getDefaultState());
-			return 1;
+		private Material materialAt(int x, int y, int z) {
+			return current.getOrDefault(key(x, y, z), Material.AIR);
 		}
 
-		private int put(int x, int y, int z, Block block) {
-			world.setBlockState(new BlockPos(x, y, z), block.getDefaultState());
+		/** Relative to the middle of the island. */
+		private int set(int dx, int y, int dz, Material material) {
+			return put(originX + dx, y, originZ + dz, material);
+		}
+
+		/** In world coordinates. */
+		private int put(int x, int y, int z, Material material) {
+			order.add(new Placement(x, y, z, material));
+			current.put(key(x, y, z), material);
 			return 1;
 		}
 	}

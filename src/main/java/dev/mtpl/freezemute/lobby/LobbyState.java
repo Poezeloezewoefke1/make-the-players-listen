@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,6 +98,7 @@ public final class LobbyState {
 	private volatile Spot spawn = LobbyDimension.DEFAULT_SPAWN;
 	private volatile Spot queuePoint;
 	private volatile Path file;
+	private volatile boolean dirty;
 
 	private LobbyState() {
 	}
@@ -431,10 +433,22 @@ public final class LobbyState {
 		return name == null ? null : courses.get(name.toLowerCase(Locale.ROOT));
 	}
 
+	/** Sorted, for anything a person reads. Allocates, so not for the tick loop. */
 	public List<Course> courses() {
 		List<Course> list = new ArrayList<>(courses.values());
 		list.sort(Comparator.comparing(Course::name, String.CASE_INSENSITIVE_ORDER));
 		return list;
+	}
+
+	/**
+	 * The courses in no particular order, without copying or sorting them.
+	 *
+	 * <p>Every member is checked against every course on every tick, so this path runs twenty
+	 * times a second per player waiting in the room. Sorting a list nobody is going to read, that
+	 * many times, is worth avoiding.
+	 */
+	public Collection<Course> courseValues() {
+		return courses.values();
 	}
 
 	public List<String> courseNames() {
@@ -529,6 +543,10 @@ public final class LobbyState {
 			cap = 0;
 			spawn = LobbyDimension.DEFAULT_SPAWN;
 			queuePoint = null;
+			// Here rather than at the end, because the reads below return early on a missing or
+			// unreadable file, and a pending write left over from before the load would then be
+			// flushed on top of what was just read.
+			dirty = false;
 
 			if (!Files.isRegularFile(path)) {
 				return;
@@ -684,7 +702,30 @@ public final class LobbyState {
 		}
 	}
 
+	/**
+	 * Marks the state as needing writing.
+	 *
+	 * <p>The lobby changes constantly - every arrival, every admission, every second of a grace
+	 * window running down - and serialising the whole file for each of those, on the server
+	 * thread, is a cost that grows with the number of people waiting. Writes are collapsed and
+	 * flushed once a second from the tick loop instead. Worst case a crash loses a second of
+	 * queue order, which is what the grace windows exist to make survivable anyway.
+	 */
 	public void save() {
+		dirty = true;
+	}
+
+	/** Writes if anything changed since the last write. Called once a second from the ticker. */
+	public void flush() {
+		if (!dirty) {
+			return;
+		}
+
+		dirty = false;
+		writeNow();
+	}
+
+	private void writeNow() {
 		Path path = this.file;
 
 		if (path == null) {

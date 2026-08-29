@@ -167,6 +167,9 @@ public final class LobbyManager {
 			// quiet enough to film in, and the people filming it are not the problem. They are not
 			// moved either: somebody who logged out while building the parkour logs back into it.
 			state.dequeue(uuid);
+			// And they hand back a slot they were holding from before they were staff, which
+			// nobody else could use while it sat there.
+			state.release(uuid);
 			return;
 		}
 
@@ -284,9 +287,10 @@ public final class LobbyManager {
 	 * those, the lobby checks where its members actually are and walks them back.
 	 */
 	public static void returnEscapees(MinecraftServer server) {
-		if (MEMBERS.isEmpty() || !PlayerWorld.available()) {
-			// Without the world lookup every member looks like an escapee, and walking them
-			// back once a second forever would be far worse than the hole it plugs.
+		if (MEMBERS.isEmpty() || !PlayerWorld.available() || LobbyDimension.world(server) == null) {
+			// Without the world lookup every member looks like an escapee, and walking them back
+			// once a second forever would be far worse than the hole it plugs. With no lobby to
+			// walk them back to, sendToLobby would only apologise to them, once a second.
 			return;
 		}
 
@@ -354,7 +358,7 @@ public final class LobbyManager {
 		anyMembers = true;
 
 		joinTeam(server, player);
-		hideFromOtherMembers(server, player);
+		hideFromOtherMembers(player);
 	}
 
 	/** Lets a player through: back to the world they came from, in survival, out of the queue. */
@@ -446,6 +450,7 @@ public final class LobbyManager {
 		anyMembers = !MEMBERS.isEmpty();
 
 		leaveTeam(server, player);
+		Parkour.forget(uuid);
 		removeBar(player);
 	}
 
@@ -466,6 +471,9 @@ public final class LobbyManager {
 		PENDING.remove(uuid);
 		SETTLING.remove(uuid);
 		LAST_CLICK.remove(uuid);
+		// A half finished run is not worth keeping. Resuming one after a relog would count the
+		// time somebody spent offline as part of their time on the course.
+		Parkour.forget(uuid);
 		removeBar(player);
 	}
 
@@ -491,11 +499,16 @@ public final class LobbyManager {
 	 * anything out of chat.
 	 */
 	public static void updateBar(ServerPlayerEntity player, int position, int total, boolean open) {
-		ServerBossBar bar = BARS.computeIfAbsent(player.getUuid(), key -> {
-			ServerBossBar created = new ServerBossBar(Text.literal("Queue"), BossBar.Color.BLUE, BossBar.Style.PROGRESS);
-			created.addPlayer(player);
-			return created;
-		});
+		ServerBossBar bar = BARS.computeIfAbsent(player.getUuid(), key ->
+				new ServerBossBar(Text.literal("Queue"), BossBar.Color.BLUE, BossBar.Style.PROGRESS));
+
+		// Dying builds a whole new player entity, and the bar is still pointed at the old one, so
+		// it quietly stops being drawn. Re-attaching when the instance has changed fixes that;
+		// checking first means the usual case sends no packets at all.
+		if (!bar.getPlayers().contains(player)) {
+			bar.clearPlayers();
+			bar.addPlayer(player);
+		}
 
 		String text = open
 				? "Queue - place " + position + " of " + total
@@ -507,10 +520,33 @@ public final class LobbyManager {
 	}
 
 	public static void removeBar(ServerPlayerEntity player) {
-		ServerBossBar bar = BARS.remove(player.getUuid());
+		removeBar(player.getUuid());
+	}
+
+	public static void removeBar(UUID uuid) {
+		ServerBossBar bar = BARS.remove(uuid);
 
 		if (bar != null) {
 			bar.clearPlayers();
+		}
+	}
+
+	/**
+	 * Drops the bars of anybody who is no longer waiting.
+	 *
+	 * <p>A bar is only ever refreshed for somebody in the queue, so one belonging to a player who
+	 * left the queue but stayed in the room - which is what {@code /queue end} does to everybody -
+	 * would otherwise sit on their screen showing a place they no longer hold.
+	 */
+	public static void dropBarsNotWaiting(Set<UUID> waiting) {
+		if (BARS.isEmpty()) {
+			return;
+		}
+
+		for (UUID uuid : Set.copyOf(BARS.keySet())) {
+			if (!waiting.contains(uuid)) {
+				removeBar(uuid);
+			}
 		}
 	}
 
@@ -622,19 +658,13 @@ public final class LobbyManager {
 	// --------------------------------------------------------------- isolation
 
 	/**
-	 * Makes a player who just became a member disappear from the other members, and makes the
-	 * other members disappear from them.
+	 * Puts a new member on the list of people whose hiding is still being settled.
 	 *
-	 * <p>The hiding itself is done by dropping spawn packets on the way out
-	 * ({@code ServerCommonNetworkHandlerMixin}); this only has to make the client forget whoever it
-	 * was already shown, which a quick round trip out of tracking range does for free. Rather than
-	 * fight entity tracking, the pair is simply re-sent: the teleport into the lobby has already
-	 * cleared everyone's view, so all that is left is to keep it that way.
+	 * <p>Doing the hiding once, right here, would achieve nothing: at this moment the arriving
+	 * player has not been introduced to anybody, so there is nothing to take back, and the
+	 * introduction arrives a tick later. {@link #reassertHiding} is what actually catches them.
 	 */
-	private static void hideFromOtherMembers(MinecraftServer server, ServerPlayerEntity player) {
-		// Doing it once, here, is not enough: at this moment the arriving player has not been
-		// introduced to anybody yet, so there is nothing to take back. The work is repeated for a
-		// few seconds by reassertHiding, which is what actually catches them.
+	private static void hideFromOtherMembers(ServerPlayerEntity player) {
 		SETTLING.put(player.getUuid(), SETTLE_TICKS);
 	}
 
@@ -784,7 +814,37 @@ public final class LobbyManager {
 		return moving.size();
 	}
 
-	/** Wipes every runtime trace of the lobby, for a server that is shutting the session down. */
+	/**
+	 * Empties the lobby team and forgets everybody, for a server that has just started.
+	 *
+	 * <p>The team is stored in the world, so it outlives the run that filled it. A crash while
+	 * people were waiting would otherwise leave them on it for good - no name tag, no collision -
+	 * long after the lobby let them go.
+	 */
+	public static void resetOnStartup(MinecraftServer server) {
+		forgetEveryone();
+		Parkour.forgetEveryone();
+
+		Scoreboard scoreboard = server.getScoreboard();
+		Team team = scoreboard.getTeam(TEAM);
+
+		if (team == null) {
+			return;
+		}
+
+		List<String> stale = new ArrayList<>(team.getPlayerList());
+
+		for (String name : stale) {
+			scoreboard.removeScoreHolderFromTeam(name, team);
+		}
+
+		if (!stale.isEmpty()) {
+			FreezeMute.LOGGER.info("Lobby: took {} player(s) off the lobby team left over from last run",
+					stale.size());
+		}
+	}
+
+	/** Wipes every runtime trace of the lobby. */
 	public static void forgetEveryone() {
 		MEMBERS.clear();
 		MEMBER_ENTITY_IDS.clear();
