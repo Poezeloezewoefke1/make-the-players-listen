@@ -403,9 +403,12 @@ public final class LobbyManager {
 
 		state.dequeue(uuid);
 		state.admit(uuid, player.getGameProfile().name(), System.currentTimeMillis());
-		sendToWorld(server, player, null);
+		boolean cameOut = sendToWorld(server, player, null);
 
-		if (announce) {
+		// Only somebody who was actually waiting is congratulated on getting in. /queue bypass on
+		// a player who is already out in the world would otherwise tell them a slot had opened up
+		// for them, in the middle of whatever they were doing with the one they already had.
+		if (announce && cameOut) {
 			// The title fires here, when a slot really opened - not when somebody reaches the
 			// front of the line, because being first still means waiting.
 			title(player, Text.literal("You're in").formatted(Formatting.GREEN),
@@ -421,8 +424,10 @@ public final class LobbyManager {
 	 * <p>A player who is not actually in the lobby is only released, never moved. Otherwise
 	 * {@code /queue bypass} on somebody already playing would drag them to spawn, which is the
 	 * opposite of a favour.
+	 *
+	 * @return whether they were in the lobby and have been put back into the world
 	 */
-	public static void sendToWorld(MinecraftServer server, ServerPlayerEntity player, Text message) {
+	public static boolean sendToWorld(MinecraftServer server, ServerPlayerEntity player, Text message) {
 		boolean wasInLobby = isInLobby(player);
 		LobbyState.Return remembered = wasInLobby ? LobbyState.get().takeReturn(player.getUuid()) : null;
 
@@ -433,7 +438,7 @@ public final class LobbyManager {
 				player.sendMessage(message);
 			}
 
-			return;
+			return false;
 		}
 
 		ServerWorld destination = null;
@@ -478,6 +483,8 @@ public final class LobbyManager {
 		if (message != null) {
 			player.sendMessage(message);
 		}
+
+		return true;
 	}
 
 	/** Drops the member rules without moving anybody. */
