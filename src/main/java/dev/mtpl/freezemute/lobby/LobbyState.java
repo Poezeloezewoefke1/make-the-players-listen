@@ -42,8 +42,15 @@ public final class LobbyState {
 	private static final LobbyState INSTANCE = new LobbyState();
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final int FORMAT_VERSION = 1;
-	/** How many finish times to keep per course. */
-	private static final int LEADERBOARD_SIZE = 25;
+	/**
+	 * How many finish times to keep per course - one per player, their best.
+	 *
+	 * <p>Generous on purpose. The board only ever shows ten, but the same list is what
+	 * "your best is still" is read from, so somebody trimmed off the end of it stops having a
+	 * personal best at all and starts being congratulated on slower and slower runs. At two
+	 * hundred that cannot happen to anybody a server of this size will have.
+	 */
+	private static final int LEADERBOARD_SIZE = 200;
 
 	/** Somebody waiting in line. {@code offlineSince} is 0 while they are connected. */
 	public record Waiting(UUID uuid, String name, long joinedAt, long offlineSince) {

@@ -409,7 +409,28 @@ public final class LobbyCommand {
 	}
 
 	private static int setFinish(ServerCommandSource source, String name) {
-		return edit(source, name, (course, spot) -> course.withFinish(spot), "finish set at");
+		Spot spot = standingIn(source);
+		Course course = existing(source, name);
+
+		if (spot == null || course == null) {
+			return 0;
+		}
+
+		// Standing on the start pad restarts the run, and that check happens first - so a finish
+		// close enough to the start to also count as the start is a course nobody can complete.
+		double radius = Math.max(0.5D, FreezeMuteConfig.get().lobbyCheckpointRadius) * 2.0D;
+
+		if (course.start().distanceSquared(spot.x(), spot.y(), spot.z()) <= radius * radius) {
+			source.sendError(Messages.failure("That is on top of the start of " + course.name()
+					+ ". Standing on the start begins a run, so a finish there could never be reached - "
+					+ "put it at least " + (int) Math.ceil(radius) + " blocks away."));
+			return 0;
+		}
+
+		Course updated = course.withFinish(spot);
+		LobbyState.get().putCourse(updated);
+		source.sendFeedback(() -> Messages.success(updated.name() + " finish set at " + spot.describe() + "."), true);
+		return 1;
 	}
 
 	private static int addCheckpoint(ServerCommandSource source, String name) {
@@ -513,7 +534,9 @@ public final class LobbyCommand {
 			CourseRecord own = LobbyState.get().personalBest(course.name(), player.getUuid());
 
 			if (own != null) {
-				source.sendFeedback(() -> Messages.success("Your best: " + CourseRecord.format(own.millis())), false);
+				int place = board.indexOf(own) + 1;
+				source.sendFeedback(() -> Messages.success("Your best: " + CourseRecord.format(own.millis())
+						+ ", place " + place + " of " + board.size()), false);
 			}
 		}
 

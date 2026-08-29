@@ -95,7 +95,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/lobby course create <name>` | Starts a course with the start pad where you stand |
 | `/lobby course checkpoint <name>` | Adds a checkpoint where you stand, at the end of the course |
 | `/lobby course undo <name>` | Removes the last checkpoint |
-| `/lobby course start <name>` / `/lobby course finish <name>` | Moves the start or sets the finish to where you stand |
+| `/lobby course start <name>` / `/lobby course finish <name>` | Moves the start or sets the finish to where you stand. A finish on top of the start is refused, since standing on the start begins a run |
 | `/lobby course tp <name>` | Teleports you to a course start |
 | `/lobby course top <name>` | The ten fastest times, and your own best |
 | `/lobby course list` / `/lobby course delete <name>` | Lists courses, or deletes one and its times |

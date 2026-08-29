@@ -85,6 +85,28 @@ class CourseShapeTest {
 	}
 
 	@Test
+	void noTwoPadsAreCloseEnoughToBeMistakenForEachOther() {
+		// Pads trigger within a radius, and standing on the start restarts the run before
+		// anything else is looked at - so a finish or a checkpoint near the start would make a
+		// course nobody could ever complete, and two checkpoints on top of each other would let
+		// somebody skip one.
+		List<Step> pads = steps().stream().filter(Step::pad).toList();
+
+		for (int a = 0; a < pads.size(); a++) {
+			for (int b = a + 1; b < pads.size(); b++) {
+				Step first = pads.get(a);
+				Step second = pads.get(b);
+				double gap = Math.sqrt(Math.pow(first.x() - second.x(), 2)
+						+ Math.pow(first.y() - second.y(), 2)
+						+ Math.pow(first.z() - second.z(), 2));
+
+				assertTrue(gap > 6.0D,
+						"two pads are only " + String.format("%.1f", gap) + " blocks apart");
+			}
+		}
+	}
+
+	@Test
 	void theCourseClimbsSomewhereWorthClimbing() {
 		List<Step> steps = steps();
 		int climb = steps.get(steps.size() - 1).y() - steps.get(0).y();
