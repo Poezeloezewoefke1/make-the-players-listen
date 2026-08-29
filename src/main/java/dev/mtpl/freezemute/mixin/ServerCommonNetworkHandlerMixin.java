@@ -54,9 +54,7 @@ public abstract class ServerCommonNetworkHandlerMixin {
 			return;
 		}
 
-		ServerPlayerEntity receiver = freezemute$receiver();
-
-		if (receiver != null && LobbyManager.isMember(receiver) && receiver.getId() != entityId) {
+		if (LobbyManager.hiddenFrom(entityId, freezemute$receiver())) {
 			info.cancel();
 		}
 	}

@@ -105,6 +105,29 @@ public final class LobbyManager {
 		return anyMembers && FreezeMuteConfig.get().lobbyIsolateMembers;
 	}
 
+	/**
+	 * The rule the packet filter applies, written where it can be read as a table.
+	 *
+	 * <p>All four have to hold. Staff are not members, so nothing is ever kept from them and they
+	 * are never kept from anybody. Nobody is hidden from themselves, which would leave them unable
+	 * to see their own arm. And with isolation switched off the room is an ordinary one.
+	 *
+	 * <p>This being wrong is what made one player visible to another while the other saw nothing,
+	 * so it is worth being able to state it rather than infer it from four conditions spread
+	 * across a mixin.
+	 */
+	public static boolean hides(boolean isolating, boolean subjectIsMember, boolean receiverIsMember,
+			boolean sameEntity) {
+		return isolating && subjectIsMember && receiverIsMember && !sameEntity;
+	}
+
+	/** Whether a packet naming this entity should be kept from this player. */
+	public static boolean hiddenFrom(int subjectId, ServerPlayerEntity receiver) {
+		return receiver != null
+				&& hides(isolating(), isHiddenEntity(subjectId), isMember(receiver),
+						receiver.getId() == subjectId);
+	}
+
 	// ------------------------------------------------------------------ routing
 
 	/**
