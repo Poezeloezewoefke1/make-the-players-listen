@@ -318,6 +318,12 @@ jobs:
             sleep 3
             echo "queue early list"
             sleep 3
+            echo "queue remove Nobody"
+            sleep 3
+            echo "lobby queuepoint clear"
+            sleep 3
+            echo "lobby status"
+            sleep 3
             echo "queue close"
             sleep 3
             echo "queue end"
@@ -359,6 +365,9 @@ jobs:
           check "the queue point is the black pedestal" "the NPC pedestal became the queue point"
           check "spawn - 2 checkpoint(s), ready" "the parkour course was registered as it was built"
           check "right click the queue point" "arriving no longer queues people on its own"
+          check "Nobody is not in the queue and holds no slot." "/queue remove is registered"
+          check "Queue point cleared" "/lobby queuepoint clear is registered"
+          check "automatic on arrival, there is no queue point" "clearing the point goes back to auto queueing"
           check "routing: on" "/lobby status reports the lobby is routing"
           check "Nobody is waiting and nobody is in." "/queue list ran"
           check "Nobody is on the early access list." "/queue early list ran"

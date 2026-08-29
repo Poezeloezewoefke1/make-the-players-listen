@@ -91,7 +91,9 @@ public final class LobbyCommand {
 			state.release(target.getUuid());
 			LobbyManager.sendToLobby(server, target);
 
-			if (!Permissions.isStaff(target)) {
+			// Queued the same way arriving in the lobby queues somebody: automatically when there
+			// is nowhere to ask, and not at all when there is a pedestal to walk up to.
+			if (!Permissions.isStaff(target) && !state.joinedAtAPoint()) {
 				state.enqueue(target.getUuid(), target.getGameProfile().name(), now);
 			}
 
@@ -191,6 +193,19 @@ public final class LobbyCommand {
 		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
 		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre);
 
+		// Anybody standing in the room just had the ground replaced under them, and the spawn has
+		// moved. Putting them on the new one is kinder than letting them find the void.
+		int moved = 0;
+
+		for (ServerPlayerEntity waiting : server.getPlayerManager().getPlayerList()) {
+			if (LobbyManager.isMember(waiting)) {
+				LobbyManager.sendToLobby(server, waiting);
+				moved++;
+			}
+		}
+
+		int shifted = moved;
+
 		source.sendFeedback(() -> Messages.success("Built the island: " + result.blocks() + " blocks, spawn at "
 				+ result.spawn().describe() + "."), true);
 		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
@@ -200,6 +215,12 @@ public final class LobbyCommand {
 		source.sendFeedback(() -> Messages.listEntry("  the parkour course '" + result.course().name() + "' has "
 				+ result.course().checkpoints().size() + " checkpoints - /lobby course top "
 				+ result.course().name() + " for the times"), false);
+
+		if (shifted > 0) {
+			source.sendFeedback(() -> Messages.listEntry("  " + shifted
+					+ " player(s) were in the room and have been put on the new spawn"), false);
+		}
+
 		return result.blocks();
 	}
 

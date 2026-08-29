@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.FreezeMuteConfig;
+import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.command.Permissions;
 
 import net.minecraft.entity.boss.BossBar;
@@ -249,15 +250,26 @@ public final class LobbyManager {
 
 		if (state.waiting(uuid) != null) {
 			player.sendMessage(Text.literal("You are already in the queue, at place "
-					+ state.position(uuid) + " of " + state.queueSize() + ".").formatted(Formatting.YELLOW));
+					+ state.position(uuid) + " of " + state.queueSize() + "."
+					+ (state.queueOpen() ? "" : " The doors are shut at the moment."))
+					.formatted(Formatting.YELLOW));
 			return;
 		}
 
 		state.enqueue(uuid, player.getGameProfile().name(), now);
 		playCue(player);
 		player.sendMessage(Text.literal("You are in the queue at place " + state.position(uuid)
-				+ " of " + state.queueSize() + ". You will be let in automatically - have a go at the "
-				+ "parkour while you wait.").formatted(Formatting.GREEN));
+				+ " of " + state.queueSize() + ". "
+				+ (state.queueOpen()
+						? "You will be let in automatically - have a go at the parkour while you wait."
+						: "The doors are shut at the moment, so nobody is being let through yet - "
+								+ "your place is held until they open."))
+				.formatted(Formatting.GREEN));
+	}
+
+	/** Whether there is anywhere to ask for a place at all. Read from the network thread. */
+	public static boolean queuePointExists() {
+		return LobbyState.get().joinedAtAPoint();
 	}
 
 	/** True when the player is close enough to the queue point for a right click to count. */
@@ -435,7 +447,10 @@ public final class LobbyManager {
 		}
 
 		player.changeGameMode(mode);
-		player.setInvulnerable(false);
+		// Not simply false: somebody can be frozen and in the lobby at the same time, and a
+		// freeze that protects them from harm has to keep doing so after the lobby lets them go.
+		player.setInvulnerable(FreezeMuteConfig.get().freezeProtectsFromDamage
+				&& ModerationData.get().isFrozen(player.getUuid()));
 
 		if (message != null) {
 			player.sendMessage(message);

@@ -52,6 +52,12 @@ public final class QueueCommand {
 						.then(CommandManager.argument("slots", IntegerArgumentType.integer(0, 10000))
 								.executes(context -> setCap(context.getSource(),
 										IntegerArgumentType.getInteger(context, "slots")))))
+				.then(CommandManager.literal("remove")
+						.then(CommandManager.argument("player", StringArgumentType.word())
+								.suggests((context, builder) -> CommandSource.suggestMatching(
+										LobbyState.get().knownNames(), builder))
+								.executes(context -> remove(context.getSource(),
+										StringArgumentType.getString(context, "player")))))
 				.then(CommandManager.literal("bypass")
 						.then(CommandManager.argument("targets", EntityArgumentType.players())
 								.executes(context -> bypass(context.getSource(),
@@ -158,6 +164,43 @@ public final class QueueCommand {
 		source.sendFeedback(() -> Messages.success("Session over: " + moved + " sent to the lobby, "
 				+ cleared + " taken out of the line, and the queue is closed."), true);
 		return moved;
+	}
+
+	/**
+	 * Takes one player out of the line.
+	 *
+	 * <p>Until this existed the only ways out of a queue were to be let in, to be kicked, or to
+	 * wait for the whole line to be cleared - so somebody who joined it by accident, or who asked
+	 * to be taken out, could not be. It works on a name so it also reaches somebody who has
+	 * already disconnected and is sitting on their grace window.
+	 */
+	private static int remove(ServerCommandSource source, String name) {
+		LobbyState state = LobbyState.get();
+		UUID uuid = state.knownByName(name);
+
+		if (uuid == null) {
+			source.sendError(Messages.failure(name + " is not in the queue and holds no slot."));
+			return 0;
+		}
+
+		LobbyState.Waiting waiting = state.dequeue(uuid);
+		LobbyState.Admitted held = state.release(uuid);
+
+		if (waiting == null && held == null) {
+			source.sendError(Messages.failure(name + " is not in the queue and holds no slot."));
+			return 0;
+		}
+
+		ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(uuid);
+
+		if (player != null) {
+			LobbyManager.removeBar(uuid);
+			player.sendMessage(Messages.failure("You have been taken out of the queue."));
+		}
+
+		source.sendFeedback(() -> Messages.success(name + " is out of the queue"
+				+ (held != null ? " and no longer holds a slot." : ".")), true);
+		return 1;
 	}
 
 	private static int bypass(ServerCommandSource source, Collection<ServerPlayerEntity> targets) {

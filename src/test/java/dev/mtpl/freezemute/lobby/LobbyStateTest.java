@@ -246,6 +246,31 @@ class LobbyStateTest {
 	}
 
 	@Test
+	void aPlayerCanBeFoundByNameWhereverTheyAre() {
+		// /queue remove works on a name, so it has to find people in the line, people holding a
+		// slot, and people who have gone offline and are sitting on their grace window.
+		state.enqueue(STEVE, "Steve", 1000L);
+		state.admit(ALEX, "Alex", 2000L);
+		state.markAdmittedOffline(ALEX, 2500L);
+
+        assertEquals(STEVE, state.knownByName("steve"));
+		assertEquals(ALEX, state.knownByName("ALEX"));
+		assertNull(state.knownByName("Nobody"));
+	}
+
+	@Test
+	void takingSomebodyOutOfTheLineClosesBothWaysTheyCouldBeIn() {
+		state.enqueue(STEVE, "Steve", 1000L);
+		state.admit(STEVE, "Steve", 1000L);
+
+		assertNotNull(state.dequeue(STEVE));
+		assertNotNull(state.release(STEVE));
+		assertEquals(0, state.queueSize());
+		assertEquals(0, state.slotsUsed());
+		assertNull(state.dequeue(STEVE));
+	}
+
+	@Test
 	void anUnreadableFileDoesNotTakeTheLobbyDown() throws Exception {
 		java.nio.file.Files.writeString(file, "this is not json at all");
 		state.load(file);

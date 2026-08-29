@@ -135,6 +135,9 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 		// the same rule: whatever they walked in carrying stays in their pocket.
 		if (freezemute$isFrozen(this.player) || freezemute$isLobbyMember()) {
 			info.cancel();
+			// Right clicking thin air next to the pedestal counts as asking, the same as right
+			// clicking the pedestal itself does.
+			freezemute$queuePointClick();
 		}
 	}
 
@@ -183,7 +186,10 @@ public abstract class ServerPlayNetworkHandlerMixin implements FrozenConnection 
 		ServerPlayerEntity target = this.player;
 		MinecraftServer server = FreezeMute.server();
 
-		if (target == null || server == null || !LobbyManager.isMember(target)) {
+		// Checked here, on the network thread, so a member hammering the mouse button somewhere
+		// else in the room does not queue a task on the server thread for every click.
+		if (target == null || server == null || !LobbyManager.queuePointExists()
+				|| !LobbyManager.isMember(target)) {
 			return;
 		}
 

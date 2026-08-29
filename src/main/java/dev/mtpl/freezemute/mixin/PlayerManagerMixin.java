@@ -7,6 +7,7 @@ import dev.mtpl.freezemute.ModerationData.FreezeEntry;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
 import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Messages;
+import dev.mtpl.freezemute.util.StaffAlerts;
 import dev.mtpl.freezemute.voice.VoiceData;
 import dev.mtpl.freezemute.voice.VoiceData.Kind;
 import dev.mtpl.freezemute.voice.VoiceData.VoiceEntry;
@@ -75,5 +76,8 @@ public abstract class PlayerManagerMixin {
 	@Inject(method = "remove", at = @At("HEAD"))
 	private void freezemute$onPlayerLeave(ServerPlayerEntity player, CallbackInfo info) {
 		LobbyManager.onLeave(player);
+		// The throttle that stops staff being told the same thing twice keeps one entry per
+		// player, and until now only lifting the punishment cleared it.
+		StaffAlerts.forget(player.getUuid());
 	}
 }
