@@ -14,6 +14,50 @@ class CourseTest {
 		return new Spot(x, y, z, 0.0F, 0.0F);
 	}
 
+	// ------------------------------------------ pads the start would swallow
+
+	@Test
+	void aFinishOnTopOfTheStartCouldNeverBeReached() {
+		Spot start = at(10.0D, 65.0D, 10.0D);
+
+		assertTrue(Parkour.swallowedByTheStart(start, at(10.0D, 65.0D, 10.0D), 1.5D));
+		assertTrue(Parkour.swallowedByTheStart(start, at(12.0D, 65.0D, 10.0D), 1.5D),
+				"three blocks is inside the start pad at the default radius");
+	}
+
+	@Test
+	void aPadFarEnoughAwayIsFine() {
+		Spot start = at(10.0D, 65.0D, 10.0D);
+
+		assertFalse(Parkour.swallowedByTheStart(start, at(20.0D, 65.0D, 10.0D), 1.5D));
+		assertFalse(Parkour.swallowedByTheStart(start, at(10.0D, 75.0D, 10.0D), 1.5D),
+				"straight up is still away");
+	}
+
+	@Test
+	void theRuleIsTheSameWhicheverEndItIsAskedFrom() {
+		// Moving the finish onto the start and moving the start onto the finish make the same
+		// unfinishable course, so they have to be refused by the same measurement.
+		Spot a = at(10.0D, 65.0D, 10.0D);
+		Spot b = at(11.0D, 65.0D, 10.0D);
+
+		assertEquals(Parkour.swallowedByTheStart(a, b, 1.5D), Parkour.swallowedByTheStart(b, a, 1.5D));
+	}
+
+	@Test
+	void aCourseWithNoFinishYetIsNotAnError() {
+		assertFalse(Parkour.swallowedByTheStart(at(1.0D, 2.0D, 3.0D), null, 1.5D),
+				"there is nothing there to be swallowed");
+		assertFalse(Parkour.swallowedByTheStart(null, at(1.0D, 2.0D, 3.0D), 1.5D));
+	}
+
+	@Test
+	void aSillyCheckpointRadiusStillLeavesAUsableStartPad() {
+		assertTrue(Parkour.startRadius(0.0D) >= 1.0D, "a radius of zero would refuse nothing");
+		assertTrue(Parkour.startRadius(-5.0D) >= 1.0D);
+		assertEquals(3.0D, Parkour.startRadius(1.5D));
+	}
+
 	@Test
 	void aFreshCourseHasNoFinishSoItCannotBeRunYet() {
 		Course course = Course.starting("tower", at(0.0D, 64.0D, 0.0D));

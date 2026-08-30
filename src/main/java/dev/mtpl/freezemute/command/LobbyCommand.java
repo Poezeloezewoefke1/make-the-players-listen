@@ -16,6 +16,7 @@ import dev.mtpl.freezemute.lobby.CourseRecord;
 import dev.mtpl.freezemute.lobby.LobbyDimension;
 import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.lobby.LobbyState;
+import dev.mtpl.freezemute.lobby.Parkour;
 import dev.mtpl.freezemute.lobby.PlayerWorld;
 import dev.mtpl.freezemute.lobby.Spot;
 import dev.mtpl.freezemute.util.Messages;
@@ -443,7 +444,42 @@ public final class LobbyCommand {
 	}
 
 	private static int setStart(ServerCommandSource source, String name) {
-		return edit(source, name, (course, spot) -> course.withStart(spot), "start moved to");
+		Spot spot = standingIn(source);
+		Course course = existing(source, name);
+
+		if (spot == null || course == null) {
+			return 0;
+		}
+
+		// The same course nobody can finish, made from the other end. Moving the start onto the
+		// finish - or onto a checkpoint - is exactly what setting a finish on the start is
+		// refused for, and refusing only one spelling of it refuses nothing.
+		double radius = FreezeMuteConfig.get().lobbyCheckpointRadius;
+		Course moved = course.withStart(spot);
+
+		if (Parkour.swallowedByTheStart(spot, course.finish(), radius)) {
+			source.sendError(tooCloseToTheStart(course.name(), "the finish of"));
+			return 0;
+		}
+
+		for (Spot checkpoint : course.checkpoints()) {
+			if (Parkour.swallowedByTheStart(spot, checkpoint, radius)) {
+				source.sendError(tooCloseToTheStart(course.name(), "a checkpoint of"));
+				return 0;
+			}
+		}
+
+		LobbyState.get().putCourse(moved);
+		source.sendFeedback(() -> Messages.success(moved.name() + " start moved to " + spot.describe() + "."), true);
+		return 1;
+	}
+
+	/** One message, because it is one mistake however it was arrived at. */
+	private static net.minecraft.text.Text tooCloseToTheStart(String course, String what) {
+		int blocks = (int) Math.ceil(Parkour.startRadius(FreezeMuteConfig.get().lobbyCheckpointRadius));
+		return Messages.failure("That would put " + what + " " + course + " on top of its start. Standing on "
+				+ "the start begins a run, and that is checked before anything else, so nothing within "
+				+ blocks + " blocks of it can ever be reached.");
 	}
 
 	private static int setFinish(ServerCommandSource source, String name) {
@@ -454,14 +490,8 @@ public final class LobbyCommand {
 			return 0;
 		}
 
-		// Standing on the start pad restarts the run, and that check happens first - so a finish
-		// close enough to the start to also count as the start is a course nobody can complete.
-		double radius = Math.max(0.5D, FreezeMuteConfig.get().lobbyCheckpointRadius) * 2.0D;
-
-		if (course.start().distanceSquared(spot.x(), spot.y(), spot.z()) <= radius * radius) {
-			source.sendError(Messages.failure("That is on top of the start of " + course.name()
-					+ ". Standing on the start begins a run, so a finish there could never be reached - "
-					+ "put it at least " + (int) Math.ceil(radius) + " blocks away."));
+		if (Parkour.swallowedByTheStart(course.start(), spot, FreezeMuteConfig.get().lobbyCheckpointRadius)) {
+			source.sendError(tooCloseToTheStart(course.name(), "a finish"));
 			return 0;
 		}
 
@@ -476,6 +506,11 @@ public final class LobbyCommand {
 		Course course = existing(source, name);
 
 		if (spot == null || course == null) {
+			return 0;
+		}
+
+		if (Parkour.swallowedByTheStart(course.start(), spot, FreezeMuteConfig.get().lobbyCheckpointRadius)) {
+			source.sendError(tooCloseToTheStart(course.name(), "a checkpoint of"));
 			return 0;
 		}
 
@@ -579,25 +614,6 @@ public final class LobbyCommand {
 		}
 
 		return shown;
-	}
-
-	private static int edit(ServerCommandSource source, String name, CourseEdit edit, String what) {
-		Spot spot = standingIn(source);
-		Course course = existing(source, name);
-
-		if (spot == null || course == null) {
-			return 0;
-		}
-
-		Course updated = edit.apply(course, spot);
-		LobbyState.get().putCourse(updated);
-		source.sendFeedback(() -> Messages.success(updated.name() + " " + what + " " + spot.describe() + "."), true);
-		return 1;
-	}
-
-	@FunctionalInterface
-	private interface CourseEdit {
-		Course apply(Course course, Spot spot);
 	}
 
 	private static Course existing(ServerCommandSource source, String name) {

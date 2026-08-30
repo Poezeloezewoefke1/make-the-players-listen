@@ -180,6 +180,34 @@ public final class Parkour {
 	}
 
 	/**
+	 * How close to the start pad a spot has to be before the start swallows it.
+	 *
+	 * <p>Twice the checkpoint radius, so the two never overlap even at the edges.
+	 */
+	public static double startRadius(double checkpointRadius) {
+		return Math.max(0.5D, checkpointRadius) * 2.0D;
+	}
+
+	/**
+	 * Whether a pad put here would be swallowed by the start pad.
+	 *
+	 * <p>Standing on the start restarts the run, and that check runs before any other, so a
+	 * checkpoint or a finish inside this radius is one nobody can ever reach - which makes the
+	 * whole course impossible to complete. It has to be asked in three places, because a course
+	 * can be made impossible by moving the finish onto the start, by moving the start onto the
+	 * finish, or by putting a checkpoint on the start, and refusing only the first of those is
+	 * refusing one spelling of the same mistake.
+	 */
+	public static boolean swallowedByTheStart(Spot start, Spot spot, double checkpointRadius) {
+		if (start == null || spot == null) {
+			return false;
+		}
+
+		double radius = startRadius(checkpointRadius);
+		return start.distanceSquared(spot.x(), spot.y(), spot.z()) <= radius * radius;
+	}
+
+	/**
 	 * How far somebody has to fall before they are caught.
 	 *
 	 * <p>The configured height is an absolute one, which is right for a lobby built near it and
