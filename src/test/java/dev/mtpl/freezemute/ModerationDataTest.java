@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 class ModerationDataTest {
 	private static final UUID STEVE = UUID.fromString("11111111-1111-1111-1111-111111111111");
 	private static final UUID ALEX = UUID.fromString("22222222-2222-2222-2222-222222222222");
+	private static final UUID ZOE = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
 	@TempDir
 	Path directory;
@@ -88,6 +89,34 @@ class ModerationDataTest {
 		assertFalse(data.isMuted(ALEX));
 		assertNull(data.muteOf(ALEX));
 		assertEquals(1, data.muteEntries().size());
+	}
+
+	@Test
+	void theSweepNoticesAMuteNobodyAskedAbout() {
+		long now = System.currentTimeMillis();
+		data.mute(new MuteEntry(STEVE, "Steve", "Console", now - 120_000L, now - 1L, ""));
+		data.freeze(new FreezeEntry(ALEX, "Alex", "Console", now - 120_000L, now - 1L, "", false));
+		data.mute(new MuteEntry(ZOE, "Zoe", "Console", now, 0L, "permanent"));
+
+		// Nothing has asked whether Steve is muted. Without the sweep his entry sits there until
+		// somebody speaks - and he is the one person who has been told not to.
+		data.sweepExpired();
+
+		assertEquals(0, data.muteEntries().stream().filter(e -> e.uuid().equals(STEVE)).count());
+		assertEquals(0, data.frozenEntries().size());
+		assertTrue(data.isMuted(ZOE), "a permanent one is not swept away with them");
+	}
+
+	@Test
+	void theSweepCostsNothingWhenThereIsNothingToSweep() {
+		long now = System.currentTimeMillis();
+		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, now + 600_000L, "", false));
+
+		data.sweepExpired();
+		data.sweepExpired();
+
+		assertTrue(data.isFrozen(STEVE), "a freeze that is still running is left alone");
+		assertEquals(1, data.frozenEntries().size());
 	}
 
 	@Test

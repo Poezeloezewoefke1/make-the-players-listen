@@ -208,9 +208,10 @@ refuses to deliver it, so:
   left on the mute.
 * Attempted messages are still written to the server log, and staff online at the time get a
   short notice with what was said, so you do not have to go digging.
-* Timed mutes expire on their own, and the player is told when that happens rather than being
-  left to find out by typing. Somebody still waiting in the lobby is told the mute is gone *and*
-  that chat is still off in there, which is not the same thing.
+* Timed mutes expire on their own, within a second, and the player is told rather than left to
+  find out by typing - which was the one thing they had been asked not to do. Somebody still
+  waiting in the lobby is told the mute is gone *and* that chat is still off in there, which is
+  not the same thing.
 
 ## Kits
 

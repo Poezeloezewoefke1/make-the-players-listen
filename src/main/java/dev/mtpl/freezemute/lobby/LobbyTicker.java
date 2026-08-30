@@ -1,12 +1,15 @@
 package dev.mtpl.freezemute.lobby;
 
 import dev.mtpl.freezemute.FreezeMuteConfig;
+import dev.mtpl.freezemute.ModerationData;
+import dev.mtpl.freezemute.voice.VoiceData;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 
 /**
- * The heartbeat: the queue moves, grace windows run out and parkour timers advance from here.
+ * The mod's heartbeat: the queue moves, grace windows run out, parkour timers advance and
+ * punishments that have run out are noticed, all from here.
  *
  * <p>Called from the end of every server tick. The per-tick half is deliberately tiny - a parkour
  * position check for the handful of people in the lobby - and everything else happens once a
@@ -40,6 +43,12 @@ public final class LobbyTicker {
 			// Before the switch, not after it: building a lobby and setting courses up are done
 			// with the routing turned off, and those changes have to reach the disk too.
 			state.flush();
+			// And these have nothing to do with the lobby at all. A freeze or a mute that has run
+			// out is otherwise only noticed when something happens to ask, and for a mute that
+			// means when somebody speaks - so the player it was lifted from could sit there not
+			// knowing, having been told not to try.
+			ModerationData.get().sweepExpired();
+			VoiceData.get().sweepExpired();
 		}
 
 		boolean display = ticks % DISPLAY_EVERY == 0;

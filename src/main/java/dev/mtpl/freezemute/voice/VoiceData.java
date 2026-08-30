@@ -136,6 +136,25 @@ public final class VoiceData {
 		return entry;
 	}
 
+	/**
+	 * The same sweep {@code ModerationData} does, for the same reason.
+	 *
+	 * <p>A voice mute is only asked about while somebody is holding their microphone down, and a
+	 * deafen only while somebody near them is talking. On a quiet server neither happens, so
+	 * without this a player could sit through the end of their punishment without being told.
+	 */
+	public void sweepExpired() {
+		long now = System.currentTimeMillis();
+
+		for (Kind kind : Kind.values()) {
+			for (VoiceEntry entry : mapOf(kind).values()) {
+				if (entry.expired(now)) {
+					entryOf(kind, entry.uuid());
+				}
+			}
+		}
+	}
+
 	public boolean isMuted(UUID uuid) {
 		return entryOf(Kind.MUTE, uuid) != null;
 	}

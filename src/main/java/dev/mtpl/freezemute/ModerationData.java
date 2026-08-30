@@ -95,6 +95,38 @@ public final class ModerationData {
 		return freezeOf(uuid) != null;
 	}
 
+	/**
+	 * Notices punishments that have run out, rather than waiting for something to ask.
+	 *
+	 * <p>Everything here expires lazily: the entry goes the next time somebody asks whether this
+	 * player is frozen or muted, and that is what tells them it is over. For a freeze the asking
+	 * is constant, because every movement packet asks. For a mute nothing asks until somebody
+	 * speaks - so a mute could run out and the player find out only by trying to talk, which is
+	 * the one thing they had been told not to do. Called once a second; two maps that are almost
+	 * always empty cost nothing to walk.
+	 */
+	public void sweepExpired() {
+		if (frozen.isEmpty() && muted.isEmpty()) {
+			return;
+		}
+
+		long now = System.currentTimeMillis();
+
+		for (FreezeEntry entry : frozen.values()) {
+			if (entry.expired(now)) {
+				// Through the same door as everything else, so the entry is dropped once and the
+				// player is told once however many things notice at the same moment.
+				freezeOf(entry.uuid());
+			}
+		}
+
+		for (MuteEntry entry : muted.values()) {
+			if (entry.expired(now)) {
+				muteOf(entry.uuid());
+			}
+		}
+	}
+
 	/** The active freeze of a player, dropping it when its time is up. */
 	public FreezeEntry freezeOf(UUID uuid) {
 		FreezeEntry entry = frozen.get(uuid);
