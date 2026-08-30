@@ -386,6 +386,68 @@ jobs:
           fi
           echo "lobby test passed"
 
+      # Today's file handling changed what happens when the mod cannot read one of its own files.
+      # Both paths only matter on a real server reading real files, so they are checked on one.
+      - name: start again with both of the mod's files broken
+        run: |
+          set -o pipefail
+          BROKEN_CONFIG='{ "lobbyQueueGraceSeconds": 42 "lobbyIsolateMembers": false }'
+          BROKEN_LOBBY='{ "cap": 8, "courses": [ everything anybody built ] '
+
+          printf '%s' "$BROKEN_CONFIG" > run/config/freezemute/config.json
+          printf '%s' "$BROKEN_LOBBY" > run/config/freezemute/lobby.json
+          rm -f run/config/freezemute/lobby.json.unreadable-*
+
+          LAUNCHER=$(ls run | grep -E '^fabric-server-(launch|launcher).*\.jar$' | head -1)
+
+          cd run
+          ( sleep 75
+            echo "queue status"
+            sleep 3
+            echo "stop"
+            sleep 20 ) | timeout 300 java -Xmx2G -jar "$LAUNCHER" nogui 2>&1 | tee third.log || true
+
+          echo "===================== assertions ====================="
+          fail=0
+          check() {
+            if grep -qF "$1" third.log; then
+              echo "OK      : $2"
+            else
+              echo "MISSING : $2"
+              fail=1
+            fi
+          }
+
+          check "Done (" "the server still started with both files unreadable"
+          check "Using the default settings for this run and leaving" "the config said it was leaving the file alone"
+          check "Kept the unreadable" "the lobby file was kept rather than replaced"
+
+          echo "--- the config file after the run ---"
+          cat config/freezemute/config.json
+          echo
+          if [ "$(cat config/freezemute/config.json)" = "$BROKEN_CONFIG" ]; then
+            echo "OK      : the config file was left exactly as it was"
+          else
+            echo "MISSING : the config file was rewritten, taking their settings with it"
+            fail=1
+          fi
+
+          KEPT=$(ls config/freezemute/lobby.json.unreadable-* 2>/dev/null | head -1)
+          if [ -n "$KEPT" ] && [ "$(cat "$KEPT")" = "$BROKEN_LOBBY" ]; then
+            echo "OK      : the unreadable lobby file was kept intact at $KEPT"
+          else
+            echo "MISSING : nothing was kept, so the courses and times would be gone for good"
+            ls -la config/freezemute/ || true
+            fail=1
+          fi
+
+          if [ "$fail" -ne 0 ]; then
+            echo "broken-file test failed - last 60 lines:"
+            tail -60 third.log
+            exit 1
+          fi
+          echo "broken-file test passed"
+
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
