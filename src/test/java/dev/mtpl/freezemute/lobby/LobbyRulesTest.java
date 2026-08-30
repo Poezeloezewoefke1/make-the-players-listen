@@ -317,6 +317,79 @@ class LobbyRulesTest {
 		assertEquals(1, ben.admitted, "and the person who is actually here gets through");
 	}
 
+	// ------------------------------------------------------- gaining operator
+
+	@Test
+	void beingMadeAnOperatorWhileWaitingLetsYouOut() {
+		state.setCap(0);
+		state.setQueueOpen(false);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+
+		assertTrue(anna.member, "she is held by the room to begin with");
+		assertEquals(1, state.position(anna.uuid()));
+
+		// What /op does.
+		anna.staff(true);
+		tick(2000L);
+
+		assertEquals(1, anna.letOut, "left standing there she would keep adventure mode, keep a "
+				+ "place she can never be let through, and stay invisible to the room");
+		assertFalse(anna.member);
+		assertFalse(anna.inLobby);
+		assertEquals(0, state.position(anna.uuid()), "and she is out of the line, not still in it");
+	}
+
+	@Test
+	void staffWhoCameToLookAroundAreLeftWhereTheyAre() {
+		FakePlayer mod = room.add("Mod").standingInTheLobby();
+		mod.staff(true);
+
+		tick(1000L);
+		tick(2000L);
+		tick(3000L);
+
+		assertEquals(0, mod.letOut, "/lobby is how staff go and look at the room, not a round trip");
+		assertTrue(mod.inLobby);
+		assertEquals(0, state.position(mod.uuid()), "and looking at it is not asking for a place");
+	}
+
+	@Test
+	void anOperatorWhoLosesItStartsWaitingLikeAnybodyElse() {
+		state.setCap(0);
+		state.setQueueOpen(false);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		anna.staff(true);
+		tick(1000L);
+		assertFalse(anna.member);
+
+		// What /deop does.
+		anna.staff(false);
+		tick(2000L);
+
+		assertTrue(anna.member, "the room holds her now");
+		assertEquals(1, state.position(anna.uuid()));
+		assertEquals(0, anna.letOut);
+	}
+
+	@Test
+	void anOperatorDoesNotKeepASlotTheyCannotUse() {
+		state.setCap(1);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+		assertTrue(state.isAdmitted(anna.uuid()), "she was let through and holds the only slot");
+
+		// She is back in the room - sent there by staff, say - and then made an operator.
+		anna.inLobby = true;
+		anna.member = true;
+		anna.staff(true);
+		tick(2000L);
+
+		assertFalse(state.isAdmitted(anna.uuid()), "staff do not hold slots; that one was blocking "
+				+ "somebody who could have used it");
+		assertEquals(0, state.slotsUsed());
+	}
+
 	// -------------------------------------------------------- the queue point
 
 	@Test

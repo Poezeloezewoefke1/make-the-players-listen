@@ -92,7 +92,21 @@ public final class LobbyRules {
 
 			if (occupant.staff()) {
 				if (occupant.member()) {
-					occupant.stopBeingMember();
+					// Somebody made an operator while they were waiting. Only on that change, so
+					// staff who walked in with /lobby to look at the room are left alone.
+					//
+					// They go out rather than merely stopping being a member. Left standing there
+					// they would keep a place in a line they can no longer be let through, stay in
+					// adventure mode and invulnerable with nothing to undo it, and be invisible to
+					// everybody else in the room for the rest of the session: the packet that
+					// introduces two members is refused while both are members, and vanilla does
+					// not offer it a second time. Walking out of the dimension is what makes every
+					// client involved learn the room again.
+					state.dequeue(occupant.uuid());
+					state.release(occupant.uuid());
+					room.log("Lobby: " + occupant.name() + " is staff now, so they are out of the line "
+							+ "and out of the room");
+					occupant.letOut();
 				}
 
 				continue;

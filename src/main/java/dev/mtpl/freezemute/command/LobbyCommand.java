@@ -16,6 +16,7 @@ import dev.mtpl.freezemute.lobby.CourseRecord;
 import dev.mtpl.freezemute.lobby.LobbyDimension;
 import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.lobby.LobbyState;
+import dev.mtpl.freezemute.lobby.PlayerWorld;
 import dev.mtpl.freezemute.lobby.Spot;
 import dev.mtpl.freezemute.util.Messages;
 
@@ -262,6 +263,16 @@ public final class LobbyCommand {
 			return 0;
 		}
 
+		if (enabled && !PlayerWorld.available()) {
+			// Switching it on anyway would fill the queue with people the lobby could then never
+			// let out again, because knowing who is standing in the room is what lets it move
+			// anybody back. The startup log says which lookup is missing.
+			source.sendError(Messages.failure("This Minecraft build names the player world lookup something "
+					+ "the mod does not know, so the lobby cannot tell who is in it and would trap anybody "
+					+ "it let in. See the server log from startup. Freezing, muting and kits still work."));
+			return 0;
+		}
+
 		LobbyState state = LobbyState.get();
 		state.setEnabled(enabled);
 
@@ -316,7 +327,9 @@ public final class LobbyCommand {
 		source.sendFeedback(() -> Messages.header("Lobby"), false);
 		source.sendFeedback(() -> Messages.listEntry("  dimension: "
 				+ (world == null ? "not built yet - restart once" : "astra:lobby")), false);
-		source.sendFeedback(() -> Messages.listEntry("  routing: " + (state.enabled() ? "on" : "off")), false);
+		source.sendFeedback(() -> Messages.listEntry("  routing: " + (state.enabled() ? "on" : "off")
+				+ (PlayerWorld.available() ? "" : " - but the player world lookup is missing on this build, "
+						+ "so nobody is being routed at all")), false);
 		source.sendFeedback(() -> Messages.listEntry("  spawn: " + state.spawn().describe()), false);
 		source.sendFeedback(() -> Messages.listEntry("  joining the queue: " + (state.joinedAtAPoint()
 				? "right click the queue point at " + state.queuePoint().describe()

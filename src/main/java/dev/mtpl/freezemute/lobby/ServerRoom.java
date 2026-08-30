@@ -101,8 +101,9 @@ public final class ServerRoom implements Room {
 		}
 
 		@Override
-		public void stopBeingMember() {
-			LobbyManager.stopBeingMember(server, player);
+		public void letOut() {
+			LobbyManager.sendToWorld(server, player,
+					Text.literal("You are staff now, so the lobby has let you go.").formatted(Formatting.GREEN));
 		}
 
 		@Override

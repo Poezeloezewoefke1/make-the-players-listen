@@ -41,7 +41,13 @@ public interface Occupant {
 	void becomeMember();
 
 	/** Drop the member rules without moving them. */
-	void stopBeingMember();
+	/**
+	 * Undoes every member rule and puts them back where the lobby found them.
+	 *
+	 * <p>It moves them, and that is the point: the room stops holding somebody by letting them
+	 * leave it, not by quietly forgetting them while they stand in it.
+	 */
+	void letOut();
 
 	void showBar(int position, int total, boolean open);
 

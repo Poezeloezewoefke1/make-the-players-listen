@@ -177,7 +177,11 @@ public final class LobbyManager {
 	private static void route(MinecraftServer server, ServerPlayerEntity player) {
 		LobbyState state = LobbyState.get();
 
-		if (!state.enabled()) {
+		if (!state.enabled() || !PlayerWorld.available()) {
+			// With no way to tell which world anybody is in, the lobby cannot see who is standing
+			// in it, so it cannot let anybody back out. Queueing this player and moving them in
+			// would trap them. Until the lookup is fixed the lobby stays out of the way entirely
+			// and everybody plays as though it were switched off.
 			return;
 		}
 
@@ -313,35 +317,23 @@ public final class LobbyManager {
 	}
 
 	/**
-	 * Puts back anybody who is flagged as a member but is not in the lobby any more.
+	 * Moves a player into the lobby and applies the member rules.
 	 *
-	 * <p>A queued player has more ways out of that room than the interaction blocks cover:
-	 * {@code /kill} goes through invulnerability and respawns them in the world, dying at all
-	 * makes a whole new entity, and any teleport command another mod provides - {@code /home},
-	 * {@code /tpa}, {@code /spawn} - simply moves them. Rather than trying to name every one of
-	 * those, the lobby checks where its members actually are and walks them back.
+	 * <p>Refuses if the mod cannot tell which world a player is in. That lookup is what
+	 * {@code sendToWorld} uses to decide somebody is standing in the lobby and worth moving, so
+	 * without it the room is one nothing can let anybody out of again - not being let in, not
+	 * {@code /lobby leave}, not the sweep that walks escapees back. Better to leave people where
+	 * they are and let the error logged at startup be the thing that gets fixed.
 	 */
-	public static void returnEscapees(MinecraftServer server) {
-		if (MEMBERS.isEmpty() || !PlayerWorld.available() || LobbyDimension.world(server) == null) {
-			// Without the world lookup every member looks like an escapee, and walking them back
-			// once a second forever would be far worse than the hole it plugs. With no lobby to
-			// walk them back to, sendToLobby would only apologise to them, once a second.
-			return;
-		}
-
-		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-			if (isMember(player) && !isInLobby(player)) {
-				FreezeMute.LOGGER.info("Lobby: {} left the lobby without being let in, putting them back",
-						player.getGameProfile().name());
-				sendToLobby(server, player);
-			}
-		}
-	}
-
-	/** Moves a player into the lobby and applies the member rules. */
 	public static void sendToLobby(MinecraftServer server, ServerPlayerEntity player) {
 		ServerWorld lobby = LobbyDimension.world(server);
 		LobbyState state = LobbyState.get();
+
+		if (!PlayerWorld.available()) {
+			player.sendMessage(Text.literal("The lobby is not working on this build - staff have been told.")
+					.formatted(Formatting.RED));
+			return;
+		}
 
 		if (lobby == null) {
 			player.sendMessage(Text.literal("The lobby is not built yet - staff have been told.")

@@ -70,6 +70,7 @@ final class FakeRoom implements Room {
 		String bar;
 		int admitted;
 		int sentToLobby;
+		int letOut;
 		final List<String> messages = new ArrayList<>();
 
 		FakePlayer(FakeRoom room, UUID uuid, String name) {
@@ -152,9 +153,12 @@ final class FakeRoom implements Room {
 		}
 
 		@Override
-		public void stopBeingMember() {
+		public void letOut() {
+			// What sendToWorld does: every member rule dropped, and they are moved out of the room.
 			member = false;
+			inLobby = false;
 			bar = null;
+			letOut++;
 		}
 
 		@Override
