@@ -40,8 +40,11 @@ import net.fabricmc.loader.api.ModContainer;
  * the server is left exactly as it was.
  *
  * <p>This does mean the server runs whatever that repository publishes. It is switched off with
- * {@code autoUpdate} in the config, and {@code updateRepository} pins which repository is asked -
- * nothing follows a redirect to a different host.
+ * {@code autoUpdate} in the config, and {@code updateRepository} pins which repository is asked.
+ * Redirects are followed across hosts, because GitHub's own download links redirect to its asset
+ * storage and refusing that would mean never downloading anything; what is not followed is a
+ * redirect down to plain http, and nothing is installed until the file has been opened and found
+ * to be a jar declaring this mod id.
  */
 public final class AutoUpdater {
 	private static final String API = "https://api.github.com/repos/";
@@ -103,6 +106,11 @@ public final class AutoUpdater {
 			return;
 		}
 
+		if (!usableTag(latest)) {
+			FreezeMute.LOGGER.warn("Auto update: the tag '{}' is not a plain version, skipping", latest);
+			return;
+		}
+
 		FreezeMute.LOGGER.info("Auto update: {} is available, running {}", latest, running);
 
 		String assetUrl = modJarAsset(release);
@@ -137,6 +145,7 @@ public final class AutoUpdater {
 
 		Path download = modsFolder.resolve(FreezeMute.MOD_ID + "-" + version + ".jar.part");
 		Files.deleteIfExists(download);
+		boolean keepTheDownload = false;
 
 		// In a finally, because a download that throws - a hang, a broken connection, a file
 		// bigger than the limit - would otherwise leave its half written part behind, and leave
@@ -162,12 +171,26 @@ public final class AutoUpdater {
 			}
 
 			Path target = modsFolder.resolve(FreezeMute.MOD_ID + "-" + version + ".jar");
-			Files.move(download, target, StandardCopyOption.REPLACE_EXISTING);
+
+			try {
+				Files.move(download, target, StandardCopyOption.REPLACE_EXISTING);
+			} catch (Exception moveFailed) {
+				// The running jar has already been taken out of the folder by this point, so
+				// deleting the download too would leave the server with no copy of the mod at all.
+				// It stays where it is, and the log says what to rename it to.
+				keepTheDownload = true;
+				FreezeMute.LOGGER.error("Auto update: downloaded {} but could not put it in place. The old jar "
+						+ "is already gone, so rename {} to {} before restarting or the mod will not load.",
+						version, download.getFileName(), target.getFileName(), moveFailed);
+				return;
+			}
 
 			FreezeMute.LOGGER.info("Auto update: installed {} as {} - it starts on the next server restart",
 					version, target.getFileName());
 		} finally {
-			Files.deleteIfExists(download);
+			if (!keepTheDownload) {
+				Files.deleteIfExists(download);
+			}
 		}
 	}
 
@@ -350,6 +373,18 @@ public final class AutoUpdater {
 		} catch (RuntimeException exception) {
 			return Optional.empty();
 		}
+	}
+
+	/**
+	 * Whether a release tag is safe to build a file name out of.
+	 *
+	 * <p>It becomes part of a name in the mods folder, and it came from whatever repository the
+	 * config points at. A tag with a slash or a pair of dots in it would put the download
+	 * somewhere else entirely - and the check that the file really is this mod says nothing about
+	 * where the file was written.
+	 */
+	static boolean usableTag(String tag) {
+		return tag != null && !tag.isEmpty() && tag.matches("[A-Za-z0-9._-]+") && !tag.contains("..");
 	}
 
 	private static String stripLeadingV(String tag) {
