@@ -326,6 +326,12 @@ jobs:
             sleep 3
             echo "queue close"
             sleep 3
+            echo "lobby setspawn"
+            sleep 3
+            echo "lobby course start spawn"
+            sleep 3
+            echo "lobby course top spawn"
+            sleep 3
             echo "queue end"
             sleep 3
             echo "lobby disable"
@@ -373,6 +379,11 @@ jobs:
           check "Nobody is on the early access list." "/queue early list ran"
           check "The queue is closed" "/queue close ran"
           check "Session over" "/queue end ran"
+          check "the line comes back - closed - within the second" \
+            "/queue end says the line rebuilds itself with no queue point set"
+          check "Stand where you want the spawn to be" "/lobby setspawn refuses a console with no position"
+          check "Stand where you want the marker" "/lobby course start is registered and reaches its guard"
+          check "Nobody has finished spawn yet" "/lobby course top reads the board of the built course"
           check "The lobby is off" "/lobby disable turned it back off"
           refute "does not exist yet" "a missing lobby dimension"
           refute "Unknown or incomplete command" "unrecognised command"
