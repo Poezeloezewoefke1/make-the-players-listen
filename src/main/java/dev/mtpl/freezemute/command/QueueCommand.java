@@ -157,12 +157,24 @@ public final class QueueCommand {
 		LobbyState state = LobbyState.get();
 		state.setQueueOpen(false);
 
+		// Counted before the recall, because the recall puts everybody it moves into the line.
+		// Counting what the clear removed would report those people twice - once as sent back and
+		// again as taken out of a line they were only in for the length of this command.
+		int waiting = state.queue().size();
+
 		int moved = LobbyManager.recallEveryone(server);
 		state.clearAdmitted();
-		int cleared = state.clearQueue();
+		state.clearQueue();
+
+		// With nowhere to ask for a place, standing in the lobby is what puts somebody in the
+		// line, so the sweep rebuilds it within the second - closed, and in no particular order.
+		// The command still does what it says; it just does not stay done, so it says that.
+		String andBack = state.joinedAtAPoint() ? ""
+				: " Everybody in the lobby is queued automatically while there is no queue point,"
+						+ " so the line comes back - closed - within the second.";
 
 		source.sendFeedback(() -> Messages.success("Session over: " + moved + " sent to the lobby, "
-				+ cleared + " taken out of the line, and the queue is closed."), true);
+				+ waiting + " taken out of the line, and the queue is closed." + andBack), true);
 		return moved;
 	}
 
