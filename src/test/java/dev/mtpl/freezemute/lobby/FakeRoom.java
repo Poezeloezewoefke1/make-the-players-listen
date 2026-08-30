@@ -149,7 +149,12 @@ final class FakeRoom implements Room {
 
 		@Override
 		public void becomeMember() {
-			member = !staff;
+			// The real one turns straight round for staff without touching anything, rather than
+			// taking a membership away. Nothing in LobbyRules reaches this with a staff member, but
+			// a fake that quietly differs from the thing it stands in for is worse than no fake.
+			if (!staff) {
+				member = true;
+			}
 		}
 
 		@Override
