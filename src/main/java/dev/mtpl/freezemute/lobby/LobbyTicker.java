@@ -50,9 +50,13 @@ public final class LobbyTicker {
 		LobbyManager.tickPending(server);
 		LobbyManager.tickMembers(server);
 
-		if (LobbyManager.memberCount() > 0) {
+		// Everybody standing in the room, not only the people the queue is holding. Staff have to
+		// be able to run a course to see whether the jumps they just placed are possible, and -
+		// more to the point - the void underneath has to catch them too. Until now the only people
+		// who could fall out of the lobby and keep falling were the ones who built it.
+		if (LobbyDimension.world(server) != null) {
 			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-				if (LobbyManager.isMember(player) && LobbyManager.isInLobby(player)) {
+				if (LobbyManager.isInLobby(player)) {
 					Parkour.tick(server, player, now, display);
 				}
 			}

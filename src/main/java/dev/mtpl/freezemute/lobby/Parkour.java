@@ -15,6 +15,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.world.GameMode;
 
 /**
  * The parkour: timers, checkpoints and the void catch.
@@ -67,7 +68,7 @@ public final class Parkour {
 		FreezeMuteConfig config = FreezeMuteConfig.get();
 		UUID uuid = player.getUuid();
 
-		if (player.getY() < catchLevel(config.lobbyVoidCatchY, state.spawn().y())) {
+		if (caught(flying(player), player.getY(), catchLevel(config.lobbyVoidCatchY, state.spawn().y()))) {
 			catchFall(server, player, state);
 			return;
 		}
@@ -191,6 +192,23 @@ public final class Parkour {
 		// otherwise mean everybody in the room is permanently falling, and gets teleported back
 		// to the spawn twenty times a second for as long as they stay.
 		return Math.min(spawnY - 4.0D, Math.max(configured, spawnY - 24.0D));
+	}
+
+	/**
+	 * Whether somebody this far down has fallen and should be put back.
+	 *
+	 * <p>Somebody flying has not fallen. Staff building underneath the island would otherwise be
+	 * dragged back up to the spawn twenty times a second for as long as they worked down there,
+	 * which is a worse way to lose the void than the void.
+	 */
+	static boolean caught(boolean flying, double y, double catchLevel) {
+		return !flying && y < catchLevel;
+	}
+
+	/** Creative and spectator both mean the player is in the air on purpose. */
+	private static boolean flying(ServerPlayerEntity player) {
+		GameMode mode = player.interactionManager.getGameMode();
+		return mode == GameMode.CREATIVE || mode == GameMode.SPECTATOR;
 	}
 
 	/** Puts a runner back on their last checkpoint, or on the lobby spawn if they were not running. */

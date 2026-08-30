@@ -1,6 +1,7 @@
 package dev.mtpl.freezemute.lobby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,24 @@ class VoidCatchTest {
 			assertTrue(level < 65.0D, "a catch at " + level + " is not below a spawn at 65");
 			assertTrue(level <= 61.0D, "a catch at " + level + " is too close under the spawn");
 		}
+	}
+
+	@Test
+	void somebodyFlyingIsNotFalling() {
+		double level = Parkour.catchLevel(-5.0D, 65.0D);
+
+		// Staff building underneath the island. Catching them would drag them back to the spawn
+		// twenty times a second for as long as they worked down there.
+		assertFalse(Parkour.caught(true, level - 100.0D, level), "flying is not falling");
+		assertTrue(Parkour.caught(false, level - 1.0D, level), "and a runner who missed a jump is");
+	}
+
+	@Test
+	void standingOnTheIslandIsNeverCaught() {
+		double level = Parkour.catchLevel(-5.0D, 65.0D);
+
+		assertFalse(Parkour.caught(false, 65.0D, level));
+		assertFalse(Parkour.caught(false, level, level), "exactly at the line is not through it");
 	}
 
 	@Test
