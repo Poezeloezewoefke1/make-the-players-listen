@@ -190,7 +190,9 @@ practice:
 * A frozen player can still be moved by an operator: `/tp` works, and the freeze simply continues
   at the new spot.
 * Whatever invulnerability the player had before the freeze is restored when it is lifted, so
-  turning `freezeProtectsFromDamage` on does not leave survival players immortal afterwards.
+  turning `freezeProtectsFromDamage` on does not leave survival players immortal afterwards. The
+  lobby's own protection does not count as theirs and is not handed back this way - and if they
+  are still in the lobby when the freeze lifts, the lobby keeps protecting them.
 
 ## What "muted" means exactly
 
@@ -206,8 +208,9 @@ refuses to deliver it, so:
   left on the mute.
 * Attempted messages are still written to the server log, and staff online at the time get a
   short notice with what was said, so you do not have to go digging.
-* Timed mutes expire on their own; the player is not notified, their next message simply goes
-  through.
+* Timed mutes expire on their own, and the player is told when that happens rather than being
+  left to find out by typing. Somebody still waiting in the lobby is told the mute is gone *and*
+  that chat is still off in there, which is not the same thing.
 
 ## Kits
 
@@ -337,13 +340,25 @@ permanent noon, no mobs and a stone platform under the spawn, which is the right
 lobby on. If `/lobby enable` says the dimension is not there, restart once; that is the whole fix.
 
 **What members may do.** Walk, run, jump, and run the parkour. Nothing else: no breaking, placing,
-hitting, dropping, inventory, item use, signs, books, chat or voice. That is not a new set of
-rules - it is the freeze, with the movement handlers left out. The same mixins that hold a frozen
-player hold a lobby member, so anything that works for one works for the other.
+hitting, dropping, inventory, item use, signs, books or voice. That is not a new set of rules - it
+is the freeze, with the movement handlers left out. The same mixins that hold a frozen player hold
+a lobby member, so anything that works for one works for the other.
+
+Chat is the one exception, and only in one direction. What a member types reaches staff and nobody
+else, so somebody stuck in the line with a problem can say so; the rest of the room hears nothing.
+A mute is not softened that way - it applies to every receiver, staff included, or waiting in line
+would be a way to talk your way out of one. Voice is stricter still: a member's microphone is cut
+at the source, because that happens before there are any receivers to make staff an exception of.
 
 **Staff are never members.** They see everybody, keep chat and voice, keep every interaction, are
 never routed to the lobby and never take up a slot. Members can still hear staff over voice chat,
 which is the point of being able to talk to a room full of people you are holding.
+
+Making somebody an operator while they are waiting lets them out of the room, hands back their
+slot and takes them out of the line, all within the second. Left standing there they would keep a
+place they could never be let through and stay invisible to everybody else in it - the packet that
+introduces two members is refused while both are members, and Minecraft does not offer it twice.
+Staff who walked in with `/lobby` to look around are left exactly where they are.
 
 **Isolation.** Members are hidden from each other: the spawn packet that would introduce one member
 to another is refused on the way out, so the client is never told they exist, and their sounds go
@@ -392,6 +407,10 @@ waiting. `lobbyAdmitPerSecond` keeps a rush from letting thirty people in at onc
 their **place in line**; an admitted player who drops out keeps their **slot**, so nobody else
 takes it. Both last five minutes by default. Because the worst crash is the one that takes the
 server with it, the whole queue is written to disk, so a restart does not cost anybody their place.
+After a crash the windows start again from the moment the server comes back up - nobody should lose
+a slot over downtime they did not cause - and whoever reconnects has their window closed within the
+second. The room is asked once a second who is actually in it, so a window is never counted down
+against somebody standing in front of it.
 
 There is no AFK handling on purpose - staff decide who is idle. A **kick voids the grace**
 immediately, for both windows, otherwise kicking somebody who has gone quiet would hold their slot
@@ -400,7 +419,9 @@ the grace, which is exactly the distinction the windows exist for.
 
 **Getting people back.** `/lobby all` pulls everybody who is not staff back and closes the queue,
 keeping the line in the order people were let in so the session can resume fairly. `/queue end`
-does the same and clears the line as well. Being let back in puts a player exactly where they were
+does the same and clears the line as well - though with no queue point set, standing in the lobby
+is what puts somebody in the line, so the line rebuilds itself within the second, closed. The
+command says so when that is what will happen. Being let back in puts a player exactly where they were
 standing when the lobby took them, in the game mode they were in - a builder in creative comes back
 in creative.
 
