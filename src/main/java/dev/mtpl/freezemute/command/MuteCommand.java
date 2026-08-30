@@ -13,6 +13,7 @@ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
+import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Durations;
 import dev.mtpl.freezemute.util.Messages;
 import dev.mtpl.freezemute.util.StaffAlerts;
@@ -122,7 +123,7 @@ public final class MuteCommand {
 		ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(entry.uuid());
 
 		if (player != null) {
-			player.sendMessage(Messages.youAreUnmuted());
+			player.sendMessage(Messages.youAreUnmuted(LobbyManager.isMember(player)));
 		}
 
 		source.sendFeedback(() -> Messages.success("Unmuted " + entry.name()), true);
@@ -159,7 +160,7 @@ public final class MuteCommand {
 			ServerPlayerEntity player = source.getServer().getPlayerManager().getPlayer(entry.uuid());
 
 			if (player != null) {
-				player.sendMessage(Messages.youAreUnmuted());
+				player.sendMessage(Messages.youAreUnmuted(LobbyManager.isMember(player)));
 			}
 		}
 

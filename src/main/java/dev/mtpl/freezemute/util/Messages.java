@@ -42,7 +42,19 @@ public final class Messages {
 		return Text.literal(builder.toString()).formatted(Formatting.RED);
 	}
 
-	public static MutableText youAreUnmuted() {
+	/**
+	 * Told to somebody whose mute has been lifted.
+	 *
+	 * <p>Which is not the same as being able to talk. Chat is off in the lobby for everybody in it,
+	 * so telling somebody waiting in line that they can chat again would have them typing into a
+	 * room that still swallows it - and wondering why, having just been told otherwise.
+	 */
+	public static MutableText youAreUnmuted(boolean stillInTheLobby) {
+		if (stillInTheLobby) {
+			return Text.literal("You are no longer muted. Chat is still off while you are in the lobby, "
+					+ "but staff can hear you.").formatted(Formatting.GREEN);
+		}
+
 		return Text.literal("You are no longer muted - you can chat again.").formatted(Formatting.GREEN);
 	}
 

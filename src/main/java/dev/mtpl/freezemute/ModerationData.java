@@ -21,6 +21,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Salvage;
 
 import dev.mtpl.freezemute.util.Messages;
@@ -451,7 +452,7 @@ public final class ModerationData {
 			ServerPlayerEntity player = server.getPlayerManager().getPlayer(entry.uuid());
 
 			if (player != null) {
-				player.sendMessage(Messages.youAreUnmuted());
+				player.sendMessage(Messages.youAreUnmuted(LobbyManager.isMember(player)));
 			}
 		});
 	}
