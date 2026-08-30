@@ -12,6 +12,10 @@ import net.minecraft.server.network.ServerPlayerEntity;
  * position check for the handful of people in the lobby - and everything else happens once a
  * second, because a queue that reacts within a second reacts instantly as far as anybody waiting
  * in it is concerned.
+ *
+ * <p>Two things happen whether or not the routing is switched on: the state is flushed to disk, and
+ * the room itself is ticked. Both are about the lobby existing rather than about the queue running,
+ * and the routing is off by default - which is the state staff build the room in.
  */
 public final class LobbyTicker {
 	private static final int TICKS_PER_SECOND = 20;
@@ -38,29 +42,26 @@ public final class LobbyTicker {
 			state.flush();
 		}
 
+		boolean display = ticks % DISPLAY_EVERY == 0;
+		long now = System.currentTimeMillis();
+
+		// The room, before the switch. Everything below this belongs to the queue and is off when
+		// the queue is off; the floor under a void world is not - somebody standing in that room
+		// can fall out of it whether or not anybody is being routed anywhere, and the routing is
+		// off by default, which is exactly the state staff build the place in. This is also what
+		// gives them a working timer to try their own jumps with.
+		//
+		// It costs one world lookup per player per tick, and only while the dimension exists.
+		theRoom(server, now, display);
+
 		if (!state.enabled()) {
 			return;
 		}
-
-		boolean display = ticks % DISPLAY_EVERY == 0;
-		long now = System.currentTimeMillis();
 
 		// Players whose join has settled enough to be moved, then the upkeep that keeps members
 		// hidden from each other.
 		LobbyManager.tickPending(server);
 		LobbyManager.tickMembers(server);
-
-		// Everybody standing in the room, not only the people the queue is holding. Staff have to
-		// be able to run a course to see whether the jumps they just placed are possible, and -
-		// more to the point - the void underneath has to catch them too. Until now the only people
-		// who could fall out of the lobby and keep falling were the ones who built it.
-		if (LobbyDimension.world(server) != null) {
-			for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-				if (LobbyManager.isInLobby(player)) {
-					Parkour.tick(server, player, now, display);
-				}
-			}
-		}
 
 		if (!second) {
 			return;
@@ -70,5 +71,18 @@ public final class LobbyTicker {
 		// it can be driven from a test without a server or anybody standing in the room. See
 		// LobbyRules; what is left here is only the clock.
 		LobbyRules.tickSecond(new ServerRoom(server), state, FreezeMuteConfig.get(), now);
+	}
+
+	/** Parkour timers and the void catch, for everybody standing in the lobby. */
+	private static void theRoom(MinecraftServer server, long now, boolean display) {
+		if (LobbyDimension.world(server) == null) {
+			return;
+		}
+
+		for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+			if (LobbyManager.isInLobby(player)) {
+				Parkour.tick(server, player, now, display);
+			}
+		}
 	}
 }
