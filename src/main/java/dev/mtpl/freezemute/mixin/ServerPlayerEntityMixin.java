@@ -2,8 +2,10 @@ package dev.mtpl.freezemute.mixin;
 
 import java.util.UUID;
 
+import dev.mtpl.freezemute.ChatDelivery;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.MuteEntry;
+import dev.mtpl.freezemute.command.Permissions;
 import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Messages;
 import dev.mtpl.freezemute.util.StaffAlerts;
@@ -30,6 +32,10 @@ import net.minecraft.util.Formatting;
  *
  * <p>Blocking delivery also covers every command that produces chat: /msg, /tell, /w, /me,
  * /say and /teammsg all end up in this method.
+ *
+ * <p>Being per receiver is also what lets the lobby be quiet without being soundproof: a member
+ * talking is dropped for everybody except staff, so somebody waiting in line can still ask for
+ * help. A mute is not treated that way - it is a punishment, and it applies to every receiver.
  */
 @Mixin(ServerPlayerEntity.class)
 public abstract class ServerPlayerEntityMixin {
@@ -50,12 +56,17 @@ public abstract class ServerPlayerEntityMixin {
 		boolean inLobby = LobbyManager.isMember(sender);
 
 		if (mute == null && !inLobby) {
+			// Nothing to decide, and no permission lookup for the common case.
+			return;
+		}
+
+		ServerPlayerEntity receiver = (ServerPlayerEntity) (Object) this;
+
+		if (!ChatDelivery.drops(mute != null, inLobby, Permissions.isStaff(receiver))) {
 			return;
 		}
 
 		info.cancel();
-
-		ServerPlayerEntity receiver = (ServerPlayerEntity) (Object) this;
 
 		if (!sender.equals(receiver.getUuid())) {
 			return;
