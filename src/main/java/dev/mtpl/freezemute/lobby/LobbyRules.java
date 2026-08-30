@@ -87,10 +87,22 @@ public final class LobbyRules {
 		}
 
 		for (Occupant occupant : room.occupants()) {
-			if (occupant.member() && !occupant.inLobby()) {
-				room.log("Lobby: " + occupant.name() + " left the lobby without being let in, putting them back");
-				occupant.sendToLobby();
+			if (!occupant.member() || occupant.inLobby()) {
+				continue;
 			}
+
+			if (occupant.staff()) {
+				// Made an operator while they happened to be out of the room. Walking them back in
+				// would only give the stray collector something to walk straight out again a
+				// moment later - one teleport there and one back, for nothing. It lets them go
+				// here instead, which is the same ending without the round trip.
+				room.log("Lobby: " + occupant.name() + " is staff now, so the lobby has stopped holding them");
+				occupant.letOut();
+				continue;
+			}
+
+			room.log("Lobby: " + occupant.name() + " left the lobby without being let in, putting them back");
+			occupant.sendToLobby();
 		}
 	}
 

@@ -438,6 +438,25 @@ class LobbyRulesTest {
 	}
 
 	@Test
+	void beingMadeAnOperatorOutsideTheRoomDoesNotDragYouThroughIt() {
+		state.setCap(0);
+		state.setQueueOpen(false);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+		assertTrue(anna.member);
+
+		// Out of the room - a death, /kill, another mod's /home - and op'd in the same breath.
+		anna.wanderOff();
+		anna.staff(true);
+		tick(2000L);
+
+		assertEquals(0, anna.sentToLobby, "walking them back only to walk them out again is two "
+				+ "teleports for nothing");
+		assertEquals(1, anna.letOut);
+		assertFalse(anna.member);
+	}
+
+	@Test
 	void staffWhoCameToLookAroundAreLeftWhereTheyAre() {
 		FakePlayer mod = room.add("Mod").standingInTheLobby();
 		mod.staff(true);
