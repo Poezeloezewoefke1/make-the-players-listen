@@ -317,6 +317,100 @@ class LobbyRulesTest {
 		assertEquals(1, ben.admitted, "and the person who is actually here gets through");
 	}
 
+	// ------------------------------------------------ coming back from a crash
+
+	/** Writes a lobby file by hand, the way a crash leaves one: everybody still marked online. */
+	private Path crashedWith(String json) throws Exception {
+		Path path = directory.resolve("crashed.json");
+		java.nio.file.Files.writeString(path, json);
+		return path;
+	}
+
+	@Test
+	void aCrashDoesNotLeaveSlotsHeldForEver() throws Exception {
+		// Two people held slots and one was waiting when the server went down. Nothing recorded a
+		// disconnect, so the file says all three are online.
+		state.load(crashedWith("""
+				{
+				  "enabled": true, "queueOpen": true, "cap": 2,
+				  "queue": [ { "uuid": "00000000-0000-0000-0000-000000000009", "name": "Zoe", "joinedAt": 1 } ],
+				  "admitted": [
+				    { "uuid": "00000000-0000-0000-0000-000000000007", "name": "Gone", "since": 1 },
+				    { "uuid": "00000000-0000-0000-0000-000000000008", "name": "Also", "since": 2 }
+				  ]
+				}
+				"""));
+
+		assertEquals(2, state.slotsUsed(), "the file said two slots were taken");
+
+		// Nobody comes back. A long time passes.
+		tick(1000L);
+		tick(System.currentTimeMillis() + GRACE + 60_000L);
+
+		assertEquals(0, state.slotsUsed(), "a slot nobody is holding is a slot nobody can use");
+		assertEquals(0, state.queueSize(), "and the same goes for a place in line");
+	}
+
+	@Test
+	void aCrashedLobbyLetsTheNextPersonInOnceTheGhostsAreGone() throws Exception {
+		state.load(crashedWith("""
+				{
+				  "enabled": true, "queueOpen": true, "cap": 1,
+				  "admitted": [ { "uuid": "00000000-0000-0000-0000-000000000007", "name": "Gone", "since": 1 } ]
+				}
+				"""));
+
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+
+		assertEquals(0, anna.admitted, "the only slot is still held while the window runs");
+
+		tick(System.currentTimeMillis() + GRACE + 60_000L);
+
+		assertEquals(1, anna.admitted, "and handed on once it does not");
+	}
+
+	@Test
+	void somebodyStandingInTheRoomIsNeverSweptOutOfIt() throws Exception {
+		// With a queue point set, so that being swept out of the line stays swept - without one
+		// the stray collector would put her back a second later and hide the bug.
+		state.load(crashedWith("""
+				{
+				  "enabled": true, "queueOpen": false, "cap": 1,
+				  "queuePoint": { "x": 0.5, "y": 65.0, "z": 0.5 },
+				  "queue": [ { "uuid": "00000000-0000-0000-0000-000000000001", "name": "Anna", "joinedAt": 77 } ]
+				}
+				"""));
+
+		// The same player reconnects. Their entry still says they left.
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		assertEquals(new UUID(0L, 1L), anna.uuid(), "the fake hands out ids in order");
+
+		tick(1000L);
+		tick(System.currentTimeMillis() + GRACE + 60_000L);
+
+		assertEquals(1, state.position(anna.uuid()),
+				"she is standing right there; a window counted down against her is a bug");
+		assertEquals(77L, state.waiting(anna.uuid()).joinedAt(),
+				"and it is the place she already had, not a new one at the back");
+	}
+
+	@Test
+	void aRenameFollowsSomebodyThroughTheLine() throws Exception {
+		state.load(crashedWith("""
+				{
+				  "enabled": true, "queueOpen": false, "cap": 1,
+				  "queue": [ { "uuid": "00000000-0000-0000-0000-000000000001", "name": "OldName", "joinedAt": 1 } ]
+				}
+				"""));
+
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+
+		assertEquals("Anna", state.waiting(anna.uuid()).name(),
+				"/queue remove works on a name, so the stored one has to be the current one");
+	}
+
 	// ------------------------------------------------------- gaining operator
 
 	@Test

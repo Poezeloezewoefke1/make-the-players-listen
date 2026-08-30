@@ -297,6 +297,36 @@ public final class LobbyState {
 		return null;
 	}
 
+	/**
+	 * Records that somebody is here: their entries come back online, under whatever name they are
+	 * using now.
+	 *
+	 * <p>The grace clocks are driven by one timestamp per entry, and a timestamp is only ever as
+	 * honest as the events that maintain it. A crash records no disconnect at all. Rather than
+	 * trusting that every arrival and departure was seen, whoever is actually in the room is asked
+	 * once a second, so an entry can never sit there counting down a window for a player who is
+	 * standing right in front of it.
+	 */
+	public void markPresent(UUID uuid, String name) {
+		Waiting entry = waiting(uuid);
+
+		if (entry != null && (!entry.online() || !entry.name().equals(name))) {
+			replace(entry, entry.online(name));
+		}
+
+		Admitted held = admitted.get(uuid);
+
+		if (held != null && (!held.online() || !held.name().equals(name))) {
+			admitted.put(uuid, held.online(name));
+			save();
+		}
+	}
+
+	/** An entry read from disk that claims to be online has been away since the server came up. */
+	private static long awayNow(long offlineSince, long startedAt) {
+		return offlineSince > 0L ? offlineSince : startedAt;
+	}
+
 	public void markWaitingOffline(UUID uuid, long now) {
 		Waiting existing = waiting(uuid);
 
@@ -593,6 +623,15 @@ public final class LobbyState {
 	}
 
 	private void read(JsonObject object) {
+		// Nobody is connected while this runs, so anything the file calls online is somebody who
+		// was online when it was last written - which, after a crash, is the moment the server
+		// went down. Read verbatim, those entries are never swept: graceRanOut only ever fires on
+		// an entry that is offline, so a slot held by a player who never comes back is held for
+		// good, and enough of them hold the cap shut on everybody else. Their clocks start now
+		// instead, which is also the fair reading - nobody should lose a slot over downtime they
+		// did not cause. Whoever reconnects is marked present again within the second.
+		long startedAt = System.currentTimeMillis();
+
 		enabled = readBoolean(object, "enabled", false);
 		queueOpen = readBoolean(object, "queueOpen", true);
 		cap = Math.max(0, readInt(object, "cap", 0));
@@ -615,7 +654,7 @@ public final class LobbyState {
 				}
 
 				queue.add(new Waiting(uuid, readString(entry, "name", uuid.toString()),
-						readLong(entry, "joinedAt", 0L), readLong(entry, "offlineSince", 0L)));
+						readLong(entry, "joinedAt", 0L), awayNow(readLong(entry, "offlineSince", 0L), startedAt)));
 			}
 		}
 
@@ -635,7 +674,7 @@ public final class LobbyState {
 				}
 
 				admitted.put(uuid, new Admitted(uuid, readString(entry, "name", uuid.toString()),
-						readLong(entry, "since", 0L), readLong(entry, "offlineSince", 0L)));
+						readLong(entry, "since", 0L), awayNow(readLong(entry, "offlineSince", 0L), startedAt)));
 			}
 		}
 

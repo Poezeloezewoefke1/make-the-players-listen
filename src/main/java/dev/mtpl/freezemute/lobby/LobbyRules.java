@@ -23,11 +23,28 @@ public final class LobbyRules {
 
 	/** One second's work. */
 	public static void tickSecond(Room room, LobbyState state, FreezeMuteConfig config, long now) {
+		syncPresence(room, state);
 		sweepGrace(room, state, config, now);
 		returnEscapees(room);
 		collectStrays(room, state, now);
 		admit(room, state, config);
 		updateBars(room, state);
+	}
+
+	/**
+	 * Tells the state who is actually here, before anything decides what to do about it.
+	 *
+	 * <p>First, because every grace window below is measured from a timestamp, and a timestamp is
+	 * only as honest as the events that set it. A crash records no disconnect for anybody, so the
+	 * file comes back saying a roomful of people are online who are not; a player who reconnects
+	 * has an entry that still says they left. Asking the room instead of trusting the bookkeeping
+	 * costs one pass a second and means no window is ever counted down against somebody standing
+	 * in the room.
+	 */
+	static void syncPresence(Room room, LobbyState state) {
+		for (Occupant occupant : room.occupants()) {
+			state.markPresent(occupant.uuid(), occupant.name());
+		}
 	}
 
 	/**
