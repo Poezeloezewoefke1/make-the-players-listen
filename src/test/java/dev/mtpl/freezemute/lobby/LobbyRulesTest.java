@@ -2,6 +2,7 @@ package dev.mtpl.freezemute.lobby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -243,6 +244,28 @@ class LobbyRulesTest {
 
 		assertEquals("closed 1 of 1", ben.bar, "the bar should say where he stands, not disappear");
 		assertEquals(1, state.position(ben.uuid()));
+	}
+
+	@Test
+	void anEntryThatSaysOnlineForSomebodyWhoIsNotHereIsCorrectedOnTheClockItWasGiven() {
+		state.setCap(1);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		tick(1000L);
+		assertTrue(anna.admitted > 0 || state.position(anna.uuid()) > 0);
+
+		// Somebody who is in the line and marked online, but is not in the room at all. Only the
+		// admit pass notices, and it has to write down the clock it was handed - a fresh reading
+		// of its own would make the grace window run from a moment nothing else here knows about.
+		state.setCap(2);
+		UUID ghost = new UUID(0L, 500L);
+		state.enqueue(ghost, "Ghost", 500L);
+
+		tick(50_000L);
+
+		LobbyState.Waiting entry = state.waiting(ghost);
+		assertNotNull(entry, "he keeps his place, he is just not here");
+		assertFalse(entry.online());
+		assertEquals(50_000L, entry.offlineSince(), "the clock this pass was given, not another one");
 	}
 
 	@Test

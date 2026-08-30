@@ -27,7 +27,7 @@ public final class LobbyRules {
 		sweepGrace(room, state, config, now);
 		returnEscapees(room);
 		collectStrays(room, state, now);
-		admit(room, state, config);
+		admit(room, state, config, now);
 		updateBars(room, state);
 	}
 
@@ -155,7 +155,7 @@ public final class LobbyRules {
 	}
 
 	/** Lets people through, oldest first, never more than the throttle allows. */
-	static void admit(Room room, LobbyState state, FreezeMuteConfig config) {
+	static void admit(Room room, LobbyState state, FreezeMuteConfig config, long now) {
 		if (!state.queueOpen()) {
 			return;
 		}
@@ -188,7 +188,10 @@ public final class LobbyRules {
 
 			if (occupant == null) {
 				// The entry says online but nobody is there; correct it and try the next one.
-				state.markWaitingOffline(next.uuid(), System.currentTimeMillis());
+				// From the clock this pass was handed, not a fresh reading of its own - every
+				// window in here is measured against that one, and a rule that quietly consults
+				// the wall clock is a rule that cannot be driven from a test.
+				state.markWaitingOffline(next.uuid(), now);
 				continue;
 			}
 
