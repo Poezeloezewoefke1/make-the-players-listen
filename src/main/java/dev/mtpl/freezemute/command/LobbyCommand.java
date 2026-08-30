@@ -21,6 +21,7 @@ import dev.mtpl.freezemute.lobby.Spot;
 import dev.mtpl.freezemute.util.Messages;
 
 import net.minecraft.command.CommandSource;
+import net.minecraft.network.packet.s2c.play.PositionFlag;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -203,6 +204,16 @@ public final class LobbyCommand {
 				LobbyManager.sendToLobby(server, waiting);
 				moved++;
 			}
+		}
+
+		// Including whoever ran it. The plaza floor goes exactly where they were standing - the
+		// command asks them to stand where they want the top of the island, and that is what the
+		// top of the island is made of - so leaving them there leaves them inside it. They are
+		// staff, so nothing above moved them.
+		if (player != null && !LobbyManager.isMember(player)) {
+			Spot landing = result.spawn();
+			player.teleport(lobby, landing.x(), landing.y(), landing.z(), Set.<PositionFlag>of(),
+					landing.yaw(), landing.pitch(), true);
 		}
 
 		int shifted = moved;

@@ -126,6 +126,19 @@ class IslandPlanTest {
 	// ----------------------------------------------------------- standing room
 
 	@Test
+	void thePlazaFloorGoesExactlyWhereTheCommandWasRunFrom() {
+		// Which is why /lobby generate has to move whoever ran it: the command asks them to stand
+		// where they want the top of the island, and the top of the island is a solid block.
+		// SEA + 12 is the summit, and the summit is where the command told them to stand.
+		Material atTheirFeet = at(ORIGIN_X, SEA + 12, ORIGIN_Z);
+
+		assertTrue(atTheirFeet.standable(),
+				"a player left standing in " + atTheirFeet + " is a player standing inside a block");
+		assertEquals(Material.AIR, at(ORIGIN_X, SEA + 13, ORIGIN_Z),
+				"and the block above it is where they have to end up instead");
+	}
+
+	@Test
 	void theSpawnIsSomewhereYouCanStand() {
 		Spot spawn = plan.spawn();
 
