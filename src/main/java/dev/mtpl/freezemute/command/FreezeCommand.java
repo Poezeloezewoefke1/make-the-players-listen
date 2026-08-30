@@ -14,6 +14,7 @@ import dev.mtpl.freezemute.FreezeEnforcer;
 import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.ModerationData;
 import dev.mtpl.freezemute.ModerationData.FreezeEntry;
+import dev.mtpl.freezemute.lobby.LobbyManager;
 import dev.mtpl.freezemute.util.Durations;
 import dev.mtpl.freezemute.util.Messages;
 import dev.mtpl.freezemute.util.StaffAlerts;
@@ -97,8 +98,11 @@ public final class FreezeCommand {
 			FreezeEntry existing = data.freezeOf(target.getUuid());
 
 			// Keep the invulnerability the player had before the first freeze, not the one this
-			// mod switched on, otherwise re-freezing would make it stick for good.
-			boolean wasInvulnerable = existing != null ? existing.wasInvulnerable() : target.isInvulnerable();
+			// mod switched on, otherwise re-freezing would make it stick for good. The lobby's
+			// counts as the mod's: somebody frozen while waiting in line, let in, and then
+			// unfrozen would otherwise be unkillable out in the world from then on.
+			boolean wasInvulnerable = existing != null ? existing.wasInvulnerable()
+					: FreezeEnforcer.ownInvulnerability(target.isInvulnerable(), LobbyManager.isMember(target));
 
 			FreezeEntry entry = new FreezeEntry(target.getUuid(), name, actor, now, until, reason, wasInvulnerable);
 			data.freeze(entry);

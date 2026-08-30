@@ -2,6 +2,8 @@ package dev.mtpl.freezemute;
 
 import java.lang.reflect.Method;
 
+import dev.mtpl.freezemute.lobby.LobbyManager;
+
 import net.fabricmc.loader.api.FabricLoader;
 
 import net.minecraft.server.network.ServerPlayNetworkHandler;
@@ -46,7 +48,32 @@ public final class FreezeEnforcer {
 
 	/** Called when a freeze ends, restoring whatever invulnerability the player had before. */
 	public static void onUnfrozen(ServerPlayerEntity player, ModerationData.FreezeEntry entry) {
-		player.setInvulnerable(entry != null && entry.wasInvulnerable());
+		player.setInvulnerable(invulnerableAfterFreeze(LobbyManager.isMember(player),
+				entry != null && entry.wasInvulnerable()));
+	}
+
+	/**
+	 * Whether a player is still invulnerable once a freeze is lifted.
+	 *
+	 * <p>Two things switch this on and neither may switch off the other's. The lobby protects its
+	 * members because nobody should die waiting in line; a freeze protects its subject so somebody
+	 * held for questioning does not drown while being questioned. Lifting one hands back only what
+	 * the player had before either of them got hold of them - and if the other is still holding
+	 * them, it keeps holding them.
+	 */
+	public static boolean invulnerableAfterFreeze(boolean isLobbyMember, boolean hadItBefore) {
+		return isLobbyMember || hadItBefore;
+	}
+
+	/**
+	 * What to write down as a player's own invulnerability when a freeze starts.
+	 *
+	 * <p>A lobby member is invulnerable because the lobby is holding them, not because anybody
+	 * decided they should be. Recording that as theirs would hand it back on {@code /unfreeze} and
+	 * leave them walking around the world unkillable for good.
+	 */
+	public static boolean ownInvulnerability(boolean invulnerableNow, boolean isLobbyMember) {
+		return invulnerableNow && !isLobbyMember;
 	}
 
 	/** Re-applies the freeze to a player who just logged in. */
