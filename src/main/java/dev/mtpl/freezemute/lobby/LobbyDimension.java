@@ -182,12 +182,6 @@ public final class LobbyDimension {
 	}
 
 	/**
-	 * {@code supported_formats} is deliberately wide. The pack format number changes with almost
-	 * every Minecraft release and a pack the server thinks is incompatible is not enabled, which
-	 * would silently take the dimension away. The pack contains nothing that can go stale, so
-	 * claiming to support every format is honest rather than reckless.
-	 */
-	/**
 	 * Deliberately wide, and written twice over.
 	 *
 	 * <p>The pack format number changes with almost every Minecraft release, and a pack the server

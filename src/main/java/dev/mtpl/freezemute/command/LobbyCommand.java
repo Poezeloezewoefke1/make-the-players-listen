@@ -28,6 +28,7 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
 /**
  * {@code /lobby} - the room itself, and the parkour in it.
@@ -141,6 +142,7 @@ public final class LobbyCommand {
 	}
 
 	private static int setSpawn(ServerCommandSource source) {
+		MinecraftServer server = source.getServer();
 		ServerPlayerEntity player = source.getPlayer();
 
 		if (player == null) {
@@ -154,6 +156,18 @@ public final class LobbyCommand {
 		}
 
 		Spot spot = Spot.of(player);
+		ServerWorld lobby = LobbyDimension.world(server);
+
+		if (lobby != null && lobby.getBlockState(new BlockPos((int) Math.floor(spot.x()),
+				(int) Math.floor(spot.y()) - 1, (int) Math.floor(spot.z()))).isAir()) {
+			// A spawn over the void is not merely a bad spawn. Everybody arriving there falls, the
+			// void catch puts them back on it, and they fall again - about once a second, for as
+			// long as they stay. Standing on a block first is the whole fix, so it is worth asking.
+			source.sendError(Messages.failure("There is nothing under that spot. A spawn over the void drops "
+					+ "everybody who arrives straight back into it. Stand on a block and run this again."));
+			return 0;
+		}
+
 		LobbyState.get().setSpawn(spot);
 		source.sendFeedback(() -> Messages.success("Lobby spawn set to " + spot.describe() + "."), true);
 		return 1;
