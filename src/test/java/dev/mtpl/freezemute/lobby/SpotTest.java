@@ -3,9 +3,31 @@ package dev.mtpl.freezemute.lobby;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.util.Locale;
+
 import org.junit.jupiter.api.Test;
 
 class SpotTest {
+	/**
+	 * A German host renders {@code %.1f} as {@code 65,0}. Coordinates somebody is meant to read off
+	 * the screen and type back into /tp are not the place for local number conventions, and a
+	 * leaderboard should be the same shape wherever the server happens to be plugged in.
+	 */
+	@Test
+	void numbersLookTheSameWhereverTheServerIs() {
+		Locale original = Locale.getDefault();
+
+		try {
+			Locale.setDefault(Locale.GERMANY);
+
+			assertEquals("10.5 65.0 -3.2", new Spot(10.5D, 65.0D, -3.24D, 0.0F, 0.0F).describe());
+			assertEquals("1:02.35", CourseRecord.format(62_350L));
+			assertEquals("9.07", CourseRecord.format(9_070L));
+		} finally {
+			Locale.setDefault(original);
+		}
+	}
+
 	@Test
 	void distanceIsSquaredSoTheHotPathNeverTakesARoot() {
 		Spot spot = new Spot(0.0D, 0.0D, 0.0D, 0.0F, 0.0F);

@@ -27,7 +27,13 @@ public record CourseRecord(UUID uuid, String name, long millis, long at) {
 		}
 	}
 
-	/** {@code 1:02.35} - the format everyone reads times in. */
+	/**
+	 * {@code 1:02.35} - the format everyone reads times in.
+	 *
+	 * <p>Against the root locale, so a leaderboard is the same shape wherever the server is
+	 * running. Some locales would otherwise render the digits themselves differently, which is a
+	 * strange thing for a stopwatch to do.
+	 */
 	public static String format(long millis) {
 		long total = Math.max(0L, millis);
 		long minutes = total / 60_000L;
@@ -35,9 +41,9 @@ public record CourseRecord(UUID uuid, String name, long millis, long at) {
 		long hundredths = (total % 1000L) / 10L;
 
 		if (minutes > 0L) {
-			return String.format("%d:%02d.%02d", minutes, seconds, hundredths);
+			return String.format(java.util.Locale.ROOT, "%d:%02d.%02d", minutes, seconds, hundredths);
 		}
 
-		return String.format("%d.%02d", seconds, hundredths);
+		return String.format(java.util.Locale.ROOT, "%d.%02d", seconds, hundredths);
 	}
 }

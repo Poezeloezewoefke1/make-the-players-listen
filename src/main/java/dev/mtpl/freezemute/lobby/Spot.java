@@ -18,8 +18,15 @@ public record Spot(double x, double y, double z, float yaw, float pitch) {
 		return dx * dx + dy * dy + dz * dz;
 	}
 
+	/**
+	 * Coordinates as a person reads them.
+	 *
+	 * <p>Formatted against the root locale rather than the server's. A host set to German turns
+	 * {@code %.1f} into {@code 65,0}, and a coordinate somebody is meant to type back into
+	 * {@code /tp} is not the place to be following local number conventions.
+	 */
 	public String describe() {
-		return String.format("%.1f %.1f %.1f", x, y, z);
+		return String.format(java.util.Locale.ROOT, "%.1f %.1f %.1f", x, y, z);
 	}
 
 	public JsonObject toJson() {
