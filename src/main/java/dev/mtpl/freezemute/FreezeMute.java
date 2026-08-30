@@ -51,13 +51,15 @@ public final class FreezeMute implements ModInitializer {
 	}
 
 	/**
-	 * The running server, remembered when a player joins.
+	 * The running server, remembered from the first server tick and again whenever anybody joins.
 	 *
 	 * <p>Packet handlers run on netty threads and have to push their work onto the server
 	 * thread; this is how they get hold of it without asking the player for its world, which
-	 * is the part of the API that gets renamed most often.
+	 * is the part of the API that gets renamed most often. Anything reached from a tick or from a
+	 * connected player can count on it, which is why the disconnect handler can use it to take
+	 * somebody off the lobby team.
 	 *
-	 * @return the server, or null before anybody has joined
+	 * @return the server, or null before it has ticked once
 	 */
 	public static MinecraftServer server() {
 		return server;
