@@ -498,8 +498,14 @@ public final class LobbyState {
 		return courses.values();
 	}
 
+	/** For tab completion: the names as they were typed, not the lowercased keys they are filed under. */
 	public List<String> courseNames() {
-		List<String> names = new ArrayList<>(courses.keySet());
+		List<String> names = new ArrayList<>();
+
+		for (Course course : courses.values()) {
+			names.add(course.name());
+		}
+
 		names.sort(String.CASE_INSENSITIVE_ORDER);
 		return names;
 	}
@@ -771,21 +777,35 @@ public final class LobbyState {
 		dirty = true;
 	}
 
+	/** Whether a change is still waiting to reach the disk - including one whose write failed. */
+	public boolean pendingWrite() {
+		return dirty;
+	}
+
 	/** Writes if anything changed since the last write. Called once a second from the ticker. */
 	public void flush() {
 		if (!dirty) {
 			return;
 		}
 
+		// Cleared before the write rather than after it, so that a change made while it is running
+		// is not swallowed by it. An extra write costs a file; a swallowed change costs the change.
 		dirty = false;
-		writeNow();
+
+		if (!writeNow()) {
+			// The disk still holds what it held before, so this is not saved after all. Left
+			// marked clean it would only be written if something else happened to change later -
+			// and on a queue that has just gone quiet, nothing else is going to.
+			dirty = true;
+		}
 	}
 
-	private void writeNow() {
+	/** @return whether the file on disk now holds this state */
+	private boolean writeNow() {
 		Path path = this.file;
 
 		if (path == null) {
-			return;
+			return true;
 		}
 
 		JsonObject root = new JsonObject();
@@ -890,8 +910,10 @@ public final class LobbyState {
 				} catch (IOException atomicFailed) {
 					Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
 				}
+				return true;
 			} catch (IOException exception) {
 				FreezeMute.LOGGER.error("Could not write {}", path, exception);
+				return false;
 			}
 		}
 	}

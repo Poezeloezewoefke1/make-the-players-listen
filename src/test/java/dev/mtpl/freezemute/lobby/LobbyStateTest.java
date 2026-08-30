@@ -36,6 +36,39 @@ class LobbyStateTest {
 	}
 
 	@Test
+	void aWriteThatFailedIsNotRememberedAsAWriteThatWorked() throws Exception {
+		// A path whose parent is a file, not a directory: creating it throws, so the write cannot
+		// happen. A disk that is full or read only fails the same way.
+		Path blocked = directory.resolve("blocked");
+		java.nio.file.Files.writeString(blocked, "not a directory");
+		state.load(blocked.resolve("lobby.json"));
+
+		state.setCap(7);
+		state.flush();
+
+		// The disk still holds nothing. Marked clean, this change would only ever be written if
+		// something else happened to change later - and a queue that has gone quiet is exactly
+		// when nothing else is going to.
+		assertTrue(state.pendingWrite(), "a failed write is not a write");
+
+		// Clear what was in the way, and the change that was still pending goes out.
+		java.nio.file.Files.delete(blocked);
+		state.flush();
+
+		assertFalse(state.pendingWrite(), "and once it works it is a write");
+		assertTrue(java.nio.file.Files.readString(blocked.resolve("lobby.json")).contains("\"cap\": 7"),
+				"the change that failed to save is the one that saved");
+	}
+
+	@Test
+	void tabCompletionOffersTheNameThatWasTypedNotTheKeyItIsFiledUnder() {
+		state.putCourse(Course.starting("Skyline", new Spot(1.0D, 2.0D, 3.0D, 0.0F, 0.0F)));
+
+		assertEquals(List.of("Skyline"), state.courseNames(),
+				"suggesting 'skyline' for a course the board calls 'Skyline' reads as two courses");
+	}
+
+	@Test
 	void startsEmptyAndOpen() {
 		assertFalse(state.enabled());
 		assertTrue(state.queueOpen());
