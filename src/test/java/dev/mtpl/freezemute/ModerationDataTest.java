@@ -99,9 +99,12 @@ class ModerationDataTest {
 		data.mute(new MuteEntry(ZOE, "Zoe", "Console", now, 0L, "permanent"));
 
 		// Nothing has asked whether Steve is muted. Without the sweep his entry sits there until
-		// somebody speaks - and he is the one person who has been told not to.
-		data.sweepExpired();
+		// somebody speaks - and he is the one person who has been told not to. The count is how
+		// that is visible from outside at all: the lists already hide expired entries, so they
+		// look identical either way.
+		assertEquals(2, data.sweepExpired(), "the sweep found neither the mute nor the freeze");
 
+		assertEquals(0, data.sweepExpired(), "and there is nothing left for a second pass to find");
 		assertEquals(0, data.muteEntries().stream().filter(e -> e.uuid().equals(STEVE)).count());
 		assertEquals(0, data.frozenEntries().size());
 		assertTrue(data.isMuted(ZOE), "a permanent one is not swept away with them");
@@ -112,8 +115,8 @@ class ModerationDataTest {
 		long now = System.currentTimeMillis();
 		data.freeze(new FreezeEntry(STEVE, "Steve", "Console", now, now + 600_000L, "", false));
 
-		data.sweepExpired();
-		data.sweepExpired();
+		assertEquals(0, data.sweepExpired());
+		assertEquals(0, data.sweepExpired());
 
 		assertTrue(data.isFrozen(STEVE), "a freeze that is still running is left alone");
 		assertEquals(1, data.frozenEntries().size());

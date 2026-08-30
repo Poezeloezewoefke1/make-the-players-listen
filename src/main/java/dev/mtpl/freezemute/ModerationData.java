@@ -104,27 +104,45 @@ public final class ModerationData {
 	 * speaks - so a mute could run out and the player find out only by trying to talk, which is
 	 * the one thing they had been told not to do. Called once a second; two maps that are almost
 	 * always empty cost nothing to walk.
+	 *
+	 * @return how many entries this pass dropped, which is the only way from outside to see that
+	 *         it found something nobody had asked about
 	 */
-	public void sweepExpired() {
+	public int sweepExpired() {
 		if (frozen.isEmpty() && muted.isEmpty()) {
-			return;
+			return 0;
 		}
 
 		long now = System.currentTimeMillis();
+		int swept = 0;
 
 		for (FreezeEntry entry : frozen.values()) {
-			if (entry.expired(now)) {
-				// Through the same door as everything else, so the entry is dropped once and the
-				// player is told once however many things notice at the same moment.
-				freezeOf(entry.uuid());
+			if (!entry.expired(now)) {
+				continue;
+			}
+
+			// Through the same door as everything else, so the entry is dropped once and the
+			// player is told once however many things notice at the same moment.
+			freezeOf(entry.uuid());
+
+			if (!frozen.containsKey(entry.uuid())) {
+				swept++;
 			}
 		}
 
 		for (MuteEntry entry : muted.values()) {
-			if (entry.expired(now)) {
-				muteOf(entry.uuid());
+			if (!entry.expired(now)) {
+				continue;
+			}
+
+			muteOf(entry.uuid());
+
+			if (!muted.containsKey(entry.uuid())) {
+				swept++;
 			}
 		}
+
+		return swept;
 	}
 
 	/** The active freeze of a player, dropping it when its time is up. */
