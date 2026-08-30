@@ -38,6 +38,13 @@ import de.maxhenkel.voicechat.api.events.StaticSoundPacketEvent;
  * them, and audio from another member is cancelled on its way to them, so they hear nobody either.
  * Staff are never members, which means a member still hears staff - being able to talk to the room
  * you are holding people in is the point of holding them there.
+ *
+ * <p>That is deliberately stricter than text chat, where a member is heard by staff and nobody
+ * else. Text chat is stopped once per receiver, so leaving one of them out is exact. Voice is
+ * stopped at the microphone, before there are any receivers to be exact about, and the way to make
+ * staff an exception would be to let a member's audio into the server and rely on the outgoing
+ * filter to catch every path it could take to another member. A member who could be heard by the
+ * room is a worse failure than one who has to type to reach staff, so the microphone stays shut.
  */
 public class VoicePlugin implements VoicechatPlugin {
 	/** Both registration routes are declared, so whichever one this build uses works. */

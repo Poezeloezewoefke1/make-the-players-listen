@@ -512,6 +512,17 @@ public final class LobbyManager {
 		// time somebody spent offline as part of their time on the course.
 		Parkour.forget(uuid);
 		removeBar(player);
+
+		// The team is stored in the world, so it outlives the connection that put them on it.
+		// Leaving them on it means they come back with no name tag over their head and no
+		// collisions, out in the world, and nothing takes them off again until the next restart -
+		// switching the lobby off while they were away is enough to make that permanent. Coming
+		// back into the room puts them straight back on it.
+		MinecraftServer server = FreezeMute.server();
+
+		if (server != null) {
+			leaveTeam(server, player);
+		}
 	}
 
 	/**
@@ -552,7 +563,7 @@ public final class LobbyManager {
 				: "Queue closed - place " + position + " of " + total;
 		bar.setName(Text.literal(text));
 		bar.setColor(open ? BossBar.Color.BLUE : BossBar.Color.RED);
-		// Full at the front of the line, empty at the back, so the bar drains as you wait.
+		// Empty at the back of the line and full at the front, so the bar fills as you move up it.
 		bar.setPercent(total <= 1 ? 1.0F : (float) (total - position) / (float) (total - 1));
 	}
 
