@@ -380,7 +380,19 @@ public final class LobbyState {
 		return admitted.size();
 	}
 
+	/**
+	 * Gives somebody a slot.
+	 *
+	 * <p>Taking them out of the line is part of it, here rather than at every call site. Holding a
+	 * slot and standing in the queue are two answers to the same question, and something that is
+	 * true in two places is something that can be true in only one of them: a player in both is
+	 * counted against the cap and shown a boss bar for a place they are not waiting in. Several
+	 * paths used to admit without dequeuing - turning the lobby on with somebody already in the
+	 * line, and rejoining while holding a slot - so the rule lives where nobody can forget it.
+	 */
 	public void admit(UUID uuid, String name, long now) {
+		dequeue(uuid);
+
 		Admitted existing = admitted.get(uuid);
 
 		if (existing != null && existing.online() && existing.name().equals(name)) {

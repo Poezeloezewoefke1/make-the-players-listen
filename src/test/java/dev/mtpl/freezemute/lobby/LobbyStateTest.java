@@ -89,6 +89,34 @@ class LobbyStateTest {
 	}
 
 	@Test
+	void nobodyHoldsASlotAndAPlaceInLineAtOnce() {
+		state.enqueue(STEVE, "Steve", 1000L);
+		state.enqueue(ALEX, "Alex", 2000L);
+		assertEquals(2, state.queueSize());
+
+		// Several paths used to do exactly this - turning the lobby on with somebody already in
+		// the line, and rejoining while still holding a slot.
+		state.admit(STEVE, "Steve", 3000L);
+
+		assertTrue(state.isAdmitted(STEVE));
+		assertEquals(0, state.position(STEVE), "counted against the cap and shown a bar for a place "
+				+ "he is not waiting in");
+		assertEquals(1, state.queueSize());
+		assertEquals(1, state.position(ALEX), "and the person behind him moves up");
+	}
+
+	@Test
+	void beingAdmittedTwiceKeepsTheSlotItAlreadyHad() {
+		state.admit(STEVE, "Steve", 1000L);
+		long since = state.admittedEntry(STEVE).since();
+
+		state.admit(STEVE, "Steve", 9000L);
+
+		assertEquals(since, state.admittedEntry(STEVE).since(), "the clock does not restart");
+		assertEquals(1, state.slotsUsed());
+	}
+
+	@Test
 	void startsEmptyAndOpen() {
 		assertFalse(state.enabled());
 		assertTrue(state.queueOpen());
@@ -313,14 +341,20 @@ class LobbyStateTest {
 
 	@Test
 	void takingSomebodyOutOfTheLineClosesBothWaysTheyCouldBeIn() {
+		// Admitting takes somebody out of the line, so nobody is ever in both at once. What
+		// /queue remove needs is for either one on its own to be enough, and for the other to
+		// come back empty rather than complain.
 		state.enqueue(STEVE, "Steve", 1000L);
-		state.admit(STEVE, "Steve", 1000L);
-
 		assertNotNull(state.dequeue(STEVE));
-		assertNotNull(state.release(STEVE));
+		assertNull(state.release(STEVE), "he was waiting, not holding a slot");
+
+		state.admit(ALEX, "Alex", 1000L);
+		assertNull(state.dequeue(ALEX), "he is holding a slot, not waiting");
+		assertNotNull(state.release(ALEX));
+
 		assertEquals(0, state.queueSize());
 		assertEquals(0, state.slotsUsed());
-		assertNull(state.dequeue(STEVE));
+		assertNull(state.dequeue(STEVE), "and asking twice is not an error either");
 	}
 
 	@Test
