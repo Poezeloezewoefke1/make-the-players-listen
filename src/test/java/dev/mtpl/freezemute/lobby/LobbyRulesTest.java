@@ -38,6 +38,9 @@ class LobbyRulesTest {
 		state = LobbyState.get();
 		state.load(directory.resolve("lobby.json"));
 		state.setEnabled(true);
+		// Loaded fresh rather than taken as found: the settings are one global, and GRACE below is
+		// only the right number while they are the defaults.
+		FreezeMuteConfig.load(directory.resolve("config.json"));
 		config = FreezeMuteConfig.get();
 		room = new FakeRoom();
 	}

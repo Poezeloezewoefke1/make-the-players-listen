@@ -77,8 +77,17 @@ public final class FreezeMuteConfig {
 		return Math.max(0, lobbySlotGraceSeconds) * 1000L;
 	}
 
+	/**
+	 * Reads the settings, and writes the file back so that settings added by a later version of the
+	 * mod appear in it with their defaults.
+	 *
+	 * <p>It writes back only when the file was read successfully, or was not there at all. A file
+	 * that could not be parsed is left exactly as it is: one missing comma would otherwise cost
+	 * somebody every setting they had, and take away the text they needed to see to find the typo.
+	 */
 	public static void load(Path file) {
 		FreezeMuteConfig config = new FreezeMuteConfig();
+		boolean readIt = true;
 
 		if (Files.isRegularFile(file)) {
 			try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
@@ -105,16 +114,24 @@ public final class FreezeMuteConfig {
 					config.lobbyCheckpointRadius = number(object, "lobbyCheckpointRadius", config.lobbyCheckpointRadius);
 					config.lobbyQueuePointRadius = number(object, "lobbyQueuePointRadius", config.lobbyQueuePointRadius);
 				} else {
-					FreezeMute.LOGGER.warn("{} is not a JSON object, using the default settings", file);
+					readIt = false;
+					FreezeMute.LOGGER.warn("{} is not a JSON object. Using the default settings for this run "
+							+ "and leaving the file alone so you can fix it.", file);
 				}
 			} catch (Exception exception) {
-				FreezeMute.LOGGER.error("Could not read {}, using the default settings", file, exception);
+				readIt = false;
 				config = new FreezeMuteConfig();
+				FreezeMute.LOGGER.error("Could not read {}. Using the default settings for this run and leaving "
+						+ "the file alone so you can fix it - overwriting it would take your settings with it.",
+						file, exception);
 			}
 		}
 
 		instance = config;
-		write(file, config);
+
+		if (readIt) {
+			write(file, config);
+		}
 	}
 
 	private static void write(Path file, FreezeMuteConfig config) {
