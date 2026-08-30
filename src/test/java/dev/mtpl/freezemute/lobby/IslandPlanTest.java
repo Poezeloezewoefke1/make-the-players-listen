@@ -190,6 +190,23 @@ class IslandPlanTest {
 	}
 
 	@Test
+	void theCourseTheModBuildsWouldPassTheRulesTheCommandsEnforce() {
+		// /lobby course refuses a checkpoint or a finish close enough to the start to be swallowed
+		// by it, because standing on the start restarts the run. A generated course that broke its
+		// own rule would be one nobody could ever finish.
+		Course course = plan.course();
+
+		for (Spot checkpoint : course.checkpoints()) {
+			assertFalse(Parkour.swallowedByTheStart(course.start(), checkpoint, 1.5D),
+					"the checkpoint at " + checkpoint.describe() + " sits on the start pad");
+		}
+
+		assertFalse(Parkour.swallowedByTheStart(course.start(), course.finish(), 1.5D),
+				"the finish sits on the start pad, so the course can never be completed");
+		assertTrue(course.playable(), "and it has a finish at all");
+	}
+
+	@Test
 	void theWholeCourseIsInTheAirRatherThanBuriedInTheHill() {
 		for (LobbyBuilder.Step step : LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + 12 + 2)) {
 			assertTrue(at(step.x(), step.y(), step.z()).standable(),
