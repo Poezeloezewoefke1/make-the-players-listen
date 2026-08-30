@@ -21,6 +21,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import dev.mtpl.freezemute.util.Salvage;
+
 import dev.mtpl.freezemute.util.Messages;
 
 import net.minecraft.server.MinecraftServer;
@@ -315,6 +317,7 @@ public final class ModerationData {
 
 				if (!root.isJsonObject()) {
 					FreezeMute.LOGGER.warn("{} is not a JSON object, starting from an empty state", path);
+					Salvage.setAside(path);
 					return;
 				}
 
@@ -325,6 +328,7 @@ public final class ModerationData {
 				FreezeMute.LOGGER.error("Could not read {}, starting from an empty state", path, exception);
 				frozen.clear();
 				muted.clear();
+				Salvage.setAside(path);
 			}
 		}
 

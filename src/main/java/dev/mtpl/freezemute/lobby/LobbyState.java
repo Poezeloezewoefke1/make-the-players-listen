@@ -26,6 +26,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import dev.mtpl.freezemute.FreezeMute;
+import dev.mtpl.freezemute.util.Salvage;
 
 /**
  * Everything the lobby remembers, written to {@code config/freezemute/lobby.json}.
@@ -610,6 +611,7 @@ public final class LobbyState {
 
 				if (!root.isJsonObject()) {
 					FreezeMute.LOGGER.warn("{} is not a JSON object, starting from an empty lobby", path);
+					Salvage.setAside(path);
 					return;
 				}
 
@@ -620,6 +622,8 @@ public final class LobbyState {
 				admitted.clear();
 				courses.clear();
 				records.clear();
+				// Every course anybody built and every time anybody set is in that file.
+				Salvage.setAside(path);
 			}
 		}
 

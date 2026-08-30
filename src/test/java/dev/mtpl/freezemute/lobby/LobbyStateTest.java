@@ -69,6 +69,26 @@ class LobbyStateTest {
 	}
 
 	@Test
+	void aLobbyFileThatWillNotParseIsKeptRatherThanReplaced() throws Exception {
+		String broken = "{ \"courses\": [ every course anybody built ] ";
+		java.nio.file.Files.writeString(file, broken);
+
+		state.load(file);
+
+		// The next time anything changes, an empty lobby is written here. The old one has to
+		// already be somewhere else by then.
+		assertEquals(0, state.queueSize());
+		assertFalse(java.nio.file.Files.exists(file), "the unreadable file is still in the firing line");
+
+		try (var listing = java.nio.file.Files.list(directory)) {
+			Path kept = listing.filter(p -> p.getFileName().toString().startsWith("lobby.json.unreadable-"))
+					.findFirst().orElse(null);
+			assertNotNull(kept, "nothing was kept, so the courses are gone for good");
+			assertEquals(broken, java.nio.file.Files.readString(kept));
+		}
+	}
+
+	@Test
 	void startsEmptyAndOpen() {
 		assertFalse(state.enabled());
 		assertTrue(state.queueOpen());
