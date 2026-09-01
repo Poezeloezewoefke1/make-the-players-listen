@@ -320,6 +320,10 @@ jobs:
             sleep 3
             echo "queue remove Nobody"
             sleep 3
+            echo "lobby npc"
+            sleep 3
+            echo "lobby npc clear"
+            sleep 3
             echo "lobby queuepoint clear"
             sleep 3
             echo "lobby status"
@@ -331,10 +335,6 @@ jobs:
             echo "lobby course start spawn"
             sleep 3
             echo "lobby course top spawn"
-            sleep 3
-            echo "lobby npc"
-            sleep 3
-            echo "lobby npc clear"
             sleep 3
             echo "queue end"
             sleep 3
@@ -373,6 +373,8 @@ jobs:
           check "Laying the island:" "/lobby generate confirm started laying the island"
           check "Lobby: laying an island at" "the builder logged what it was about to lay"
           check "Lobby: finished laying" "the build ran to the last block instead of stalling part way"
+          check "nobody is online, so it goes down in one go" \
+            "an empty server lays it at once rather than handing it to a tick loop that is paused"
           check "the queue point is the pedestal" "the pedestal became the queue point"
           check "checkpoint(s), ready" "the parkour course was registered as it was built"
           check "right click the queue point" "arriving no longer queues people on its own"

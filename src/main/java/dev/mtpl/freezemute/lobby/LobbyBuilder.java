@@ -10,6 +10,7 @@ import dev.mtpl.freezemute.FreezeMute;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
@@ -207,12 +208,29 @@ public final class LobbyBuilder {
 		state.setQueuePoint(plan.queuePoint());
 		state.putCourse(plan.course());
 
-		job = new BuildJob(world, plan.placements(), LobbyBuilder::lay, whenDone);
+		BuildJob started = new BuildJob(world, plan.placements(), LobbyBuilder::lay, whenDone);
 
 		FreezeMute.LOGGER.info("Lobby: laying an island at {} {} {} - {} blocks, spawn {}, queue point {}",
 				originX, sea, originZ, plan.placements().size(), plan.spawn().describe(),
 				plan.queuePoint().describe());
 
+		if (nobodyOnline()) {
+			// Two reasons, and either would do on its own. There is nobody whose game a long tick
+			// would spoil, so there is nothing to protect by going slowly. And a server with
+			// nobody on it may not be ticking at all - vanilla pauses an empty one after a
+			// minute - so a job handed to the tick loop would sit there unfinished for ever,
+			// leaving half an island and a build that never says it stopped.
+			FreezeMute.LOGGER.info("Lobby: nobody is online, so it goes down in one go");
+
+			while (!started.done()) {
+				started.tick();
+			}
+
+			started.finish();
+			return new Result(plan.placements().size(), plan.spawn(), plan.queuePoint(), plan.course());
+		}
+
+		job = started;
 		return new Result(plan.placements().size(), plan.spawn(), plan.queuePoint(), plan.course());
 	}
 
@@ -243,6 +261,12 @@ public final class LobbyBuilder {
 			job = null;
 			current.finish();
 		}
+	}
+
+	/** Whether there is anybody whose game a long tick would spoil. */
+	private static boolean nobodyOnline() {
+		MinecraftServer server = FreezeMute.server();
+		return server == null || server.getPlayerManager().getPlayerList().isEmpty();
 	}
 
 	private static void lay(Object world, Placement placement) {
