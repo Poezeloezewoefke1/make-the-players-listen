@@ -70,6 +70,40 @@ public final class LobbyBuilder {
 		return WATER_RADIUS;
 	}
 
+	/**
+	 * How far the shore reaches in a direction. Wobbled, so the island is not a dinner plate.
+	 *
+	 * <p>Kept to about ten blocks either way on purpose. The town is laid out by number, and a
+	 * shore that could swing thirty would put a building pad over open water - where levelling a
+	 * footing means filling the lagoon with a pillar of stone. Public because that constraint has
+	 * two ends and a test should be able to read both of them rather than be told one as a number.
+	 */
+	public static double shoreAt(double angle) {
+		return COAST
+				+ 6.0D * Math.sin(3.0D * angle + 0.6D)
+				+ 3.0D * Math.cos(5.0D * angle + 2.1D)
+				+ 1.5D * Math.sin(8.0D * angle + 1.3D);
+	}
+
+	/** Where the four town buildings stand, relative to the middle, and how wide their footings are. */
+	public static int townOut() {
+		return TOWN_OUT;
+	}
+
+	public static int townPad() {
+		return TOWN_PAD;
+	}
+
+	/** The height the town stands at, above the water. */
+	public static int terrace() {
+		return TERRACE;
+	}
+
+	/** How far the plaza reaches, rim included. */
+	public static int plazaRadius() {
+		return PLAZA_RADIUS;
+	}
+
 	/** What a build did, so the command can say something useful. */
 	public record Result(int blocks, Spot spawn, Spot queuePoint, Course course) {
 	}
@@ -406,12 +440,7 @@ public final class LobbyBuilder {
 
 		/** How far the shore reaches in a direction. Wobbled, so the island is not a dinner plate. */
 		private double coastAt(double angle) {
-			// Kept to about ten blocks either way on purpose. The town is laid out by number, and
-			// a shore that can swing thirty blocks would put a building pad over open water.
-			return COAST
-					+ 6.0D * Math.sin(3.0D * angle + 0.6D)
-					+ 3.0D * Math.cos(5.0D * angle + 2.1D)
-					+ 1.5D * Math.sin(8.0D * angle + 1.3D);
+			return shoreAt(angle);
 		}
 
 		/**

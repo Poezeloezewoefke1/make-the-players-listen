@@ -242,6 +242,144 @@ class IslandPlanTest {
 		}
 	}
 
+	// ------------------------------------------------------------- the town
+
+	/** Where each of the four town buildings stands, on the diagonals. */
+	private static int[][] townCentres() {
+		int out = LobbyBuilder.townOut();
+		return new int[][] { { -out, out }, { out, out }, { out, -out }, { -out, -out } };
+	}
+
+	/** The closest the shore ever comes to the middle. */
+	private static double nearestShore() {
+		double nearest = Double.MAX_VALUE;
+
+		for (int step = 0; step < 3600; step++) {
+			nearest = Math.min(nearest, LobbyBuilder.shoreAt(step * Math.PI / 1800.0D));
+		}
+
+		return nearest;
+	}
+
+	@Test
+	void everyTownBuildingStandsOnLandRatherThanOverTheLagoon() {
+		// A pad over open water does not float: levelling a footing there fills the lagoon with a
+		// pillar of stone down to the seabed. The far edge of every pad has to be inside the
+		// closest the shore ever comes, whichever way the wobble happens to fall.
+		double shore = nearestShore();
+
+		for (int[] centre : townCentres()) {
+			double reach = Math.hypot(centre[0], centre[1]) + LobbyBuilder.townPad();
+
+			assertTrue(reach < shore,
+					"a building pad reaches " + (int) reach + " blocks out and the shore can come in to "
+							+ (int) shore);
+		}
+	}
+
+	@Test
+	void noTownBuildingSitsOnThePlaza() {
+		// Pads clear the sky above them, so one overlapping the plaza would take the plaza floor
+		// with it - and the plaza is laid first.
+		for (int[] centre : townCentres()) {
+			double gap = Math.hypot(centre[0], centre[1]) - LobbyBuilder.townPad();
+
+			assertTrue(gap > LobbyBuilder.plazaRadius() + 1,
+					"a building pad comes within " + (int) gap + " blocks of the middle, and the plaza "
+							+ "reaches " + (LobbyBuilder.plazaRadius() + 1));
+		}
+	}
+
+	@Test
+	void thereIsSomewhereFlatToStandOnEveryTownPad() {
+		int floorY = SEA + LobbyBuilder.terrace();
+
+		for (int[] centre : townCentres()) {
+			assertTrue(at(centre[0], floorY, centre[1]).standable(),
+					"nothing to stand on in the middle of the pad at " + centre[0] + " " + centre[1]);
+			assertEquals(Material.AIR, at(centre[0], floorY + 9, centre[1]),
+					"the pad at " + centre[0] + " " + centre[1] + " still has hillside hanging over it");
+		}
+	}
+
+	@Test
+	void theWatchtowerIsTheTallestThingOnTheIsland() {
+		int tallest = Integer.MIN_VALUE;
+		int tallestX = 0;
+		int tallestZ = 0;
+
+		for (Placement placement : plan.placements()) {
+			// Balloons float; they are not built on anything.
+			if (placement.material().standable() && placement.y() > tallest
+					&& placement.y() < SEA + LobbyBuilder.summit() + 30) {
+				tallest = placement.y();
+				tallestX = placement.x();
+				tallestZ = placement.z();
+			}
+		}
+
+		assertTrue(tallest > SEA + LobbyBuilder.summit(),
+				"nothing is built above the plaza, so there is no skyline at all");
+		assertTrue(Math.hypot(tallestX, tallestZ) > 20.0D,
+				"the tallest thing is at " + tallestX + " " + tallestZ + ", which is not out where the "
+						+ "watchtower was put");
+	}
+
+	@Test
+	void thePathsReachFromThePlazaToTheTown() {
+		// Each ramp has to actually cover ground. They came out with zero length once, because the
+		// buildings were close enough to the plaza that the two ends met.
+		int floorY = SEA + LobbyBuilder.terrace();
+		int found = 0;
+
+		for (int[] centre : townCentres()) {
+			int x = centre[0] / 2;
+			int z = centre[1] / 2;
+			boolean solid = false;
+
+			for (int y = floorY; y <= SEA + LobbyBuilder.summit(); y++) {
+				if (at(x, y, z).standable()) {
+					solid = true;
+					break;
+				}
+			}
+
+			if (solid) {
+				found++;
+			}
+		}
+
+		assertEquals(4, found, "there is no way to walk between the plaza and the town on every side");
+	}
+
+	@Test
+	void theCliffsAreCutOutOfMoreThanOneKindOfRock() {
+		// A twenty block cliff of plain stone is a wall. This is what makes it read as a cliff.
+		Set<Material> rock = new HashSet<>();
+
+		for (Placement placement : plan.placements()) {
+			switch (placement.material()) {
+				case STONE, ANDESITE, GRANITE, DIORITE, TUFF, DEEPSLATE -> rock.add(placement.material());
+				default -> {
+				}
+			}
+		}
+
+		assertTrue(rock.size() >= 5, "the ground is made of " + rock + ", which is not much of a cliff");
+	}
+
+	@Test
+	void theIslandIsBuiltOutOfAWholePalette() {
+		Set<Material> used = new HashSet<>();
+
+		for (Placement placement : plan.placements()) {
+			used.add(placement.material());
+		}
+
+		assertTrue(used.size() > 45,
+				"the island uses " + used.size() + " kinds of block, which is a lot of grey");
+	}
+
 	// ---------------------------------------------------------------- the built
 
 	@Test
