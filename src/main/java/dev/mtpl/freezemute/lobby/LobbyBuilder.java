@@ -172,9 +172,12 @@ public final class LobbyBuilder {
 
 		Course course = site.course();
 
-		// Facing the pedestal, so the first thing anybody sees is the thing they are meant to click.
-		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ - 1.5D, 0.0F, 0.0F);
-		Spot queuePoint = new Spot(pedestalX + 0.5D, pedestalY + 1.0D, pedestalZ + 0.5D, 180.0F, 0.0F);
+		// Facing each other. The pedestal is north of the spawn, so somebody arriving looks north
+		// - yaw 180 - and the figure on it looks south, at them. Both were the other way round,
+		// which put the first thing anybody was meant to see behind them and gave the figure its
+		// back to the whole plaza.
+		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ - 1.5D, 180.0F, 0.0F);
+		Spot queuePoint = new Spot(pedestalX + 0.5D, pedestalY + 1.0D, pedestalZ + 0.5D, 0.0F, 0.0F);
 
 		return new Plan(List.copyOf(site.order), spawn, queuePoint, course, List.copyOf(site.balloonCentres));
 	}

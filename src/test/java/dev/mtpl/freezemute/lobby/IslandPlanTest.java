@@ -182,6 +182,32 @@ class IslandPlanTest {
 		assertEquals(Material.AIR, at(point.x(), point.y() + 1, point.z()));
 	}
 
+	/** The yaw somebody at {@code from} needs in order to be looking at {@code to}. */
+	private static double yawTowards(Spot from, Spot to) {
+		double yaw = Math.toDegrees(-Math.atan2(to.x() - from.x(), to.z() - from.z()));
+		return (yaw + 360.0D) % 360.0D;
+	}
+
+	private static double yawGap(double a, double b) {
+		double gap = Math.abs((a % 360.0D + 360.0D) % 360.0D - (b % 360.0D + 360.0D) % 360.0D);
+		return Math.min(gap, 360.0D - gap);
+	}
+
+	@Test
+	void theSpawnAndTheFigureLookAtEachOther() {
+		Spot spawn = plan.spawn();
+		Spot point = plan.queuePoint();
+
+		// Somebody arriving should be looking at the thing they are meant to walk up to, and the
+		// figure standing on it should not have its back to them. Both were the wrong way round.
+		assertTrue(yawGap(spawn.yaw(), yawTowards(spawn, point)) < 30.0D,
+				"somebody arriving faces " + spawn.yaw() + " and the pedestal is at "
+						+ (int) yawTowards(spawn, point));
+		assertTrue(yawGap(point.yaw(), yawTowards(point, spawn)) < 30.0D,
+				"the figure faces " + point.yaw() + " and the spawn is at "
+						+ (int) yawTowards(point, spawn));
+	}
+
 	@Test
 	void theQueuePointIsWithinReachOfTheSpawn() {
 		Spot spawn = plan.spawn();
