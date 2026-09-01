@@ -3,12 +3,14 @@ package dev.mtpl.freezemute.command;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 
+import dev.mtpl.freezemute.FreezeMute;
 import dev.mtpl.freezemute.FreezeMuteConfig;
 import dev.mtpl.freezemute.lobby.Course;
 import dev.mtpl.freezemute.lobby.LobbyBuilder;
@@ -207,11 +209,44 @@ public final class LobbyCommand {
 			return 0;
 		}
 
-		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
-		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre);
+		if (LobbyBuilder.building()) {
+			source.sendError(Messages.failure("An island is still going down (" + LobbyBuilder.progress()
+					+ "%). Wait for it to finish before starting another."));
+			return 0;
+		}
 
-		// Anybody standing in the room just had the ground replaced under them, and the spawn has
-		// moved. Putting them on the new one is kinder than letting them find the void.
+		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
+		UUID commander = player == null ? null : player.getUuid();
+
+		// Everything that moves people runs when the last block is down, not now. Now there is
+		// nothing under the new spawn to put them on.
+		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre,
+				() -> landEverybody(server, lobby, commander));
+
+		source.sendFeedback(() -> Messages.success("Laying the island: " + result.blocks()
+				+ " blocks, spawn at " + result.spawn().describe() + "."), true);
+		source.sendFeedback(() -> Messages.listEntry("  it goes down over the next few seconds rather than "
+				+ "all at once, so the server keeps running while it does"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
+				+ result.queuePoint().describe() + " - stand an NPC on it if you like, or leave it bare"), false);
+		source.sendFeedback(() -> Messages.listEntry("  players right click there to join the queue; "
+				+ "arriving in the lobby no longer queues them on its own"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the parkour course '" + result.course().name() + "' has "
+				+ result.course().checkpoints().size() + " checkpoints - /lobby course top "
+				+ result.course().name() + " for the times"), false);
+
+		return result.blocks();
+	}
+
+	/**
+	 * Puts everybody who was watching it go up on top of it, once it is up.
+	 *
+	 * <p>Members had the ground replaced under them and the spawn moved out from under them.
+	 * Whoever ran the command is moved too: it asks them to stand where they want the top of the
+	 * island, and the top of the island is a solid block, so leaving them there leaves them inside
+	 * it. They are staff, so the member loop does not reach them.
+	 */
+	private static void landEverybody(MinecraftServer server, ServerWorld lobby, UUID commander) {
 		int moved = 0;
 
 		for (ServerPlayerEntity waiting : server.getPlayerManager().getPlayerList()) {
@@ -221,34 +256,20 @@ public final class LobbyCommand {
 			}
 		}
 
-		// Including whoever ran it. The plaza floor goes exactly where they were standing - the
-		// command asks them to stand where they want the top of the island, and that is what the
-		// top of the island is made of - so leaving them there leaves them inside it. They are
-		// staff, so nothing above moved them.
-		if (player != null && !LobbyManager.isMember(player)) {
-			Spot landing = result.spawn();
-			player.teleport(lobby, landing.x(), landing.y(), landing.z(), Set.<PositionFlag>of(),
-					landing.yaw(), landing.pitch(), true);
+		if (commander != null) {
+			ServerPlayerEntity player = server.getPlayerManager().getPlayer(commander);
+
+			if (player != null && !LobbyManager.isMember(player) && LobbyManager.isInLobby(player)) {
+				Spot landing = LobbyState.get().spawn();
+				player.teleport(lobby, landing.x(), landing.y(), landing.z(), Set.<PositionFlag>of(),
+						landing.yaw(), landing.pitch(), true);
+				player.sendMessage(Messages.success("The island is finished."));
+			}
 		}
 
-		int shifted = moved;
-
-		source.sendFeedback(() -> Messages.success("Built the island: " + result.blocks() + " blocks, spawn at "
-				+ result.spawn().describe() + "."), true);
-		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
-				+ result.queuePoint().describe() + " - stand an NPC on it if you like, or leave it bare"), false);
-		source.sendFeedback(() -> Messages.listEntry("  players right click there to join the queue; "
-				+ "arriving in the lobby no longer queues them on its own"), false);
-		source.sendFeedback(() -> Messages.listEntry("  the parkour course '" + result.course().name() + "' has "
-				+ result.course().checkpoints().size() + " checkpoints - /lobby course top "
-				+ result.course().name() + " for the times"), false);
-
-		if (shifted > 0) {
-			source.sendFeedback(() -> Messages.listEntry("  " + shifted
-					+ " player(s) were in the room and have been put on the new spawn"), false);
+		if (moved > 0) {
+			FreezeMute.LOGGER.info("Lobby: put {} player(s) on the new spawn", moved);
 		}
-
-		return result.blocks();
 	}
 
 	private static int setQueuePoint(ServerCommandSource source) {

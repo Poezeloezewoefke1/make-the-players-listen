@@ -94,7 +94,19 @@ public final class LobbyBuilder {
 		return new Plan(List.copyOf(site.order), spawn, queuePoint, course);
 	}
 
-	public static Result build(ServerWorld world, Spot centre) {
+	/** The build in progress, or null. One at a time: two islands in one place is neither. */
+	private static volatile BuildJob job;
+
+	/**
+	 * Starts laying an island, and returns straight away.
+	 *
+	 * <p>The plan is worked out in full here - it is a list, and cheap - but the blocks are laid a
+	 * slice per tick by {@link #tickBuild}. See {@link BuildJob} for why. The spawn, the queue
+	 * point and the course are recorded now, because they are the answer to "where will things
+	 * be" and the command has to be able to say so; what waits for the last block is moving
+	 * anybody onto them.
+	 */
+	public static Result build(ServerWorld world, Spot centre, Runnable whenDone) {
 		int originX = (int) Math.floor(centre.x());
 		int originZ = (int) Math.floor(centre.z());
 		// The plaza is where the player stands, so the water sits SUMMIT below it.
@@ -102,21 +114,52 @@ public final class LobbyBuilder {
 
 		Plan plan = plan(originX, originZ, sea);
 
-		for (Placement placement : plan.placements()) {
-			world.setBlockState(new BlockPos(placement.x(), placement.y(), placement.z()),
-					block(placement.material()).getDefaultState());
-		}
-
 		LobbyState state = LobbyState.get();
 		state.setSpawn(plan.spawn());
 		state.setQueuePoint(plan.queuePoint());
 		state.putCourse(plan.course());
 
-		FreezeMute.LOGGER.info("Lobby: built the island at {} {} {} - {} blocks, spawn {}, queue point {}",
+		job = new BuildJob(world, plan.placements(), LobbyBuilder::lay, whenDone);
+
+		FreezeMute.LOGGER.info("Lobby: laying an island at {} {} {} - {} blocks, spawn {}, queue point {}",
 				originX, sea, originZ, plan.placements().size(), plan.spawn().describe(),
 				plan.queuePoint().describe());
 
 		return new Result(plan.placements().size(), plan.spawn(), plan.queuePoint(), plan.course());
+	}
+
+	/** True while an island is still going down. */
+	public static boolean building() {
+		return job != null;
+	}
+
+	/** How far along, for something a person is watching. */
+	public static int progress() {
+		BuildJob current = job;
+		return current == null ? 100 : current.percent();
+	}
+
+	/** One slice. Called every tick; does nothing when there is no build running. */
+	public static void tickBuild() {
+		BuildJob current = job;
+
+		if (current == null) {
+			return;
+		}
+
+		current.tick();
+
+		if (current.done()) {
+			// Cleared before the completion runs, so anything it does sees a finished island
+			// rather than one still officially in progress.
+			job = null;
+			current.finish();
+		}
+	}
+
+	private static void lay(Object world, Placement placement) {
+		((ServerWorld) world).setBlockState(new BlockPos(placement.x(), placement.y(), placement.z()),
+				block(placement.material()).getDefaultState());
 	}
 
 	/** The only place in the island that knows what a Minecraft block is. */
@@ -124,33 +167,107 @@ public final class LobbyBuilder {
 		return switch (material) {
 			case AIR -> Blocks.AIR;
 			case WATER -> Blocks.WATER;
+
 			case STONE -> Blocks.STONE;
+			case COBBLESTONE -> Blocks.COBBLESTONE;
+			case MOSSY_COBBLESTONE -> Blocks.MOSSY_COBBLESTONE;
 			case ANDESITE -> Blocks.ANDESITE;
 			case POLISHED_ANDESITE -> Blocks.POLISHED_ANDESITE;
+			case DIORITE -> Blocks.DIORITE;
+			case POLISHED_DIORITE -> Blocks.POLISHED_DIORITE;
+			case GRANITE -> Blocks.GRANITE;
+			case POLISHED_GRANITE -> Blocks.POLISHED_GRANITE;
 			case SMOOTH_STONE -> Blocks.SMOOTH_STONE;
-			case MOSSY_COBBLESTONE -> Blocks.MOSSY_COBBLESTONE;
+			case STONE_BRICKS -> Blocks.STONE_BRICKS;
+			case MOSSY_STONE_BRICKS -> Blocks.MOSSY_STONE_BRICKS;
+			case CRACKED_STONE_BRICKS -> Blocks.CRACKED_STONE_BRICKS;
+			case CHISELED_STONE_BRICKS -> Blocks.CHISELED_STONE_BRICKS;
+			case DEEPSLATE -> Blocks.DEEPSLATE;
+			case POLISHED_DEEPSLATE -> Blocks.POLISHED_DEEPSLATE;
+			case DEEPSLATE_BRICKS -> Blocks.DEEPSLATE_BRICKS;
+			case TUFF -> Blocks.TUFF;
+			case CALCITE -> Blocks.CALCITE;
+			case BLACKSTONE -> Blocks.BLACKSTONE;
+			case POLISHED_BLACKSTONE -> Blocks.POLISHED_BLACKSTONE;
+			case POLISHED_BLACKSTONE_BRICKS -> Blocks.POLISHED_BLACKSTONE_BRICKS;
+			case BRICKS -> Blocks.BRICKS;
+
 			case DIRT -> Blocks.DIRT;
+			case COARSE_DIRT -> Blocks.COARSE_DIRT;
+			case PODZOL -> Blocks.PODZOL;
 			case GRASS -> Blocks.GRASS_BLOCK;
+			case MOSS_BLOCK -> Blocks.MOSS_BLOCK;
 			case SAND -> Blocks.SAND;
-			case JUNGLE_LOG -> Blocks.JUNGLE_LOG;
-			case JUNGLE_LEAVES -> Blocks.JUNGLE_LEAVES;
+			case SANDSTONE -> Blocks.SANDSTONE;
+			case SMOOTH_SANDSTONE -> Blocks.SMOOTH_SANDSTONE;
+			case GRAVEL -> Blocks.GRAVEL;
+			case CLAY -> Blocks.CLAY;
+
 			case OAK_LOG -> Blocks.OAK_LOG;
 			case OAK_PLANKS -> Blocks.OAK_PLANKS;
 			case OAK_FENCE -> Blocks.OAK_FENCE;
+			case OAK_LEAVES -> Blocks.OAK_LEAVES;
+			case STRIPPED_OAK_LOG -> Blocks.STRIPPED_OAK_LOG;
+			case SPRUCE_LOG -> Blocks.SPRUCE_LOG;
+			case SPRUCE_PLANKS -> Blocks.SPRUCE_PLANKS;
+			case SPRUCE_FENCE -> Blocks.SPRUCE_FENCE;
+			case SPRUCE_LEAVES -> Blocks.SPRUCE_LEAVES;
+			case DARK_OAK_LOG -> Blocks.DARK_OAK_LOG;
+			case DARK_OAK_PLANKS -> Blocks.DARK_OAK_PLANKS;
+			case BIRCH_LOG -> Blocks.BIRCH_LOG;
+			case BIRCH_PLANKS -> Blocks.BIRCH_PLANKS;
+			case BIRCH_LEAVES -> Blocks.BIRCH_LEAVES;
+			case JUNGLE_LOG -> Blocks.JUNGLE_LOG;
+			case JUNGLE_PLANKS -> Blocks.JUNGLE_PLANKS;
+			case JUNGLE_LEAVES -> Blocks.JUNGLE_LEAVES;
+			case BOOKSHELF -> Blocks.BOOKSHELF;
+
 			case WHITE_CONCRETE -> Blocks.WHITE_CONCRETE;
 			case RED_CONCRETE -> Blocks.RED_CONCRETE;
+			case BLUE_CONCRETE -> Blocks.BLUE_CONCRETE;
+			case YELLOW_CONCRETE -> Blocks.YELLOW_CONCRETE;
+			case ORANGE_CONCRETE -> Blocks.ORANGE_CONCRETE;
+			case LIME_CONCRETE -> Blocks.LIME_CONCRETE;
+			case BLACK_CONCRETE -> Blocks.BLACK_CONCRETE;
 			case WHITE_WOOL -> Blocks.WHITE_WOOL;
 			case RED_WOOL -> Blocks.RED_WOOL;
 			case BLUE_WOOL -> Blocks.BLUE_WOOL;
 			case ORANGE_WOOL -> Blocks.ORANGE_WOOL;
 			case YELLOW_WOOL -> Blocks.YELLOW_WOOL;
+			case GREEN_WOOL -> Blocks.GREEN_WOOL;
+			case PURPLE_WOOL -> Blocks.PURPLE_WOOL;
+			case WHITE_TERRACOTTA -> Blocks.WHITE_TERRACOTTA;
+			case ORANGE_TERRACOTTA -> Blocks.ORANGE_TERRACOTTA;
+			case RED_TERRACOTTA -> Blocks.RED_TERRACOTTA;
+
+			case PRISMARINE -> Blocks.PRISMARINE;
+			case PRISMARINE_BRICKS -> Blocks.PRISMARINE_BRICKS;
+			case DARK_PRISMARINE -> Blocks.DARK_PRISMARINE;
+			case COPPER_BLOCK -> Blocks.COPPER_BLOCK;
+			case OXIDIZED_COPPER -> Blocks.OXIDIZED_COPPER;
+			case CUT_COPPER -> Blocks.CUT_COPPER;
+
 			case SEA_LANTERN -> Blocks.SEA_LANTERN;
-			case POLISHED_BLACKSTONE -> Blocks.POLISHED_BLACKSTONE;
-			case POLISHED_BLACKSTONE_BRICKS -> Blocks.POLISHED_BLACKSTONE_BRICKS;
+			case GLOWSTONE -> Blocks.GLOWSTONE;
+			case SHROOMLIGHT -> Blocks.SHROOMLIGHT;
+			case OCHRE_FROGLIGHT -> Blocks.OCHRE_FROGLIGHT;
+			case VERDANT_FROGLIGHT -> Blocks.VERDANT_FROGLIGHT;
+
+			case GLASS -> Blocks.GLASS;
+			case WHITE_STAINED_GLASS -> Blocks.WHITE_STAINED_GLASS;
+			case LIGHT_BLUE_STAINED_GLASS -> Blocks.LIGHT_BLUE_STAINED_GLASS;
+			case BROWN_STAINED_GLASS -> Blocks.BROWN_STAINED_GLASS;
+
 			case QUARTZ -> Blocks.QUARTZ_BLOCK;
+			case CHISELED_QUARTZ -> Blocks.CHISELED_QUARTZ_BLOCK;
+			case QUARTZ_BRICKS -> Blocks.QUARTZ_BRICKS;
 			case GOLD -> Blocks.GOLD_BLOCK;
 			case EMERALD -> Blocks.EMERALD_BLOCK;
 			case DIAMOND -> Blocks.DIAMOND_BLOCK;
+			case AMETHYST -> Blocks.AMETHYST_BLOCK;
+			case LAPIS -> Blocks.LAPIS_BLOCK;
+			case IRON -> Blocks.IRON_BLOCK;
+			case HAY -> Blocks.HAY_BLOCK;
 		};
 	}
 

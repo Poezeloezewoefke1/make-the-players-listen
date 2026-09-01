@@ -54,6 +54,10 @@ public final class LobbyTicker {
 		boolean display = ticks % DISPLAY_EVERY == 0;
 		long now = System.currentTimeMillis();
 
+		// An island still going down, before anything else looks at the room. Nothing below has
+		// anywhere sensible to stand until it is finished.
+		LobbyBuilder.tickBuild();
+
 		// The room, before the switch. Everything below this belongs to the queue and is off when
 		// the queue is off; the floor under a void world is not - somebody standing in that room
 		// can fall out of it whether or not anybody is being routed anywhere, and the routing is
