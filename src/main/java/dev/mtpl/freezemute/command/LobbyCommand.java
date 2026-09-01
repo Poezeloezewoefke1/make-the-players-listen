@@ -182,14 +182,20 @@ public final class LobbyCommand {
 	 */
 	private static int explainGenerate(ServerCommandSource source) {
 		source.sendFeedback(() -> Messages.header("This will build an island"), false);
-		source.sendFeedback(() -> Messages.listEntry("  tiered ground with cliffs, a beach and a lagoon "
-				+ "around it, palms, rocks, a jetty, a lighthouse, a shelter and balloons overhead"), false);
-		source.sendFeedback(() -> Messages.listEntry("  a plaza on top with a pedestal for an NPC, "
-				+ "and a parkour course spiralling up off it"), false);
-		source.sendFeedback(() -> Messages.listEntry("  it replaces everything within about 36 blocks "
-				+ "of you, and moves the lobby spawn and the queue point"), false);
-		source.sendFeedback(() -> Messages.listEntry("  the water sits 12 blocks below where you stand, "
-				+ "so stand where you want the top of the island"), false);
+		source.sendFeedback(() -> Messages.listEntry("  five terraces of ground with banded cliffs between "
+				+ "them, a beach, and a lagoon all the way round"), false);
+		source.sendFeedback(() -> Messages.listEntry("  a town on the terrace: a great hall, a watchtower, "
+				+ "a market with striped canopies, and hedged gardens, with stepped paths up to the plaza"), false);
+		source.sendFeedback(() -> Messages.listEntry("  a plaza on top with a fountain, a ring of lamps, "
+				+ "and a pedestal with an NPC standing on it"), false);
+		source.sendFeedback(() -> Messages.listEntry("  palms, rock outcrops, a jetty, a lighthouse, a "
+				+ "shelter, hot air balloons overhead, and a parkour course spiralling up off the plaza"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it replaces everything within about "
+				+ LobbyBuilder.reach() + " blocks of you, and moves the lobby spawn and the queue point"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the water sits " + LobbyBuilder.summit()
+				+ " blocks below where you stand, so stand where you want the top of the island"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it is a few hundred thousand blocks and goes down "
+				+ "over a few seconds, a slice per tick, so the server keeps running while it does"), false);
 		source.sendFeedback(() -> Messages.failure("Run /lobby generate confirm if that is what you want."), false);
 		return 1;
 	}

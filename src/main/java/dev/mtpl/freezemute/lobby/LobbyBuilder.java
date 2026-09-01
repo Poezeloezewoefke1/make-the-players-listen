@@ -29,12 +29,24 @@ public final class LobbyBuilder {
 	/** Water surface, relative to the middle of the build. */
 	private static final int SEA = 0;
 	/** How far the shoreline reaches before the wobble is added. */
-	private static final double COAST = 26.0D;
+	private static final double COAST = 58.0D;
 	/** The lagoon and the shoal that holds it in. */
-	private static final int WATER_RADIUS = 36;
+	private static final int WATER_RADIUS = 78;
 	/** Height of the flat top the plaza sits on, above the water. */
-	private static final int SUMMIT = 12;
-	private static final int PLAZA_RADIUS = 8;
+	private static final int SUMMIT = 20;
+	private static final int PLAZA_RADIUS = 12;
+	/** The terrace one step down from the plaza, where most of the town stands. */
+	private static final int TERRACE = 13;
+	/**
+	 * How far out from the middle the four town buildings sit.
+	 *
+	 * <p>On the diagonals, so each one has a clear run back to a corner of the plaza. Far enough
+	 * out that a building pad clears the plaza rim, near enough in that the far edge of a pad is
+	 * still well inside the closest the shore ever comes. {@code IslandPlanTest} holds both ends
+	 * of that to account.
+	 */
+	private static final int TOWN_OUT = 24;
+	private static final int TOWN_PAD = 11;
 
 	private static final int COURSE_STEPS = 24;
 	private static final double COURSE_RING = 19.0D;
@@ -45,6 +57,19 @@ public final class LobbyBuilder {
 	private LobbyBuilder() {
 	}
 
+	/**
+	 * How far above the water the plaza sits, which is also how far below the command's feet the
+	 * sea ends up. The command tells people to stand where they want the top of the island.
+	 */
+	public static int summit() {
+		return SUMMIT;
+	}
+
+	/** How far out the build reaches. Everything inside this is replaced. */
+	public static int reach() {
+		return WATER_RADIUS;
+	}
+
 	/** What a build did, so the command can say something useful. */
 	public record Result(int blocks, Spot spawn, Spot queuePoint, Course course) {
 	}
@@ -53,8 +78,16 @@ public final class LobbyBuilder {
 	public record Placement(int x, int y, int z, Material material) {
 	}
 
-	/** Everything a build decided, before any of it touches a world. */
-	public record Plan(List<Placement> placements, Spot spawn, Spot queuePoint, Course course) {
+	/**
+	 * Everything a build decided, before any of it touches a world.
+	 *
+	 * <p>{@code balloons} is where the middle of each one ended up. It is carried because there is
+	 * no other honest way to find them afterwards: they are made of wool, and so are the market
+	 * canopies and the flower beds, so a test that went looking for wool would be checking the
+	 * height of a market stall and calling it a balloon.
+	 */
+	public record Plan(List<Placement> placements, Spot spawn, Spot queuePoint, Course course,
+			List<Spot> balloons) {
 	}
 
 	/**
@@ -71,27 +104,45 @@ public final class LobbyBuilder {
 		Random random = new Random(originX * 341873128712L + originZ * 132897987541L);
 		Site site = new Site(originX, originZ, sea, random);
 
+		// Order is load bearing. Everything that levels its own footing also clears the sky above
+		// it, so anything placed before it in the same column is wiped: the ground first, then the
+		// things that flatten it, then the paths joining them, and only then the trees, the rocks
+		// and the trimmings that have to survive. Water is last of all, once every wall that holds
+		// it is standing.
 		site.ground();
+
+		site.greatHall(-TOWN_OUT, TOWN_OUT);
+		site.market(TOWN_OUT, TOWN_OUT);
+		site.watchtower(TOWN_OUT, -TOWN_OUT);
+		site.gardens(-TOWN_OUT, -TOWN_OUT);
+
 		site.plaza();
+		site.townPaths();
+
 		site.palms();
 		site.rocks();
 		site.jetty();
 		site.lighthouse();
 		site.pavilion();
+		site.fountain(0, 6);
+		site.lamps();
 		site.balloons();
 		site.water();
 
+		// The plaza reads north to south: the pedestal somebody walks up to, the spot they arrive
+		// on, and the fountain behind it. Nothing overlaps the ring of lamps around the rim.
 		int pedestalX = originX;
 		int pedestalY = sea + SUMMIT + 1;
-		int pedestalZ = originZ - 5;
+		int pedestalZ = originZ - 7;
 		site.pedestal(pedestalX, pedestalY, pedestalZ);
 
 		Course course = site.course();
 
-		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ + 2.5D, 0.0F, 0.0F);
+		// Facing the pedestal, so the first thing anybody sees is the thing they are meant to click.
+		Spot spawn = new Spot(originX + 0.5D, sea + SUMMIT + 1.0D, originZ - 1.5D, 0.0F, 0.0F);
 		Spot queuePoint = new Spot(pedestalX + 0.5D, pedestalY + 1.0D, pedestalZ + 0.5D, 180.0F, 0.0F);
 
-		return new Plan(List.copyOf(site.order), spawn, queuePoint, course);
+		return new Plan(List.copyOf(site.order), spawn, queuePoint, course, List.copyOf(site.balloonCentres));
 	}
 
 	/** The build in progress, or null. One at a time: two islands in one place is neither. */
@@ -335,6 +386,8 @@ public final class LobbyBuilder {
 	/** One island being laid, holding the numbers every part of it needs. */
 	private static final class Site {
 		private final List<Placement> order = new ArrayList<>();
+		/** Where each balloon ended up, so the plan can say and a test can check. */
+		private final List<Spot> balloonCentres = new ArrayList<>();
 		/** The island as it stands so far, so a later step can ask what an earlier one left. */
 		private final Map<Long, Material> current = new HashMap<>();
 		private final int originX;
@@ -353,7 +406,12 @@ public final class LobbyBuilder {
 
 		/** How far the shore reaches in a direction. Wobbled, so the island is not a dinner plate. */
 		private double coastAt(double angle) {
-			return COAST + 4.5D * Math.sin(3.0D * angle + 0.6D) + 2.5D * Math.cos(5.0D * angle + 2.1D);
+			// Kept to about ten blocks either way on purpose. The town is laid out by number, and
+			// a shore that can swing thirty blocks would put a building pad over open water.
+			return COAST
+					+ 6.0D * Math.sin(3.0D * angle + 0.6D)
+					+ 3.0D * Math.cos(5.0D * angle + 2.1D)
+					+ 1.5D * Math.sin(8.0D * angle + 1.3D);
 		}
 
 		/**
@@ -373,19 +431,29 @@ public final class LobbyBuilder {
 			double inland = (coast - distance) / coast;
 			int height;
 
-			if (inland < 0.10D) {
+			// Five steps rather than three, so the island reads as terraces with cliffs between
+			// them - a town needs flat ground to stand on, and more than one level of it.
+			if (inland < 0.07D) {
 				height = 1;
-			} else if (inland < 0.34D) {
-				height = 5;
-			} else if (inland < 0.62D) {
+			} else if (inland < 0.20D) {
+				height = 4;
+			} else if (inland < 0.36D) {
 				height = 9;
+			} else if (inland < 0.54D) {
+				height = TERRACE;
 			} else {
 				height = SUMMIT;
 			}
 
 			// A little roughness, so the cliff edges are not drawn with a compass.
-			height += (int) Math.round(1.4D * Math.sin(dx * 0.42D) * Math.cos(dz * 0.37D));
+			height += (int) Math.round(1.6D * Math.sin(dx * 0.42D) * Math.cos(dz * 0.37D));
 			return sea + Math.max(1, height);
+		}
+
+		/** Flat enough to put a building on, and high enough to be out of the surf. */
+		private boolean buildable(int dx, int dz, int wantedHeight, int tolerance) {
+			int top = groundAt(dx, dz);
+			return top != Integer.MIN_VALUE && Math.abs(top - (sea + wantedHeight)) <= tolerance;
 		}
 
 		private boolean beach(int dx, int dz) {
@@ -425,23 +493,514 @@ public final class LobbyBuilder {
 		private int land(int dx, int dz, int top, boolean beach) {
 			double distance = Math.sqrt(dx * dx + dz * dz);
 			// The underside tapers, so the island reads as floating rather than sawn off.
-			int bottom = sea - 4 - (int) Math.round(8.0D * Math.max(0.0D, 1.0D - distance / COAST));
+			int bottom = sea - 6 - (int) Math.round(14.0D * Math.max(0.0D, 1.0D - distance / COAST));
 			int placed = 0;
+			// One number per column, so a band of granite runs in a seam rather than speckling.
+			double seam = Math.sin(dx * 0.11D) * Math.cos(dz * 0.13D);
 
 			for (int y = bottom; y <= top; y++) {
 				Material block;
 
 				if (y == top) {
-					block = beach ? Material.SAND : Material.GRASS;
+					block = beach ? Material.SAND : grassAt(dx, dz, top);
 				} else if (y >= top - 2) {
 					block = beach ? Material.SAND : Material.DIRT;
-				} else if (y <= bottom + 1) {
-					block = Material.ANDESITE;
 				} else {
-					block = Material.STONE;
+					block = rock(y, bottom, seam);
 				}
 
 				placed += set(dx, y, dz, block);
+			}
+
+			return placed;
+		}
+
+		/**
+		 * What the top of a column is when it is not beach.
+		 *
+		 * <p>Grass everywhere would read as a golf course. The high ground gets podzol and coarse
+		 * dirt in patches, and moss where it is damp near the cliffs, so the terraces have some
+		 * texture to them from above.
+		 */
+		private Material grassAt(int dx, int dz, int top) {
+			double patch = Math.sin(dx * 0.21D + 1.1D) * Math.cos(dz * 0.19D - 0.4D);
+			int above = top - sea;
+
+			if (above >= TERRACE && patch > 0.62D) {
+				return Material.PODZOL;
+			}
+
+			if (above >= 9 && patch < -0.72D) {
+				return Material.COARSE_DIRT;
+			}
+
+			if (above <= 5 && patch > 0.78D) {
+				return Material.MOSS_BLOCK;
+			}
+
+			return Material.GRASS;
+		}
+
+		/**
+		 * The rock a cliff face is cut out of.
+		 *
+		 * <p>Banded by depth so an exposed cliff shows strata - deepslate at the roots, tuff and
+		 * andesite through the middle, stone up top - with seams of granite and diorite running
+		 * through it. A cliff of plain stone twenty blocks high is a wall, not a cliff.
+		 */
+		private Material rock(int y, int bottom, double seam) {
+			int depth = y - bottom;
+
+			if (depth <= 2) {
+				return Material.DEEPSLATE;
+			}
+
+			if (depth <= 5) {
+				return seam > 0.55D ? Material.TUFF : Material.DEEPSLATE;
+			}
+
+			if (y < sea - 1) {
+				return seam < -0.6D ? Material.TUFF : Material.ANDESITE;
+			}
+
+			if (seam > 0.72D) {
+				return Material.GRANITE;
+			}
+
+			if (seam < -0.78D) {
+				return Material.DIORITE;
+			}
+
+			return y > sea + 8 && seam > 0.35D ? Material.ANDESITE : Material.STONE;
+		}
+
+		// --------------------------------------------------------- the town
+
+		/**
+		 * Levels a patch of ground to one height and clears the sky above it.
+		 *
+		 * <p>The terraces are shaped by noise, so a building dropped on raw ground would stand
+		 * half buried in a cliff and half over a drop. Every structure levels its own footing
+		 * first - which is what anybody would do before building - and that is what lets the town
+		 * be laid out by name and number without caring where the noise put the hillside.
+		 *
+		 * <p>The fill goes down until it meets something solid, so a pad over a dip gets legs
+		 * rather than floating.
+		 */
+		private int pad(int cx, int cz, int radius, int floorY, Material surface, Material fill) {
+			int placed = 0;
+
+			for (int dx = -radius; dx <= radius; dx++) {
+				for (int dz = -radius; dz <= radius; dz++) {
+					if (Math.sqrt(dx * dx + dz * dz) > radius + 0.5D) {
+						continue;
+					}
+
+					int x = cx + dx;
+					int z = cz + dz;
+					placed += set(x, floorY, z, surface);
+
+					for (int y = floorY - 1; y > floorY - 26; y--) {
+						if (materialAt(originX + x, y, originZ + z).standable()) {
+							break;
+						}
+
+						placed += set(x, y, z, fill);
+					}
+
+					for (int y = floorY + 1; y <= sea + SUMMIT + 10; y++) {
+						placed += set(x, y, z, Material.AIR);
+					}
+				}
+			}
+
+			return placed;
+		}
+
+		/** A rectangular room: walls, a floor, a roof and a hollow middle. */
+		private int room(int cx, int cz, int floorY, int halfX, int halfZ, int height,
+				Material wall, Material corner, Material floor, Material roof) {
+			int placed = 0;
+
+			for (int dx = -halfX; dx <= halfX; dx++) {
+				for (int dz = -halfZ; dz <= halfZ; dz++) {
+					boolean edge = Math.abs(dx) == halfX || Math.abs(dz) == halfZ;
+					boolean post = Math.abs(dx) == halfX && Math.abs(dz) == halfZ;
+
+					placed += set(cx + dx, floorY, cz + dz, floor);
+
+					for (int y = 1; y < height; y++) {
+						if (!edge) {
+							placed += set(cx + dx, floorY + y, cz + dz, Material.AIR);
+							continue;
+						}
+
+						placed += set(cx + dx, floorY + y, cz + dz, post ? corner : wall);
+					}
+
+					placed += set(cx + dx, floorY + height, cz + dz, roof);
+				}
+			}
+
+			return placed;
+		}
+
+		/** Knocks a doorway through a wall, two blocks high. */
+		private int doorway(int x, int floorY, int z, int width, boolean alongX) {
+			int placed = 0;
+
+			for (int offset = -width; offset <= width; offset++) {
+				for (int y = 1; y <= 2; y++) {
+					placed += set(alongX ? x + offset : x, floorY + y, alongX ? z : z + offset, Material.AIR);
+				}
+			}
+
+			return placed;
+		}
+
+		/** A window band punched along a wall, so a building is not a windowless box. */
+		private int windows(int cx, int cz, int floorY, int halfX, int halfZ, int atHeight, Material glass) {
+			int placed = 0;
+
+			for (int dx = -halfX + 2; dx <= halfX - 2; dx += 2) {
+				placed += set(cx + dx, floorY + atHeight, cz - halfZ, glass);
+				placed += set(cx + dx, floorY + atHeight, cz + halfZ, glass);
+			}
+
+			for (int dz = -halfZ + 2; dz <= halfZ - 2; dz += 2) {
+				placed += set(cx - halfX, floorY + atHeight, cz + dz, glass);
+				placed += set(cx + halfX, floorY + atHeight, cz + dz, glass);
+			}
+
+			return placed;
+		}
+
+		/**
+		 * The fountain on the plaza.
+		 *
+		 * <p>Water in a basin with a wall all the way round and a floor under it, for the same
+		 * reason the lagoon has a rim: an unwalled pool runs out across the plaza and keeps going.
+		 */
+		int fountain(int cx, int cz) {
+			int y = sea + SUMMIT;
+			int placed = 0;
+			int radius = 4;
+
+			for (int dx = -radius; dx <= radius; dx++) {
+				for (int dz = -radius; dz <= radius; dz++) {
+					double distance = Math.sqrt(dx * dx + dz * dz);
+
+					if (distance > radius + 0.5D) {
+						continue;
+					}
+
+					// The rim stands one block proud, so the water has something to sit behind.
+					if (distance > radius - 1) {
+						placed += set(cx + dx, y, cz + dz, Material.POLISHED_DIORITE);
+						placed += set(cx + dx, y + 1, cz + dz, Material.CHISELED_STONE_BRICKS);
+						continue;
+					}
+
+					placed += set(cx + dx, y, cz + dz, Material.PRISMARINE_BRICKS);
+					placed += set(cx + dx, y + 1, cz + dz, Material.WATER);
+				}
+			}
+
+			// A tiered centrepiece standing out of the water.
+			for (int step = 0; step < 4; step++) {
+				int spread = 2 - step / 2;
+
+				for (int dx = -spread; dx <= spread; dx++) {
+					for (int dz = -spread; dz <= spread; dz++) {
+						if (Math.abs(dx) + Math.abs(dz) > spread + 1) {
+							continue;
+						}
+
+						placed += set(cx + dx, y + 1 + step, cz + dz,
+								step == 3 ? Material.SEA_LANTERN : Material.QUARTZ_BRICKS);
+					}
+				}
+			}
+
+			// No source block perched on top of the centrepiece. It looks like a spout in a
+			// drawing and behaves like a burst pipe in a game: water on a column with nothing
+			// beside it runs off all four sides and keeps running.
+			return placed;
+		}
+
+		/**
+		 * The great hall on the terrace: the biggest thing on the island that is not the hill.
+		 */
+		int greatHall(int cx, int cz) {
+			int floorY = sea + TERRACE;
+			int placed = pad(cx, cz, TOWN_PAD, floorY, Material.STONE_BRICKS, Material.STONE);
+
+			placed += room(cx, cz, floorY, 9, 7, 8,
+					Material.STONE_BRICKS, Material.DARK_OAK_LOG, Material.DARK_OAK_PLANKS, Material.DARK_OAK_PLANKS);
+			placed += windows(cx, cz, floorY, 9, 7, 4, Material.LIGHT_BLUE_STAINED_GLASS);
+			placed += doorway(cx, floorY, cz + 7, 2, true);
+
+			// A pitched roof, laid in shrinking courses so it reads as a roof from outside.
+			for (int course = 0; course <= 8; course++) {
+				int halfX = 9 - course;
+				int halfZ = 7 - course;
+
+				if (halfX < 0 || halfZ < 0) {
+					break;
+				}
+
+				for (int dx = -halfX; dx <= halfX; dx++) {
+					for (int dz = -halfZ; dz <= halfZ; dz++) {
+						boolean edge = Math.abs(dx) == halfX || Math.abs(dz) == halfZ;
+						placed += set(cx + dx, floorY + 8 + course, cz + dz,
+								edge ? Material.DARK_OAK_LOG : Material.AIR);
+					}
+				}
+			}
+
+			// Pillars and lamps inside, so it is a hall rather than a shed.
+			for (int dx = -6; dx <= 6; dx += 6) {
+				for (int dz = -4; dz <= 4; dz += 4) {
+					for (int y = 1; y <= 6; y++) {
+						placed += set(cx + dx, floorY + y, cz + dz, Material.STRIPPED_OAK_LOG);
+					}
+
+					placed += set(cx + dx, floorY + 7, cz + dz, Material.SHROOMLIGHT);
+				}
+			}
+
+			for (int dx = -7; dx <= 7; dx += 2) {
+				placed += set(cx + dx, floorY + 1, cz - 6, Material.BOOKSHELF);
+				placed += set(cx + dx, floorY + 2, cz - 6, Material.BOOKSHELF);
+			}
+
+			return placed;
+		}
+
+		/** A tower worth climbing to, with a lit top that can be seen from the water. */
+		int watchtower(int cx, int cz) {
+			int floorY = sea + TERRACE;
+			int placed = pad(cx, cz, TOWN_PAD - 3, floorY, Material.COBBLESTONE, Material.STONE);
+			int height = 26;
+
+			for (int y = 0; y <= height; y++) {
+				int radius = y > height - 4 ? 5 : 4;
+
+				for (int dx = -radius; dx <= radius; dx++) {
+					for (int dz = -radius; dz <= radius; dz++) {
+						double distance = Math.sqrt(dx * dx + dz * dz);
+
+						if (distance > radius + 0.5D) {
+							continue;
+						}
+
+						if (distance > radius - 1) {
+							// The wall, banded so the tower has courses.
+							Material band = y % 6 == 0 ? Material.CHISELED_STONE_BRICKS
+									: y % 3 == 0 ? Material.MOSSY_STONE_BRICKS : Material.STONE_BRICKS;
+							placed += set(cx + dx, floorY + y, cz + dz, y > height - 2 ? Material.STONE_BRICKS : band);
+							continue;
+						}
+
+						placed += set(cx + dx, floorY + y, cz + dz, y == 0 ? Material.POLISHED_ANDESITE
+								: y == height ? Material.SEA_LANTERN : Material.AIR);
+					}
+				}
+			}
+
+			placed += doorway(cx, floorY, cz + 4, 1, true);
+
+			// Slit windows up the shaft, on alternating sides.
+			for (int y = 5; y < height - 5; y += 5) {
+				placed += set(cx + 4, floorY + y, cz, Material.GLASS);
+				placed += set(cx - 4, floorY + y + 2, cz, Material.GLASS);
+				placed += set(cx, floorY + y, cz + 4, Material.GLASS);
+				placed += set(cx, floorY + y + 2, cz - 4, Material.GLASS);
+			}
+
+			// A banner-coloured cap, so it is the thing you look for from anywhere on the island.
+			for (int dx = -2; dx <= 2; dx++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					if (Math.abs(dx) + Math.abs(dz) > 3) {
+						continue;
+					}
+
+					placed += set(cx + dx, floorY + height + 1, cz + dz, Material.RED_CONCRETE);
+					placed += set(cx + dx, floorY + height + 2, cz + dz,
+							Math.abs(dx) + Math.abs(dz) > 1 ? Material.AIR : Material.RED_CONCRETE);
+				}
+			}
+
+			placed += set(cx, floorY + height + 3, cz, Material.GOLD);
+			return placed;
+		}
+
+		/** A row of market stalls, each with a striped canopy on posts. */
+		int market(int cx, int cz) {
+			int floorY = sea + TERRACE;
+			int placed = pad(cx, cz, TOWN_PAD, floorY, Material.COBBLESTONE, Material.STONE);
+			Material[] cloth = { Material.RED_WOOL, Material.YELLOW_WOOL, Material.BLUE_WOOL,
+					Material.WHITE_WOOL, Material.GREEN_WOOL, Material.ORANGE_WOOL };
+
+			for (int stall = 0; stall < 4; stall++) {
+				int sx = cx - 5 + (stall % 2) * 10;
+				int sz = cz - 5 + (stall / 2) * 10;
+				Material canopy = cloth[stall];
+
+				for (int dx = -3; dx <= 3; dx++) {
+					for (int dz = -2; dz <= 2; dz++) {
+						boolean post = Math.abs(dx) == 3 && Math.abs(dz) == 2;
+
+						if (post) {
+							for (int y = 1; y <= 3; y++) {
+								placed += set(sx + dx, floorY + y, sz + dz, Material.SPRUCE_FENCE);
+							}
+						}
+
+						// The canopy, striped along its length.
+						placed += set(sx + dx, floorY + 4, sz + dz,
+								Math.abs(dx) % 2 == 0 ? canopy : Material.WHITE_WOOL);
+					}
+				}
+
+				// The counter, and something stacked behind it.
+				for (int dx = -2; dx <= 2; dx++) {
+					placed += set(sx + dx, floorY + 1, sz - 2, Material.SPRUCE_PLANKS);
+				}
+
+				placed += set(sx - 1, floorY + 1, sz + 1, Material.HAY);
+				placed += set(sx + 1, floorY + 1, sz + 1, Material.SPRUCE_LOG);
+				placed += set(sx, floorY + 5, sz, Material.OCHRE_FROGLIGHT);
+			}
+
+			return placed;
+		}
+
+		/**
+		 * Hedged beds of colour on the terrace.
+		 *
+		 * <p>Wool rather than flowers: a flower needs the right block under it and falls off if it
+		 * does not get one, and a bed of them planted by a plan that cannot see the world is a bed
+		 * of items on the floor by the time anybody arrives.
+		 */
+		int gardens(int cx, int cz) {
+			int floorY = sea + TERRACE;
+			int placed = pad(cx, cz, TOWN_PAD, floorY, Material.GRASS, Material.DIRT);
+			Material[] beds = { Material.RED_WOOL, Material.YELLOW_WOOL, Material.PURPLE_WOOL, Material.WHITE_WOOL };
+
+			for (int bed = 0; bed < 4; bed++) {
+				int bx = cx - 5 + (bed % 2) * 10;
+				int bz = cz - 5 + (bed / 2) * 10;
+
+				for (int dx = -3; dx <= 3; dx++) {
+					for (int dz = -3; dz <= 3; dz++) {
+						boolean edge = Math.abs(dx) == 3 || Math.abs(dz) == 3;
+
+						if (edge) {
+							placed += set(bx + dx, floorY + 1, bz + dz, Material.OAK_LEAVES);
+							continue;
+						}
+
+						boolean inner = Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+						placed += set(bx + dx, floorY, bz + dz, inner ? beds[bed] : Material.PODZOL);
+					}
+				}
+			}
+
+			// A lantern on a post in the middle of the beds.
+			for (int y = 1; y <= 3; y++) {
+				placed += set(cx, floorY + y, cz, Material.OAK_FENCE);
+			}
+
+			placed += set(cx, floorY + 4, cz, Material.SHROOMLIGHT);
+			return placed;
+		}
+
+		/**
+		 * A stepped ramp from one height to another, wide enough to walk up without thinking.
+		 *
+		 * <p>Built out of full blocks, one per step, because stairs would have to carry a facing
+		 * through the plan and the tests and this is a shape rather than a staircase.
+		 */
+		int steps(int fromX, int fromZ, int toX, int toZ, int fromY, int toY, int halfWidth, Material tread) {
+			int placed = 0;
+			double spanX = toX - fromX;
+			double spanZ = toZ - fromZ;
+			int length = (int) Math.ceil(Math.max(Math.abs(spanX), Math.abs(spanZ)));
+
+			if (length == 0) {
+				return 0;
+			}
+
+			for (int step = 0; step <= length; step++) {
+				double along = (double) step / length;
+				int x = fromX + (int) Math.round(spanX * along);
+				int z = fromZ + (int) Math.round(spanZ * along);
+				int y = fromY + (int) Math.round((toY - fromY) * along);
+				boolean acrossX = Math.abs(spanZ) > Math.abs(spanX);
+
+				for (int side = -halfWidth; side <= halfWidth; side++) {
+					int px = acrossX ? x + side : x;
+					int pz = acrossX ? z : z + side;
+
+					placed += set(px, y, pz, Math.abs(side) == halfWidth ? Material.POLISHED_ANDESITE : tread);
+
+					// Something under the tread wherever the hill has fallen away.
+					for (int under = y - 1; under > y - 20; under--) {
+						if (materialAt(originX + px, under, originZ + pz).standable()) {
+							break;
+						}
+
+						placed += set(px, under, pz, Material.STONE_BRICKS);
+					}
+
+					for (int over = 1; over <= 4; over++) {
+						placed += set(px, y + over, pz, Material.AIR);
+					}
+				}
+			}
+
+			return placed;
+		}
+
+		/**
+		 * The four ramps down from the plaza to the town.
+		 *
+		 * <p>Laid after the buildings and the plaza, because both of those flatten and clear
+		 * whatever is under them, and a path put down first would be the thing they cleared.
+		 */
+		int townPaths() {
+			int top = sea + SUMMIT;
+			int floor = sea + TERRACE;
+			int placed = 0;
+			int[][] corners = { { -1, 1 }, { 1, 1 }, { 1, -1 }, { -1, -1 } };
+
+			for (int[] corner : corners) {
+				// From just inside the plaza rim out to the near edge of the building pad.
+				int fromX = corner[0] * (PLAZA_RADIUS - 3);
+				int fromZ = corner[1] * (PLAZA_RADIUS - 3);
+				int toX = corner[0] * (TOWN_OUT - TOWN_PAD + 2);
+				int toZ = corner[1] * (TOWN_OUT - TOWN_PAD + 2);
+				placed += steps(fromX, fromZ, toX, toZ, top, floor, 2, Material.STONE_BRICKS);
+			}
+
+			return placed;
+		}
+
+		/** Lamp posts, so the island is not a dark shape at night. */
+		int lamps() {
+			int placed = 0;
+
+			for (int index = 0; index < 12; index++) {
+				double angle = index * Math.PI / 6.0D;
+				int x = (int) Math.round((PLAZA_RADIUS - 1) * Math.cos(angle));
+				int z = (int) Math.round((PLAZA_RADIUS - 1) * Math.sin(angle));
+
+				for (int y = 1; y <= 4; y++) {
+					placed += set(x, sea + SUMMIT + y, z, Material.OAK_FENCE);
+				}
+
+				placed += set(x, sea + SUMMIT + 5, z, Material.SEA_LANTERN);
 			}
 
 			return placed;
@@ -455,11 +1014,21 @@ public final class LobbyBuilder {
 		 */
 		private int seabed(int dx, int dz, double distance) {
 			double shoal = (distance - COAST) / (WATER_RADIUS - COAST);
-			int floor = sea - 4 + (int) Math.round(4.0D * Math.max(0.0D, Math.min(1.0D, shoal)));
+			int floor = sea - 7 + (int) Math.round(7.0D * Math.max(0.0D, Math.min(1.0D, shoal)));
 			int placed = 0;
+			double patch = Math.sin(dx * 0.17D) * Math.cos(dz * 0.23D);
 
-			for (int y = sea - 7; y <= floor; y++) {
-				placed += set(dx, y, dz, y >= floor - 1 ? Material.SAND : Material.ANDESITE);
+			for (int y = sea - 11; y <= floor; y++) {
+				Material block;
+
+				if (y >= floor - 1) {
+					// The lagoon floor: mostly sand, with gravel and clay where it dips.
+					block = patch > 0.66D ? Material.GRAVEL : patch < -0.74D ? Material.CLAY : Material.SAND;
+				} else {
+					block = patch > 0.4D ? Material.TUFF : Material.ANDESITE;
+				}
+
+				placed += set(dx, y, dz, block);
 			}
 
 			return placed;
@@ -477,7 +1046,7 @@ public final class LobbyBuilder {
 						continue;
 					}
 
-					for (int y = sea - 6; y <= sea; y++) {
+					for (int y = sea - 10; y <= sea; y++) {
 						if (materialAt(originX + dx, y, originZ + dz) == Material.AIR) {
 							placed += set(dx, y, dz, Material.WATER);
 						}
@@ -793,9 +1362,12 @@ public final class LobbyBuilder {
 				double angle = count * Math.PI / 2.0D + 0.7D;
 				int dx = (int) Math.round(Math.cos(angle) * (COAST - 6));
 				int dz = (int) Math.round(Math.sin(angle) * (COAST - 6));
-				int y = sea + 30 + random.nextInt(10);
+				// Above the watchtower, which is the tallest thing here - a balloon level with a
+				// roof reads as a balloon that has crashed into it.
+				int y = sea + TERRACE + 34 + random.nextInt(10);
 				Material skin = colours[count % colours.length];
 				int radius = 4;
+				balloonCentres.add(new Spot(originX + dx + 0.5D, y + 0.5D, originZ + dz + 0.5D, 0.0F, 0.0F));
 
 				for (int ox = -radius; ox <= radius; ox++) {
 					for (int oy = -radius; oy <= radius; oy++) {
@@ -878,10 +1450,27 @@ public final class LobbyBuilder {
 			return put(originX + dx, y, originZ + dz, material);
 		}
 
-		/** In world coordinates. */
+		/**
+		 * In world coordinates.
+		 *
+		 * <p>A placement this plan has already made at this spot with this same block is dropped:
+		 * the world will already have it by the time the second one would be applied, so writing
+		 * it twice is a block laid for nothing. Structures level their own footings and clear
+		 * their own headroom, and those volumes overlap heavily, so this is most of them.
+		 *
+		 * <p>What is not dropped is a placement onto a spot the plan has not touched, even one
+		 * setting air. Out there the world still holds whatever was there before, and clearing it
+		 * is exactly what the command promised to do.
+		 */
 		private int put(int x, int y, int z, Material material) {
+			long spot = key(x, y, z);
+
+			if (current.get(spot) == material) {
+				return 0;
+			}
+
 			order.add(new Placement(x, y, z, material));
-			current.put(key(x, y, z), material);
+			current.put(spot, material);
 			return 1;
 		}
 	}

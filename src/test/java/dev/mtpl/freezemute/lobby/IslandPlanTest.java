@@ -112,15 +112,39 @@ class IslandPlanTest {
 
 	@Test
 	void theWaterSurfaceIsWhereItWasAskedFor() {
+		// The lagoon, which means water out beyond the plaza. The fountain on top of the hill is
+		// also water and is also meant to be there, seventy blocks higher.
 		int highest = Integer.MIN_VALUE;
 
 		for (Placement placement : plan.placements()) {
-			if (placement.material() == Material.WATER) {
+			if (placement.material() != Material.WATER) {
+				continue;
+			}
+
+			if (Math.hypot(placement.x() - ORIGIN_X, placement.z() - ORIGIN_Z) > 20.0D) {
 				highest = Math.max(highest, placement.y());
 			}
 		}
 
-		assertEquals(SEA, highest);
+		assertEquals(SEA, highest, "the lagoon is not level with the height it was asked for");
+	}
+
+	@Test
+	void theFountainHoldsItsWaterUpOnTheHill() {
+		int highest = Integer.MIN_VALUE;
+		int blocks = 0;
+
+		for (Placement placement : plan.placements()) {
+			if (placement.material() == Material.WATER
+					&& Math.hypot(placement.x() - ORIGIN_X, placement.z() - ORIGIN_Z) <= 20.0D) {
+				highest = Math.max(highest, placement.y());
+				blocks++;
+			}
+		}
+
+		assertTrue(blocks > 20, "the fountain has " + blocks + " blocks of water in it");
+		assertEquals(SEA + LobbyBuilder.summit() + 1, highest,
+				"the fountain sits one above the plaza floor, in a basin with a rim");
 	}
 
 	// ----------------------------------------------------------- standing room
@@ -129,12 +153,12 @@ class IslandPlanTest {
 	void thePlazaFloorGoesExactlyWhereTheCommandWasRunFrom() {
 		// Which is why /lobby generate has to move whoever ran it: the command asks them to stand
 		// where they want the top of the island, and the top of the island is a solid block.
-		// SEA + 12 is the summit, and the summit is where the command told them to stand.
-		Material atTheirFeet = at(ORIGIN_X, SEA + 12, ORIGIN_Z);
+		// The summit is the height the command told them to stand at, and the summit is where the command told them to stand.
+		Material atTheirFeet = at(ORIGIN_X, SEA + LobbyBuilder.summit(), ORIGIN_Z);
 
 		assertTrue(atTheirFeet.standable(),
 				"a player left standing in " + atTheirFeet + " is a player standing inside a block");
-		assertEquals(Material.AIR, at(ORIGIN_X, SEA + 13, ORIGIN_Z),
+		assertEquals(Material.AIR, at(ORIGIN_X, SEA + LobbyBuilder.summit() + 1, ORIGIN_Z),
 				"and the block above it is where they have to end up instead");
 	}
 
@@ -208,7 +232,7 @@ class IslandPlanTest {
 
 	@Test
 	void theWholeCourseIsInTheAirRatherThanBuriedInTheHill() {
-		for (LobbyBuilder.Step step : LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + 12 + 2)) {
+		for (LobbyBuilder.Step step : LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + LobbyBuilder.summit() + 2)) {
 			assertTrue(at(step.x(), step.y(), step.z()).standable(),
 					"the jump at " + step.x() + " " + step.y() + " " + step.z() + " was not placed");
 			assertEquals(Material.AIR, at(step.x(), step.y() + 1, step.z()),
@@ -281,26 +305,23 @@ class IslandPlanTest {
 
 	@Test
 	void theBalloonsFloatWellClearOfTheGround() {
-		int lowest = Integer.MAX_VALUE;
-		int wool = 0;
+		// Asked of the plan rather than inferred from the blocks: the canopies over the market and
+		// the beds in the gardens are wool too, so counting wool would be measuring a market stall.
+		assertEquals(4, plan.balloons().size());
 
-		for (Placement placement : plan.placements()) {
-			switch (placement.material()) {
-				case WHITE_WOOL, RED_WOOL, BLUE_WOOL, ORANGE_WOOL, YELLOW_WOOL -> {
-					wool++;
-					lowest = Math.min(lowest, placement.y());
-				}
-				default -> {
-				}
+		for (Spot balloon : plan.balloons()) {
+			assertTrue(balloon.y() > SEA + LobbyBuilder.summit() + 20,
+					"a balloon at " + balloon.describe() + " is down among the buildings");
+
+			// Below its own basket, which hangs about eight blocks under the middle on ropes,
+			// there has to be a good drop of nothing - otherwise it is parked on a roof.
+			for (int drop = 10; drop <= 24; drop++) {
+				assertFalse(at(balloon.x(), balloon.y() - drop, balloon.z()).standable(),
+						"the balloon at " + balloon.describe() + " is resting on something "
+								+ drop + " blocks below it");
 			}
 		}
-
-		assertTrue(wool > 100, "expected balloons, found " + wool + " wool blocks");
-		assertTrue(lowest > SEA + 12 + 6,
-				"the lowest balloon is at y " + lowest + ", which is down among the buildings");
 	}
-
-	// ------------------------------------------------------------------ sanity
 
 	@Test
 	void theLighthouseAndTheShelterBothGotBuilt() {
@@ -399,7 +420,7 @@ class IslandPlanTest {
 	void theIslandStaysWithinTheAreaTheCommandPromises() {
 		for (Placement placement : plan.placements()) {
 			double distance = Math.hypot(placement.x() - ORIGIN_X, placement.z() - ORIGIN_Z);
-			assertTrue(distance <= 40.0D,
+			assertTrue(distance <= LobbyBuilder.reach() + 4.0D,
 					"a block " + (int) distance + " blocks out is further than the command warns about");
 		}
 	}
