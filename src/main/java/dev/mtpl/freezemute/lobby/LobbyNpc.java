@@ -96,7 +96,9 @@ public final class LobbyNpc {
 			return 0;
 		}
 
-		List<ArmorStandEntity> standing = world.getEntitiesByType(EntityType.ARMOR_STAND,
+		// List<? extends T>, not List<T> - the wildcard is in the real signature and reading it
+		// away is how this compiled locally against a stub and failed against Minecraft.
+		List<? extends ArmorStandEntity> standing = world.getEntitiesByType(EntityType.ARMOR_STAND,
 				stand -> near(stand, spot));
 		int removed = 0;
 
