@@ -393,7 +393,7 @@ jobs:
           check "Nobody has finished spawn yet" "/lobby course top reads the board of the built course"
           check "Join record!" "the figure on the pedestal carries the name it was asked for"
           check "Lobby: put a figure on the queue point" "an armour stand really was spawned"
-          check "the queue point still works" "/lobby npc clear took it away again"
+          check "Took away 1 figure(s)" "/lobby npc clear took the figure away again"
           check "figure standing on it" "/lobby generate confirm stood one on the pedestal itself"
           refute "is not an item id|this version has no item called" "an item the figure could not wear"
           check "The lobby is off" "/lobby disable turned it back off"
