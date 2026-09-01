@@ -78,6 +78,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/lobby setspawn` | Sets the lobby spawn to where you stand |
 | `/lobby generate` | Says what it would build. `/lobby generate confirm` builds it |
 | `/lobby queuepoint` / `/lobby queuepoint clear` | Where players right click to join the queue, or back to queueing everybody automatically |
+| `/lobby npc` / `/lobby npc clear` | Stands a figure on the queue point with its sign over its head, or takes it away |
 | `/lobby status` | Whether the dimension exists, whether routing is on, the spawn, how many are waiting |
 | `/queue` / `/queue status` | Line length, slots used, cap |
 | `/queue list` | Who is in and who is waiting, in order, with the grace windows still running |
@@ -170,6 +171,10 @@ startup says which mode is in use.
 | `lobbyAdmitPerSecond` | `1` | How many players may be let through per second |
 | `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint. The catch also follows the spawn, triggering 24 blocks below it, so a lobby built high up does not turn a missed jump into a very long fall |
 | `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
+| `lobbyNpcText` | `Join record!` | What floats over the figure on the pedestal, drawn bold and gold |
+| `lobbyNpcHead` | `dragon_head` | Any item id. `player_head` if you want to hang a real skin on it, `none` for a bare stand |
+| `lobbyNpcArmour` | `diamond` | The armour material it wears |
+| `lobbyNpcHeld` | `lantern` | What it holds |
 
 ## What "frozen" means exactly
 
@@ -366,20 +371,55 @@ to another is refused on the way out, so the client is never told they exist, an
 the same way. They also share a team with collisions and name tags switched off, so nobody gets
 shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
 
-**Building the island.** `/lobby generate confirm`, standing in the lobby, lays one around you:
-ground in three tiers with cliffs between them, a sand beach running down into a lagoon, palms,
-rock outcrops, a jetty on stilts out over the water, a banded lighthouse, a shelter, and hot air
-balloons overhead. On top is a plaza with a black pedestal for an NPC, and a parkour course of 24
-jumps spiralling up off it - registered as a course as it is laid, so its timer and leaderboard
-work straight away.
+**Building the island.** `/lobby generate confirm`, standing in the lobby, lays one around you.
+About 370,000 blocks of it.
+
+The ground is five terraces with banded cliffs between them - deepslate at the roots, tuff and
+andesite through the middle, seams of granite and diorite running across it, and podzol, coarse
+dirt and moss breaking up the grass on top. A sand beach runs down into a lagoon all the way
+round, with gravel and clay where the floor dips.
+
+On the terrace there is a town, on the four diagonals so each has a clear run back to a corner of
+the plaza: a **great hall** with a pitched roof, pillars, bookshelves and glass down both sides; a
+26-block **watchtower** with slit windows and a lit top, which is the thing you look for from
+anywhere on the island; a **market** of four stalls under striped canopies; and hedged **gardens**
+with beds of colour. Stepped ramps join all four to the plaza on top, which has a **fountain**, a
+ring of twelve lamps, and the pedestal with the figure on it.
+
+Round the edges: palms, rock outcrops, a jetty on stilts out over the water, a banded lighthouse,
+a shelter, and hot air balloons floating above the lot. A parkour course of 24 jumps spirals up
+off the plaza, registered as a course as it is laid, so its timer and leaderboard work straight
+away.
 
 It is generated, not hand built, and it is honest to say it will not pass for a showcase spawn
 somebody spent a week on. What it will do is give you a place rather than a box. Everything comes
 from one seed taken from where you build it, so the same spot gives the same island and a
-different spot gives a different one. It replaces everything within about 36 blocks, which is why
-plain `/lobby generate` only describes it and makes you type `confirm`, and the water sits 12
+different spot gives a different one. It replaces everything within about 78 blocks, which is why
+plain `/lobby generate` only describes it and makes you type `confirm`, and the water sits 20
 blocks below your feet - so stand where you want the *top* of the island to be. Build your own
 instead if you would rather; nothing depends on the generated one.
+
+**It goes down a slice at a time.** Several hundred thousand `setBlockState` calls in one go is
+tens of seconds with the server thread held throughout - no ticks, no packets, every player timing
+out behind a "cannot keep up" warning, which from the outside is indistinguishable from a crash.
+The plan is worked out in full up front, because that part is only a list and it is cheap, and
+then laid at eight thousand blocks a tick. The server keeps running and you watch the island go
+up. Everything that moves players waits for the last block: when the command runs there is nothing
+under the new spawn yet.
+
+**The figure on the pedestal.** An armour stand with **Join record!** floating over its head in
+bold gold, stood there by `/lobby generate confirm` or by `/lobby npc` on its own. A dragon head,
+diamond armour and a lantern by default - all of it `lobbyNpcHead`, `lobbyNpcArmour`,
+`lobbyNpcHeld` and `lobbyNpcText` in the config, so point the head at `player_head` if you would
+rather hang a real skin on it afterwards.
+
+It is a stand rather than a fake player on purpose: a real NPC with a downloaded skin needs a fake
+player-list entry, a spawn packet per viewer, and a texture fetched from Mojang at runtime, which
+are three things to break on a server meant to depend on nothing but the loader.
+
+And it is only a signpost. The click that joins the queue is judged by where the player is
+standing, not by what they hit, so `/lobby npc clear` takes it away and the pedestal still works -
+as does anything else you would rather stand there instead.
 
 **Two ways to join the queue.** If a **queue point** is set - `/lobby generate` sets one at the
 pedestal, or `/lobby queuepoint` puts one where you stand - then arriving in the lobby queues
