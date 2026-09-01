@@ -61,6 +61,23 @@ public final class FreezeMuteConfig {
 	/** How close you have to stand to the queue point for a right click to count. */
 	public double lobbyQueuePointRadius = 4.0D;
 
+	// ------------------------------------------------- the figure on the pedestal
+
+	/** What floats over the figure's head. Drawn bold and gold. */
+	public String lobbyNpcText = "Join record!";
+	/**
+	 * What it wears on its head - any item id.
+	 *
+	 * <p>A dragon head by default: it is dramatic, it is the right size, and it exists in every
+	 * version, which a downloaded skin does not. Set it to {@code player_head} if you would rather
+	 * point it at a real one afterwards, or to {@code none} for a bare stand.
+	 */
+	public String lobbyNpcHead = "dragon_head";
+	/** The armour material it wears - {@code diamond}, {@code netherite}, {@code gold}, and so on. */
+	public String lobbyNpcArmour = "diamond";
+	/** What it holds. */
+	public String lobbyNpcHeld = "lantern";
+
 	public static FreezeMuteConfig get() {
 		return instance;
 	}
@@ -154,6 +171,10 @@ public final class FreezeMuteConfig {
 		object.addProperty("lobbyVoidCatchY", config.lobbyVoidCatchY);
 		object.addProperty("lobbyCheckpointRadius", config.lobbyCheckpointRadius);
 		object.addProperty("lobbyQueuePointRadius", config.lobbyQueuePointRadius);
+		object.addProperty("lobbyNpcText", config.lobbyNpcText);
+		object.addProperty("lobbyNpcHead", config.lobbyNpcHead);
+		object.addProperty("lobbyNpcArmour", config.lobbyNpcArmour);
+		object.addProperty("lobbyNpcHeld", config.lobbyNpcHeld);
 
 		try {
 			Path parent = file.getParent();

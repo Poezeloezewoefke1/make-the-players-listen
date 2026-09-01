@@ -17,6 +17,7 @@ import dev.mtpl.freezemute.lobby.LobbyBuilder;
 import dev.mtpl.freezemute.lobby.CourseRecord;
 import dev.mtpl.freezemute.lobby.LobbyDimension;
 import dev.mtpl.freezemute.lobby.LobbyManager;
+import dev.mtpl.freezemute.lobby.LobbyNpc;
 import dev.mtpl.freezemute.lobby.LobbyState;
 import dev.mtpl.freezemute.lobby.Parkour;
 import dev.mtpl.freezemute.lobby.PlayerWorld;
@@ -63,6 +64,10 @@ public final class LobbyCommand {
 						.executes(context -> explainGenerate(context.getSource()))
 						.then(CommandManager.literal("confirm")
 								.executes(context -> generate(context.getSource()))))
+				.then(CommandManager.literal("npc")
+						.executes(context -> placeNpc(context.getSource()))
+						.then(CommandManager.literal("clear")
+								.executes(context -> clearNpc(context.getSource()))))
 				.then(CommandManager.literal("queuepoint")
 						.executes(context -> setQueuePoint(context.getSource()))
 						.then(CommandManager.literal("clear")
@@ -233,8 +238,9 @@ public final class LobbyCommand {
 				+ " blocks, spawn at " + result.spawn().describe() + "."), true);
 		source.sendFeedback(() -> Messages.listEntry("  it goes down over the next few seconds rather than "
 				+ "all at once, so the server keeps running while it does"), false);
-		source.sendFeedback(() -> Messages.listEntry("  the queue point is the black pedestal at "
-				+ result.queuePoint().describe() + " - stand an NPC on it if you like, or leave it bare"), false);
+		source.sendFeedback(() -> Messages.listEntry("  the queue point is the pedestal at "
+				+ result.queuePoint().describe() + ", with a figure standing on it saying \""
+				+ FreezeMuteConfig.get().lobbyNpcText + "\" - /lobby npc clear takes it away"), false);
 		source.sendFeedback(() -> Messages.listEntry("  players right click there to join the queue; "
 				+ "arriving in the lobby no longer queues them on its own"), false);
 		source.sendFeedback(() -> Messages.listEntry("  the parkour course '" + result.course().name() + "' has "
@@ -276,6 +282,74 @@ public final class LobbyCommand {
 		if (moved > 0) {
 			FreezeMute.LOGGER.info("Lobby: put {} player(s) on the new spawn", moved);
 		}
+
+		// The pedestal is built and the queue point is on it, so there is somewhere to stand now.
+		LobbyNpc.place(lobby, LobbyState.get().queuePoint());
+	}
+
+	/**
+	 * Stands a figure on the queue point, with its sign over its head.
+	 *
+	 * <p>It is scenery. The click that joins the queue is judged by where the player is standing,
+	 * not by what they hit, so this can be replaced with anything or taken away entirely and the
+	 * pedestal still works.
+	 */
+	private static int placeNpc(ServerCommandSource source) {
+		ServerWorld lobby = LobbyDimension.world(source.getServer());
+		Spot spot = npcSpot(source);
+
+		if (lobby == null) {
+			source.sendError(Messages.failure("The lobby dimension does not exist yet. Restart the server once."));
+			return 0;
+		}
+
+		if (spot == null) {
+			source.sendError(Messages.failure("There is no queue point to stand it on. Run /lobby queuepoint "
+					+ "where you want it, or /lobby generate confirm to build a pedestal."));
+			return 0;
+		}
+
+		if (LobbyNpc.place(lobby, spot) == null) {
+			source.sendError(Messages.failure("The figure could not be placed. The server log says why."));
+			return 0;
+		}
+
+		FreezeMuteConfig config = FreezeMuteConfig.get();
+		source.sendFeedback(() -> Messages.success("Stood a figure on the queue point at " + spot.describe()
+				+ ", with \"" + config.lobbyNpcText + "\" over its head."), true);
+		source.sendFeedback(() -> Messages.listEntry("  what it wears and what it says are lobbyNpcHead, "
+				+ "lobbyNpcArmour, lobbyNpcHeld and lobbyNpcText in the config"), false);
+		source.sendFeedback(() -> Messages.listEntry("  it is only a signpost - the click is judged by where "
+				+ "the player stands, so /lobby npc clear leaves the queue point working"), false);
+		return 1;
+	}
+
+	private static int clearNpc(ServerCommandSource source) {
+		ServerWorld lobby = LobbyDimension.world(source.getServer());
+		Spot spot = npcSpot(source);
+
+		if (lobby == null || spot == null) {
+			source.sendError(Messages.failure("There is no queue point to clear a figure from."));
+			return 0;
+		}
+
+		int removed = LobbyNpc.clear(lobby, spot);
+		source.sendFeedback(() -> Messages.success(removed == 0
+				? "There was nothing standing on the queue point."
+				: "Took away " + removed + " figure(s). The queue point still works."), true);
+		return removed;
+	}
+
+	/** Where the figure goes: the queue point, or where you stand if there is not one yet. */
+	private static Spot npcSpot(ServerCommandSource source) {
+		Spot point = LobbyState.get().queuePoint();
+
+		if (point != null) {
+			return point;
+		}
+
+		ServerPlayerEntity player = source.getPlayer();
+		return player != null && LobbyManager.isInLobby(player) ? Spot.of(player) : null;
 	}
 
 	private static int setQueuePoint(ServerCommandSource source) {
