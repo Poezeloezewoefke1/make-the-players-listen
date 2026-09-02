@@ -410,6 +410,12 @@ plain `/lobby generate` only describes it and makes you type `confirm`, and the 
 blocks below your feet - so stand where you want the *top* of the island to be. Build your own
 instead if you would rather; nothing depends on the generated one.
 
+It also needs room above and below you: it digs 41 blocks down for its roots and its lagoon and
+reaches 39 up for the tower and the balloons, and the lobby runs from -64 to 319. Stand outside
+**y -23 to y 280** and it refuses rather than building one with pieces missing - Minecraft drops a
+block placed outside the world without saying anything, so an island built too low would have no
+floor under its own lagoon.
+
 **It goes down a slice at a time.** Several hundred thousand `setBlockState` calls in one go is
 tens of seconds with the server thread held throughout - no ticks, no packets, every player timing
 out behind a "cannot keep up" warning, which from the outside is indistinguishable from a crash.
