@@ -26,6 +26,7 @@ public final class LobbyRules {
 		syncPresence(room, state);
 		sweepGrace(room, state, config, now);
 		returnEscapees(room);
+		standStaffDown(room, state);
 		collectStrays(room, state, now);
 		admit(room, state, config, now);
 		updateBars(room, state);
@@ -81,11 +82,6 @@ public final class LobbyRules {
 	 * of those, where its members actually are is checked and they are walked back.
 	 */
 	static void returnEscapees(Room room) {
-		if (!room.built()) {
-			// Nowhere to walk them back to; sending them would only apologise, once a second.
-			return;
-		}
-
 		for (Occupant occupant : room.occupants()) {
 			if (!occupant.member() || occupant.inLobby()) {
 				continue;
@@ -101,6 +97,17 @@ public final class LobbyRules {
 				continue;
 			}
 
+			if (!room.built()) {
+				// Nowhere to walk them back to; sending them would only apologise, once a second.
+				//
+				// Checked here rather than at the top of the pass, which is where it used to be.
+				// Letting an operator go needs no room to put anybody in, and skipping that too
+				// left anybody promoted while outside a room that had gone missing holding every
+				// member rule - adventure mode, invulnerable, hidden from the room - with nothing
+				// left anywhere that would ever take them off again.
+				continue;
+			}
+
 			room.log("Lobby: " + occupant.name() + " left the lobby without being let in, putting them back");
 			occupant.sendToLobby();
 		}
@@ -113,6 +120,42 @@ public final class LobbyRules {
 	 * rebuilt without asking anybody to reconnect - and it is what picks up somebody who was made
 	 * an operator, or stopped being one, while they were standing there.
 	 */
+	/**
+	 * Takes back the place in line and the slot from anybody who is staff.
+	 *
+	 * <p>Staff are routed nowhere and counted against nothing, so a place in the line or a slot in
+	 * a staff member's name is one nobody can ever use, and it stays in their name for the rest of
+	 * the session. The cap is quietly one smaller every time somebody is promoted, and the line
+	 * one longer, with nothing anywhere to say why.
+	 *
+	 * <p>Both of these used to be done in the pass that walks an operator out of the room, which
+	 * meant they only happened to an operator who was standing in it. That misses how most people
+	 * get operator: while they are out in the world playing - which is exactly where somebody
+	 * holding a slot is - or while they have wandered off, which is where somebody who was in the
+	 * line and gave up waiting is. Done here it does not matter where they are standing.
+	 *
+	 * <p>Found by playing thousands of random seconds of a lobby and asking, after every one of
+	 * them, whether anybody was staff and still in either list. Nobody had written either scenario
+	 * down, which is rather the point - and the second only turned up once the first was fixed.
+	 */
+	static void standStaffDown(Room room, LobbyState state) {
+		for (Occupant occupant : room.occupants()) {
+			if (!occupant.staff()) {
+				continue;
+			}
+
+			if (state.isAdmitted(occupant.uuid())) {
+				state.release(occupant.uuid());
+				room.log("Lobby: " + occupant.name() + " is staff now, so the slot they were holding goes back");
+			}
+
+			if (state.waiting(occupant.uuid()) != null) {
+				state.dequeue(occupant.uuid());
+				room.log("Lobby: " + occupant.name() + " is staff now, so they are out of the line");
+			}
+		}
+	}
+
 	static void collectStrays(Room room, LobbyState state, long now) {
 		for (Occupant occupant : room.occupants()) {
 			if (!occupant.inLobby()) {
@@ -131,10 +174,10 @@ public final class LobbyRules {
 					// introduces two members is refused while both are members, and vanilla does
 					// not offer it a second time. Walking out of the dimension is what makes every
 					// client involved learn the room again.
-					state.dequeue(occupant.uuid());
-					state.release(occupant.uuid());
-					room.log("Lobby: " + occupant.name() + " is staff now, so they are out of the line "
-							+ "and out of the room");
+					// Their place in line and their slot have already gone back: standStaffDown
+					// runs first and owns both, wherever the operator happens to be standing.
+					// What is left is the room itself, which is this pass's business.
+					room.log("Lobby: " + occupant.name() + " is staff now, so they are out of the room");
 					occupant.letOut();
 				}
 

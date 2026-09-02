@@ -529,6 +529,27 @@ class LobbyRulesTest {
 		assertEquals(0, state.slotsUsed());
 	}
 
+	@Test
+	void anOperatorOutInTheWorldDoesNotKeepASlotEither() {
+		// How most people get operator: they queued like everybody else, were let through, and are
+		// out playing when somebody types /op. Nothing was watching for that, so the slot stayed
+		// in their name for the rest of the session and the cap was quietly one smaller.
+		state.setCap(1);
+		FakePlayer anna = room.add("Anna").standingInTheLobby();
+		FakePlayer ben = room.add("Ben").standingInTheLobby();
+		tick(1000L);
+
+		assertTrue(state.isAdmitted(anna.uuid()), "she was let through and holds the only slot");
+		assertEquals(1, state.position(ben.uuid()), "and he is behind her");
+
+		anna.staff(true);
+		tick(2000L);
+
+		assertFalse(state.isAdmitted(anna.uuid()), "an operator does not need the slot");
+		assertEquals(0, anna.letOut, "and she was out in the world already, so nothing moved her");
+		assertTrue(state.isAdmitted(ben.uuid()), "which is what lets him in");
+	}
+
 	// -------------------------------------------------------- the queue point
 
 	@Test
