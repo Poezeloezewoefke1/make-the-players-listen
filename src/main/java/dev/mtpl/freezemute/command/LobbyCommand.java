@@ -229,10 +229,20 @@ public final class LobbyCommand {
 		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
 		UUID commander = player == null ? null : player.getUuid();
 
+		// Taken away before the build, because the build moves the queue point the moment it
+		// starts planning, and after that there is nothing left that knows where the old one was.
+		// Building somewhere new would otherwise leave the last figure standing wherever it was,
+		// sealed inside whatever the new island put there, still saying "Join record!".
+		int orphans = LobbyNpc.clear(lobby, LobbyState.get().queuePoint());
+
 		// Everything that moves people runs when the last block is down, not now. Now there is
 		// nothing under the new spawn to put them on.
 		LobbyBuilder.Result result = LobbyBuilder.build(lobby, centre,
 				() -> landEverybody(server, lobby, commander));
+
+		if (orphans > 0) {
+			FreezeMute.LOGGER.info("Lobby: took away {} figure(s) from the last queue point", orphans);
+		}
 
 		source.sendFeedback(() -> Messages.success("Laying the island: " + result.blocks()
 				+ " blocks, spawn at " + result.spawn().describe() + "."), true);

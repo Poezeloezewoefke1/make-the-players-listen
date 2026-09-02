@@ -100,6 +100,21 @@ public final class LobbyBuilder {
 		return TERRACE;
 	}
 
+	/** How tall the watchtower stands above the terrace it is footed on. */
+	private static final int TOWER_HEIGHT = 26;
+
+	/** How many blocks above the terrace the tower's lookout floor is. */
+	private static final int TOWER_LOOKOUT = TOWER_HEIGHT - 3;
+
+	/**
+	 * How far above the terrace the top of the tower can be stood on.
+	 *
+	 * <p>Public so a test can walk up there rather than take the stair's word for it.
+	 */
+	public static int towerLookout() {
+		return TOWER_LOOKOUT;
+	}
+
 	/** How far the plaza reaches, rim included. */
 	public static int plazaRadius() {
 		return PLAZA_RADIUS;
@@ -837,7 +852,7 @@ public final class LobbyBuilder {
 		int watchtower(int cx, int cz) {
 			int floorY = sea + TERRACE;
 			int placed = pad(cx, cz, TOWN_PAD - 3, floorY, Material.COBBLESTONE, Material.STONE);
-			int height = 26;
+			int height = TOWER_HEIGHT;
 
 			for (int y = 0; y <= height; y++) {
 				int radius = y > height - 4 ? 5 : 4;
@@ -866,6 +881,10 @@ public final class LobbyBuilder {
 
 			placed += doorway(cx, floorY, cz + 4, 1, true);
 
+			// The stair stops one below the lookout floor, so the last tread is a step onto it.
+			placed += spiral(cx, cz, floorY, TOWER_LOOKOUT - 1);
+			placed += lookoutFloor(cx, cz, floorY + TOWER_LOOKOUT, TOWER_LOOKOUT - 1);
+
 			// Slit windows up the shaft, on alternating sides.
 			for (int y = 5; y < height - 5; y += 5) {
 				placed += set(cx + 4, floorY + y, cz, Material.GLASS);
@@ -889,6 +908,90 @@ public final class LobbyBuilder {
 
 			placed += set(cx, floorY + height + 3, cz, Material.GOLD);
 			return placed;
+		}
+
+		/**
+		 * One turn of the staircase, as the cells of a ring walked in order, starting by the door.
+		 *
+		 * <p>Written out rather than worked out from an angle. A turn of so many radians rounded
+		 * to whole blocks lands two treads in the same column as often as not - which is a tread
+		 * with a ceiling one block over it - and elsewhere skips a cell, which is a jump. Walking
+		 * a ring cell by cell cannot do either: every cell here touches the one before it, so
+		 * every tread is one across and one up from the last, and a tread only comes back over
+		 * another a whole turn - sixteen blocks - later.
+		 */
+		private static final int[][] SHAFT_RING = {
+				{ 0, 2 }, { 1, 2 }, { 2, 2 }, { 2, 1 }, { 2, 0 }, { 2, -1 }, { 2, -2 }, { 1, -2 },
+				{ 0, -2 }, { -1, -2 }, { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
+				{ -1, 2 },
+		};
+
+		/** Where the given tread sits, relative to the middle of the shaft. */
+		private static int[] tread(int step) {
+			return SHAFT_RING[(step - 1) % SHAFT_RING.length];
+		}
+
+		/**
+		 * A staircase turning up the inside of the tower.
+		 *
+		 * <p>Without one the tower is a sealed tube with a light at the top: something to look at
+		 * from the ground and nothing else. One block per level, a single cell round the ring each
+		 * time, so it walks.
+		 */
+		private int spiral(int cx, int cz, int floorY, int top) {
+			int placed = 0;
+
+			for (int step = 1; step <= top; step++) {
+				int[] cell = tread(step);
+				placed += set(cx + cell[0], floorY + step, cz + cell[1],
+						step % 4 == 0 ? Material.POLISHED_ANDESITE : Material.STONE_BRICKS);
+			}
+
+			return placed;
+		}
+
+		/** How many of the last treads the stairwell is left open over. */
+		private static final int STAIRWELL = 3;
+
+		/**
+		 * The floor of the lookout at the top of the tower, with a stairwell left open in it.
+		 *
+		 * <p>The hole covers the last few treads, because a floor is a ceiling to whoever is under
+		 * it. Two cells is not enough: the tread three from the top is the one you step off, and
+		 * stepping up carries your head through the cell above where you started, so that one has
+		 * to be open too or the climb stops three blocks short with nothing to show why.
+		 */
+		private int lookoutFloor(int cx, int cz, int y, int lastTread) {
+			int placed = 0;
+
+			for (int dx = -4; dx <= 4; dx++) {
+				for (int dz = -4; dz <= 4; dz++) {
+					if (Math.sqrt(dx * dx + dz * dz) > 4.0D) {
+						continue;
+					}
+
+					if (overStairwell(dx, dz, lastTread)) {
+						continue;
+					}
+
+					placed += set(cx + dx, y, cz + dz, Material.SMOOTH_STONE);
+				}
+			}
+
+			return placed;
+		}
+
+		/** Whether the given cell of the lookout floor is over the top of the stair. */
+		private static boolean overStairwell(int dx, int dz, int lastTread) {
+			for (int back = 0; back < STAIRWELL; back++) {
+				int[] cell = tread(lastTread - back);
+
+				if (dx == cell[0] && dz == cell[1]) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 
 		/** A row of market stalls, each with a striped canopy on posts. */
@@ -1457,10 +1560,28 @@ public final class LobbyBuilder {
 		// ---------------------------------------------------------- the parkour
 
 		/** A rising spiral out over the lagoon, registered as a course as it is laid. */
+		/**
+		 * The way onto the course: a short ramp from the plaza out to the first pad.
+		 *
+		 * <p>Without it the start is a gold block four above the hillside with nothing beside it,
+		 * and the only way onto the course anybody generated is /lobby course tp - which is a
+		 * command, so it is not a way onto anything for the people the lobby is for. The ramp
+		 * stops one block short of the start: near enough to step across, far enough that the
+		 * course itself is still all jumps.
+		 *
+		 * <p>It leaves from just outside the plaza rim rather than the rim itself, because the rim
+		 * is where the lamp posts stand and this clears four blocks of headroom as it goes.
+		 */
+		private int courseApproach() {
+			int fromX = -(PLAZA_RADIUS + 1);
+			int toX = -((int) Math.round(COURSE_RING) - 1);
+			return steps(fromX, 0, toX, 0, sea + SUMMIT, sea + SUMMIT + 2, 1, Material.QUARTZ);
+		}
+
 		Course course() {
 			List<Step> steps = courseSteps(originX, originZ, sea + SUMMIT + 2);
 			List<Spot> pads = new ArrayList<>();
-			int blocks = 0;
+			int blocks = courseApproach();
 
 			for (Step step : steps) {
 				Material block = Material.QUARTZ;

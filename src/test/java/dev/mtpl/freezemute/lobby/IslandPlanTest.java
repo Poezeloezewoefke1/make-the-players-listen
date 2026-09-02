@@ -640,4 +640,212 @@ class IslandPlanTest {
 
 		assertTrue(surfaces.size() >= 3, "expected several ground levels, found " + surfaces);
 	}
+	// ------------------------------------------------------------ getting about
+
+	/**
+	 * Everywhere a player could walk to from a starting spot, as standing positions.
+	 *
+	 * <p>This is the only honest way to ask whether a stair works. Measuring treads says the
+	 * blocks are where the arithmetic put them; it does not say a person can get up them. A
+	 * staircase whose treads are each one across and one up is still unclimbable if the floor
+	 * above it is a ceiling over the last of them, and that is exactly the bug this was written
+	 * for.
+	 *
+	 * <p>The rules are vanilla's, kept deliberately mean: you stand where there is something
+	 * solid under your feet and two clear blocks for your body, you move one block at a time to a
+	 * side, you can rise one block or drop three, and rising needs the block over your own head
+	 * clear as well - stepping up carries you through it.
+	 */
+	private static Set<Long> walkableFrom(int x, int y, int z, int span) {
+		Set<Long> seen = new HashSet<>();
+		java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+
+		if (!canStand(x, y, z)) {
+			return seen;
+		}
+
+		seen.add(key(x, y, z));
+		queue.add(new int[] { x, y, z });
+		int[][] sides = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+
+		while (!queue.isEmpty()) {
+			int[] here = queue.poll();
+
+			for (int[] side : sides) {
+				int nx = here[0] + side[0];
+				int nz = here[2] + side[1];
+
+				if (Math.abs(nx - ORIGIN_X) > span || Math.abs(nz - ORIGIN_Z) > span) {
+					continue;
+				}
+
+				for (int drop = 1; drop >= -3; drop--) {
+					int ny = here[1] + drop;
+
+					if (drop == 1 && at(here[0], here[1] + 2, here[2]).standable()) {
+						continue;
+					}
+
+					if (!canStand(nx, ny, nz)) {
+						continue;
+					}
+
+					if (seen.add(key(nx, ny, nz))) {
+						queue.add(new int[] { nx, ny, nz });
+					}
+
+					break;
+				}
+			}
+		}
+
+		return seen;
+	}
+
+	private static boolean canStand(int x, int y, int z) {
+		return at(x, y - 1, z).standable() && !at(x, y, z).standable() && !at(x, y + 1, z).standable();
+	}
+
+	/** Everywhere reachable from the spawn. Worked out once - the walk is the same every time. */
+	private static Set<Long> fromTheSpawn;
+
+	private static Set<Long> fromTheSpawn() {
+		if (fromTheSpawn == null) {
+			Spot spawn = plan.spawn();
+			fromTheSpawn = walkableFrom((int) Math.floor(spawn.x()), (int) Math.floor(spawn.y()),
+					(int) Math.floor(spawn.z()), LobbyBuilder.reach());
+		}
+
+		return fromTheSpawn;
+	}
+
+	/** Whether somebody could get to within a block of the given standing spot. */
+	private static boolean canGetTo(double x, double y, double z) {
+		int fx = (int) Math.floor(x);
+		int fy = (int) Math.floor(y);
+		int fz = (int) Math.floor(z);
+
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -1; dz <= 1; dz++) {
+					if (fromTheSpawn().contains(key(fx + dx, fy + dy, fz + dz))) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	@Test
+	void theIslandIsOnePlaceRatherThanSeveral() {
+		assertTrue(fromTheSpawn().size() > 5_000,
+				"only " + fromTheSpawn().size() + " places are walkable from the spawn - the island is in pieces");
+	}
+
+	@Test
+	void everythingWorthWalkingToCanBeWalkedTo() {
+		int out = LobbyBuilder.townOut();
+		int terrace = SEA + LobbyBuilder.terrace() + 1;
+
+		assertTrue(canGetTo(-out, terrace, out), "nobody can walk to the great hall");
+		assertTrue(canGetTo(out, terrace, out), "nobody can walk to the market");
+		assertTrue(canGetTo(out, terrace, -out + 4), "nobody can walk to the watchtower door");
+		assertTrue(canGetTo(-out, terrace, -out), "nobody can walk to the gardens");
+
+		Spot point = plan.queuePoint();
+		assertTrue(canGetTo(point.x(), point.y(), point.z()), "nobody can walk to the queue point");
+	}
+
+	@Test
+	void theCourseCanBeStartedByWalkingOntoIt() {
+		// The start was a gold block four above the hillside with nothing beside it. Everything
+		// else about the course was right - the jumps, the checkpoints, the rules it obeys - and
+		// none of it mattered, because the only way onto it was a command.
+		Spot start = plan.course().start();
+
+		assertTrue(canGetTo(start.x(), start.y(), start.z()),
+				"nobody can walk from the spawn to the start of the course at " + start.describe());
+	}
+
+	@Test
+	void theTowerCanBeClimbedAllTheWayUpFromTheSpawn() {
+		// The tower had a door, a shaft and a light on top, and no way between them: a sealed tube
+		// dressed as somewhere to go. Walk it.
+		int lookout = SEA + LobbyBuilder.terrace() + LobbyBuilder.towerLookout();
+		int onTheLookout = 0;
+
+		for (int dx = -4; dx <= 4; dx++) {
+			for (int dz = -4; dz <= 4; dz++) {
+				if (fromTheSpawn().contains(key(LobbyBuilder.townOut() + dx, lookout + 1,
+						-LobbyBuilder.townOut() + dz))) {
+					onTheLookout++;
+				}
+			}
+		}
+
+		assertTrue(onTheLookout > 0, "nobody can walk from the spawn up the tower to the lookout at y " + lookout);
+	}
+
+	@Test
+	void noTreadOfTheTowerStairHasACeilingOnIt() {
+		// One block of headroom is not enough to walk under, and the whole point of a stair is
+		// that you walk up it. This is what the arithmetic version of the spiral kept getting
+		// wrong: two treads rounding into the same column put one directly over the other.
+		int cx = LobbyBuilder.townOut();
+		int cz = -LobbyBuilder.townOut();
+		int floorY = SEA + LobbyBuilder.terrace();
+		int treads = 0;
+
+		for (int step = 1; step < LobbyBuilder.towerLookout(); step++) {
+			for (int dx = -3; dx <= 3; dx++) {
+				for (int dz = -3; dz <= 3; dz++) {
+					if (Math.sqrt(dx * dx + dz * dz) > 3.0D || !at(cx + dx, floorY + step, cz + dz).standable()) {
+						continue;
+					}
+
+					treads++;
+					assertFalse(at(cx + dx, floorY + step + 1, cz + dz).standable(),
+							"the tread at " + dx + "," + (floorY + step) + "," + dz + " has a block on top of it");
+					assertFalse(at(cx + dx, floorY + step + 2, cz + dz).standable(),
+							"the tread at " + dx + "," + (floorY + step) + "," + dz + " has a block two above it");
+				}
+			}
+		}
+
+		assertEquals(LobbyBuilder.towerLookout() - 1, treads,
+				"expected one tread per level of the shaft, found " + treads);
+	}
+
+	@Test
+	void everyTreadIsOneStepFromTheOneBelowIt() {
+		int cx = LobbyBuilder.townOut();
+		int cz = -LobbyBuilder.townOut();
+		int floorY = SEA + LobbyBuilder.terrace();
+		int[] last = null;
+
+		for (int step = 1; step < LobbyBuilder.towerLookout(); step++) {
+			int[] here = null;
+
+			for (int dx = -3; dx <= 3; dx++) {
+				for (int dz = -3; dz <= 3; dz++) {
+					if (Math.sqrt(dx * dx + dz * dz) > 3.0D || !at(cx + dx, floorY + step, cz + dz).standable()) {
+						continue;
+					}
+
+					here = new int[] { dx, dz };
+				}
+			}
+
+			assertNotNull(here, "the shaft has no tread at level " + step);
+
+			if (last != null) {
+				int walk = Math.abs(here[0] - last[0]) + Math.abs(here[1] - last[1]);
+				assertEquals(1, walk, "the tread at level " + step + " is " + walk + " blocks from the one below it");
+			}
+
+			last = here;
+		}
+	}
 }
