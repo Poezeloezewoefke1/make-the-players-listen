@@ -87,7 +87,7 @@ All commands require operator rights (the console, RCON and command blocks may u
 | `/queue end` | Session over: everybody to the lobby, the line cleared, the queue closed |
 | `/queue bypass <targets>` | Lets those players straight in, ignoring the cap and the order |
 | `/queue remove <name>` | Takes one player out of the line and hands back any slot they hold. Works on a name, so it reaches somebody who is offline on their grace window |
-| `/queue early add <targets>` / `/queue early remove <name>` / `/queue early list` | The list of people who never see the queue |
+| `/queue early add <targets>` / `/queue early remove <name>` / `/queue early list` | The list of people who skip the line when they join |
 
 ### Parkour
 
@@ -144,9 +144,15 @@ moderator rank can use the commands without being a full operator:
 `freezemute.lobby`, `freezemute.lobby.course`, and `freezemute.staff` for the notifications below.
 
 One node is held by a player rather than checked on a command: **`freezemute.lobby.early`** skips
-the queue entirely. It is the node to give the camera and the crew. Unlike the others it does
-*not* fall back to operator status, because without a permission mod nobody could be granted it
-selectively - use `/queue early add` instead, which does the same thing and needs no extra mod.
+the line when its holder joins. It is the node to give the camera and the crew. Unlike the others
+it does *not* fall back to operator status, because without a permission mod nobody could be
+granted it selectively - use `/queue early add` instead, which does the same thing and needs no
+extra mod.
+
+Early access is about *joining*, not about being exempt. `/lobby all` and `/queue end` bring
+everybody who is not staff back to the room, holders included, and rebuild the line in the order
+people were let out - a panic button that half the room bounced straight back through would not
+be one. Only staff are outside the queue entirely.
 
 The mod does not depend on that API: without it, it just checks operator status. The log line at
 startup says which mode is in use.
