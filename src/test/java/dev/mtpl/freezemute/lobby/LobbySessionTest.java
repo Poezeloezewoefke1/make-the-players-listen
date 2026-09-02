@@ -38,6 +38,8 @@ class LobbySessionTest {
 	 * and quick enough that nobody is tempted to take it out again. */
 	private static final int SEEDS = 40;
 	private static final int SECONDS = 1000;
+	/** The course the made-up runs are filed against. */
+	private static final String COURSE = "spawn";
 
 	@TempDir
 	Path directory;
@@ -76,7 +78,7 @@ class LobbySessionTest {
 
 	/** Whatever a roomful of people might do in the next second. */
 	private void stir(FakeRoom room, List<FakePlayer> everybody, Random random, long now) {
-		switch (random.nextInt(10)) {
+		switch (random.nextInt(11)) {
 			case 0 -> {
 				if (everybody.size() < 9) {
 					FakePlayer arriving = room.add("Player" + everybody.size());
@@ -107,6 +109,19 @@ class LobbySessionTest {
 				}
 			}
 			case 8 -> room.built = random.nextInt(8) != 0;
+			case 9 -> {
+				// The rest of what the room remembers: who skips the line, where somebody was
+				// standing before it swallowed them, and the times on the board.
+				UUID who = new UUID(11L, random.nextInt(5));
+
+				switch (random.nextInt(3)) {
+					case 0 -> state.addEarlyAccess(who, "Early" + (who.getLeastSignificantBits()));
+					case 1 -> state.rememberReturn(who, "minecraft:overworld",
+							new Spot(random.nextInt(100), 64.0D, random.nextInt(100), 90.0F, 0.0F), "SURVIVAL");
+					default -> state.recordTime(COURSE, new CourseRecord(who,
+							"Runner" + who.getLeastSignificantBits(), 4_000L + random.nextInt(60_000), now));
+				}
+			}
 			default -> {
 				// A quiet second, which is most of them.
 			}
@@ -157,9 +172,14 @@ class LobbySessionTest {
 	private static String snapshot(LobbyState state) {
 		StringBuilder written = new StringBuilder();
 		written.append("cap=").append(state.cap())
+				.append(" on=").append(state.enabled())
 				.append(" open=").append(state.queueOpen())
 				.append(" spawn=").append(state.spawn().describe())
 				.append(" point=").append(state.joinedAtAPoint() ? state.queuePoint().describe() : "none");
+
+		for (java.util.Map.Entry<UUID, String> early : new java.util.TreeMap<>(state.earlyAccess()).entrySet()) {
+			written.append(" early:").append(early.getKey()).append('/').append(early.getValue());
+		}
 
 		for (LobbyState.Waiting entry : state.queue()) {
 			written.append(" waiting:").append(entry.uuid()).append('/').append(entry.name());
@@ -167,6 +187,17 @@ class LobbySessionTest {
 
 		for (LobbyState.Admitted entry : state.admitted()) {
 			written.append(" slot:").append(entry.uuid()).append('/').append(entry.name());
+		}
+
+		for (int index = 0; index < 5; index++) {
+			UUID who = new UUID(11L, index);
+			written.append(" back:").append(who).append('/')
+					.append(state.hasReturn(who) ? "somewhere" : "nowhere");
+		}
+
+		for (CourseRecord time : state.leaderboard(COURSE)) {
+			written.append(" time:").append(time.uuid()).append('/').append(time.name())
+					.append('/').append(time.millis()).append('/').append(time.at());
 		}
 
 		for (String course : new java.util.TreeSet<>(state.courseNames())) {
