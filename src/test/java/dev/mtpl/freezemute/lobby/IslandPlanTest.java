@@ -683,6 +683,38 @@ class IslandPlanTest {
 
 		assertTrue(surfaces.size() >= 5, "expected several ground levels, found " + surfaces);
 	}
+	@Test
+	void nothingBuiltLaterEatsSomethingBuiltEarlier() {
+		// The order things are laid in is load bearing, and everything that levels its own footing
+		// also clears the sky above it. A new structure whose footprint overlaps an old one takes
+		// pieces out of it and says nothing: a lamp post with its middle missing, a tower with no
+		// light on top. The three that have actually been damaged by something added later, and
+		// the one that would be worst to lose, are checked by name.
+		for (int index = 0; index < 12; index++) {
+			double angle = index * Math.PI / 6.0D;
+			int x = ORIGIN_X + (int) Math.round((LobbyBuilder.plazaRadius() - 1) * Math.cos(angle));
+			int z = ORIGIN_Z + (int) Math.round((LobbyBuilder.plazaRadius() - 1) * Math.sin(angle));
+
+			for (int up = 1; up <= 4; up++) {
+				assertEquals(Material.OAK_FENCE, at(x, SEA + LobbyBuilder.summit() + up, z),
+						"the lamp post at " + x + " " + z + " is missing its post " + up + " up");
+			}
+
+			assertEquals(Material.SEA_LANTERN, at(x, SEA + LobbyBuilder.summit() + 5, z),
+					"the lamp post at " + x + " " + z + " has lost its light");
+		}
+
+		int tower = SEA + LobbyBuilder.terrace();
+		assertEquals(Material.SEA_LANTERN, at(LobbyBuilder.townOut(), tower + 26, -LobbyBuilder.townOut()),
+				"the watchtower has lost the light at the top of its shaft");
+		assertEquals(Material.GOLD, at(LobbyBuilder.townOut(), tower + 29, -LobbyBuilder.townOut()),
+				"the watchtower has lost the gold off its cap");
+
+		Spot point = plan.queuePoint();
+		assertTrue(at(point.x(), point.y() - 1, point.z()).standable(),
+				"the pedestal the figure stands on has been taken out from under it");
+	}
+
 	// ------------------------------------------------------------ getting about
 
 	/**
