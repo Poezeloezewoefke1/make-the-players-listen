@@ -169,7 +169,7 @@ startup says which mode is in use.
 | `lobbyQueueGraceSeconds` | `300` | How long a queued player keeps their place after dropping out |
 | `lobbySlotGraceSeconds` | `300` | How long an admitted player keeps their slot after dropping out |
 | `lobbyAdmitPerSecond` | `1` | How many players may be let through per second |
-| `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint. The catch also follows the spawn, triggering 24 blocks below it, so a lobby built high up does not turn a missed jump into a very long fall |
+| `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint. The catch also follows the spawn, triggering at most 40 blocks below it, so a lobby built high up does not turn a missed jump into a very long fall - and no higher than that, or diving to the bottom of your own lagoon counts as falling off the world |
 | `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
 | `lobbyNpcText` | `Join record!` | What floats over the figure on the pedestal, drawn bold and gold |
 | `lobbyNpcHead` | `dragon_head` | Any item id. `player_head` if you want to hang a real skin on it, `none` for a bare stand |
@@ -372,7 +372,7 @@ the same way. They also share a team with collisions and name tags switched off,
 shoved off a jump by somebody they cannot see. Staff receive every packet as usual.
 
 **Building the island.** `/lobby generate confirm`, standing in the lobby, lays one around you.
-About 370,000 blocks of it.
+About 380,000 blocks of it.
 
 The ground is five terraces with banded cliffs between them - deepslate at the roots, tuff and
 andesite through the middle, seams of granite and diorite running across it, and podzol, coarse
@@ -381,15 +381,25 @@ round, with gravel and clay where the floor dips.
 
 On the terrace there is a town, on the four diagonals so each has a clear run back to a corner of
 the plaza: a **great hall** with a pitched roof, pillars, bookshelves and glass down both sides; a
-26-block **watchtower** with slit windows and a lit top, which is the thing you look for from
-anywhere on the island; a **market** of four stalls under striped canopies; and hedged **gardens**
-with beds of colour. Stepped ramps join all four to the plaza on top, which has a **fountain**, a
-ring of twelve lamps, and the pedestal with the figure on it.
+26-block **watchtower** with slit windows, a stair turning up the inside of it and a lookout floor
+under the light at the top; a **market** of four stalls under striped canopies; and hedged
+**gardens** with beds of colour. Stepped ramps join all four to the plaza on top, which has a
+**fountain**, a ring of twelve lamps, and the pedestal with the figure on it.
 
 Round the edges: palms, rock outcrops, a jetty on stilts out over the water, a banded lighthouse,
-a shelter, and hot air balloons floating above the lot. A parkour course of 24 jumps spirals up
-off the plaza, registered as a course as it is laid, so its timer and leaderboard work straight
-away.
+a shelter, and hot air balloons floating above the lot. A parkour course of 24 jumps rings the
+plaza, climbing a block every third jump, with a walkway out to the first pad so you can start it
+by walking onto it. It is registered as a course as it is laid, so its timer and leaderboard work
+straight away.
+
+**You can walk all of it, both ways.** Four flights of steps run from the top of the island down
+to the sea, following the ground rather than being cut straight through it. That sounds like
+trimming and is not: a terrace is a cliff seen from underneath, and without them everything below
+the plaza was somewhere you could reach by stepping off an edge and could never leave again. From
+the end of the jetty there was no way home at all. A test walks the whole island from the spawn
+and then tries to walk back from everywhere it got to, under vanilla's rules - something solid
+underfoot, two clear blocks for your body, one up or three down - and the same walk is what says
+the tower can be climbed and the parkour started.
 
 It is generated, not hand built, and it is honest to say it will not pass for a showcase spawn
 somebody spent a week on. What it will do is give you a place rather than a box. Everything comes
