@@ -119,6 +119,66 @@ class LobbySessionTest {
 		}
 	}
 
+	@Test
+	void anEveningSurvivesBeingWrittenDownAndReadBackAtAnyMoment() {
+		// The room's whole memory goes through one file, and it is written while people are in the
+		// middle of using it. A field that is written but not read back, or read back as null, is
+		// invisible until the day somebody restarts the server at the wrong moment - and then the
+		// line, the slots, or the course everybody has times on is simply gone.
+		for (int seed = 0; seed < 8; seed++) {
+			Path file = directory.resolve("saved-" + seed + ".json");
+			state.load(file);
+			state.setEnabled(true);
+			state.setCap(2 + seed % 3);
+			state.putCourse(LobbyBuilder.plan(seed * 400, 0, 53).course());
+			FakeRoom room = new FakeRoom();
+			List<FakePlayer> everybody = new ArrayList<>();
+			Random random = new Random(seed * 104_729L + 7L);
+			long now = 1_700_000_000_000L;
+
+			for (int second = 0; second < 120; second++) {
+				stir(room, everybody, random, now);
+				LobbyRules.tickSecond(room, state, config, now);
+				now += 1_000L;
+
+				String before = snapshot(state);
+				state.flush();
+				assertFalse(state.pendingWrite(), "seed " + seed + " second " + second
+						+ ": the room still has something it has not written down");
+				state.load(file);
+
+				assertEquals(before, snapshot(state), "seed " + seed + " second " + second
+						+ ": the room came back from its own file different from how it went in");
+			}
+		}
+	}
+
+	/** Everything the room is supposed to remember, as one comparable line. */
+	private static String snapshot(LobbyState state) {
+		StringBuilder written = new StringBuilder();
+		written.append("cap=").append(state.cap())
+				.append(" open=").append(state.queueOpen())
+				.append(" spawn=").append(state.spawn().describe())
+				.append(" point=").append(state.joinedAtAPoint() ? state.queuePoint().describe() : "none");
+
+		for (LobbyState.Waiting entry : state.queue()) {
+			written.append(" waiting:").append(entry.uuid()).append('/').append(entry.name());
+		}
+
+		for (LobbyState.Admitted entry : state.admitted()) {
+			written.append(" slot:").append(entry.uuid()).append('/').append(entry.name());
+		}
+
+		for (String course : new java.util.TreeSet<>(state.courseNames())) {
+			Course laid = state.course(course);
+			written.append(" course:").append(course).append('/').append(laid.checkpoints().size())
+					.append('/').append(laid.start().describe())
+					.append('/').append(laid.playable() ? laid.finish().describe() : "unfinished");
+		}
+
+		return written.toString();
+	}
+
 	/**
 	 * The things that have to be true after any second at all.
 	 *
