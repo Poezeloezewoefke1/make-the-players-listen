@@ -416,6 +416,12 @@ plain `/lobby generate` only describes it and makes you type `confirm`, and the 
 blocks below your feet - so stand where you want the *top* of the island to be. Build your own
 instead if you would rather; nothing depends on the generated one.
 
+Each rebuild lands one block higher than the last, and that is not a bug so much as the same rule
+applied twice: the water sits 20 below your *feet*, so the plaza ends up level with where you were
+standing rather than with the block you were standing on. Run from the console it takes the lobby
+spawn as the spot, which is a standing position, so it creeps the same way. Stand one block lower
+if you want the island back exactly where it was.
+
 It also needs room above and below you: it digs 41 blocks down for its roots and its lagoon and
 reaches 39 up for the tower and the balloons, and the lobby runs from -64 to 319. Stand outside
 **y -23 to y 280** and it refuses rather than building one with pieces missing - Minecraft drops a
