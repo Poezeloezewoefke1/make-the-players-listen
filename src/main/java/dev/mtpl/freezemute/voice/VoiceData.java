@@ -174,7 +174,16 @@ public final class VoiceData {
 		return entryOf(Kind.DEAFEN, uuid) != null;
 	}
 
-	/** True when anybody at all is punished, so the plugin can skip its work entirely. */
+	/**
+	 * True when there is nothing on either list at all, so the plugin can skip its work entirely.
+	 *
+	 * <p>Read on every voice packet, so it looks at the maps and not at the clock. That makes it
+	 * conservative in the one direction it is allowed to be: an entry that has run out but has not
+	 * yet been swept keeps this false, and the plugin does a lookup it did not need to for up to
+	 * the second until the sweep runs. It is never false the other way - an empty map cannot be
+	 * hiding somebody who is still muted - which is the direction that would let a muted player
+	 * talk.
+	 */
 	public boolean isEmpty() {
 		return muted.isEmpty() && deafened.isEmpty();
 	}
