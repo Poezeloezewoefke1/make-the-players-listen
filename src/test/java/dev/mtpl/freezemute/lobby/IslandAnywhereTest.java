@@ -209,4 +209,41 @@ class IslandAnywhereTest {
 
 		return found;
 	}
+	@Test
+	void whatTheBuilderSaysItReachesIsWhatItReaches() {
+		// The command refuses a spot too near the top or the bottom of the room, and it has to do
+		// that before anything is planned, so the reach is written down rather than worked out.
+		// This is what keeps the written number honest: Minecraft drops a block placed outside the
+		// world without a word, so an island built past the edge comes out with pieces missing.
+		for (int sea : new int[] { -40, 0, 53, 100, 240 }) {
+			Plan plan = LobbyBuilder.plan(sea * 7, sea * 3, sea);
+			int spawn = (int) Math.floor(plan.spawn().y());
+			int lowest = Integer.MAX_VALUE;
+			int highest = Integer.MIN_VALUE;
+
+			for (Placement placement : plan.placements()) {
+				lowest = Math.min(lowest, placement.y());
+				highest = Math.max(highest, placement.y());
+			}
+
+			assertTrue(spawn - lowest <= LobbyBuilder.digsDown(), "an island with its water at " + sea
+					+ " digs " + (spawn - lowest) + " below the spawn, and the builder promises "
+					+ LobbyBuilder.digsDown());
+			assertTrue(highest - spawn <= LobbyBuilder.reachesUp(), "an island with its water at " + sea
+					+ " reaches " + (highest - spawn) + " above the spawn, and the builder promises "
+					+ LobbyBuilder.reachesUp());
+		}
+	}
+
+	@Test
+	void theRoomIsAsTallAsTheDataPackSaysItIs() {
+		// Two numbers describing one thing, in two files. The builder needs them as numbers to
+		// know whether an island fits; the pack needs them as JSON to build the dimension at all.
+		String pack = LobbyDimension.DIMENSION_TYPE.replaceAll("\\s+", "");
+
+		assertTrue(pack.contains("\"min_y\":" + LobbyDimension.BOTTOM_Y),
+				"the pack does not put the floor at " + LobbyDimension.BOTTOM_Y + ": " + pack);
+		assertTrue(pack.contains("\"height\":" + (LobbyDimension.TOP_Y - LobbyDimension.BOTTOM_Y)),
+				"the pack is not " + (LobbyDimension.TOP_Y - LobbyDimension.BOTTOM_Y) + " tall: " + pack);
+	}
 }

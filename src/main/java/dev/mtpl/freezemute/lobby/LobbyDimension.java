@@ -42,6 +42,17 @@ public final class LobbyDimension {
 
 	/** Where a fresh lobby puts people, until staff run {@code /lobby setspawn}. */
 	public static final Spot DEFAULT_SPAWN = new Spot(0.5D, 65.0D, 0.5D, 0.0F, 0.0F);
+
+	/**
+	 * The floor and ceiling of the room, as the data pack below describes them.
+	 *
+	 * <p>Repeated here because they are needed as numbers - the builder has to know whether an
+	 * island would fit before it lays one - and kept honest by a test that reads them back out of
+	 * the pack rather than by anybody remembering to change both.
+	 */
+	public static final int BOTTOM_Y = -64;
+	/** One above the highest block the room can hold. */
+	public static final int TOP_Y = 320;
 	private static final String PACK_NAME = "astra_lobby";
 
 	private static volatile boolean platformChecked;
@@ -220,7 +231,8 @@ public final class LobbyDimension {
 			}
 			""";
 
-	private static final String DIMENSION_TYPE = """
+	/** Package private so a test can read the numbers back out of it. */
+	static final String DIMENSION_TYPE = """
 			{
 			  "ultrawarm": false,
 			  "natural": false,

@@ -230,6 +230,12 @@ public final class LobbyCommand {
 
 		Spot centre = player == null ? LobbyState.get().spawn() : Spot.of(player);
 		UUID commander = player == null ? null : player.getUuid();
+		net.minecraft.text.Text tooNear = tooNearTheEdgeOfTheWorld(centre);
+
+		if (tooNear != null) {
+			source.sendError(tooNear);
+			return 0;
+		}
 
 		// Taken away before the build, because the build moves the queue point the moment it
 		// starts planning, and after that there is nothing left that knows where the old one was.
@@ -260,6 +266,29 @@ public final class LobbyCommand {
 				+ result.course().name() + " for the times"), false);
 
 		return result.blocks();
+	}
+
+	/**
+	 * Whether an island built here would fall off the top or bottom of the room.
+	 *
+	 * <p>Minecraft drops a block placed outside the world without saying anything, so an island
+	 * built too high loses its balloons and its tower cap, and one built too low loses the floor
+	 * out from under its own lagoon - which then pours into the void. Both come out looking like
+	 * the builder is broken. Refusing is the whole fix, and it costs a subtraction.
+	 */
+	private static net.minecraft.text.Text tooNearTheEdgeOfTheWorld(Spot centre) {
+		int here = (int) Math.floor(centre.y());
+		int lowest = LobbyDimension.BOTTOM_Y + LobbyBuilder.digsDown();
+		int highest = LobbyDimension.TOP_Y - 1 - LobbyBuilder.reachesUp();
+
+		if (here >= lowest && here <= highest) {
+			return null;
+		}
+
+		return Messages.failure("Too " + (here < lowest ? "low" : "high") + " to build an island here. It digs "
+				+ LobbyBuilder.digsDown() + " blocks below you and reaches " + LobbyBuilder.reachesUp()
+				+ " above, and the lobby runs from " + LobbyDimension.BOTTOM_Y + " to "
+				+ (LobbyDimension.TOP_Y - 1) + ", so stand between y " + lowest + " and y " + highest + ".");
 	}
 
 	/**

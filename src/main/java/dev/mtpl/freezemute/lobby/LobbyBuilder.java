@@ -102,6 +102,23 @@ public final class LobbyBuilder {
 	}
 
 	/**
+	 * How far below and above the spot you stand on the island goes.
+	 *
+	 * <p>Down is the deepslate the island is rooted in; up is the highest balloon. Written as
+	 * numbers rather than worked out, because the command has to be able to refuse a spot before
+	 * anything is planned, and pinned by a test that measures real islands at several water
+	 * levels - Minecraft quietly drops a block placed outside the world, so an island built too
+	 * high or too low comes out with pieces missing and nothing said about it.
+	 */
+	public static int digsDown() {
+		return 41;
+	}
+
+	public static int reachesUp() {
+		return 39;
+	}
+
+	/**
 	 * How far the shore reaches in a direction. Wobbled, so the island is not a dinner plate.
 	 *
 	 * <p>Kept to about ten blocks either way on purpose. The town is laid out by number, and a
