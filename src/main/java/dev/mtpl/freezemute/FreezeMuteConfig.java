@@ -130,6 +130,10 @@ public final class FreezeMuteConfig {
 					config.lobbyVoidCatchY = integer(object, "lobbyVoidCatchY", config.lobbyVoidCatchY);
 					config.lobbyCheckpointRadius = number(object, "lobbyCheckpointRadius", config.lobbyCheckpointRadius);
 					config.lobbyQueuePointRadius = number(object, "lobbyQueuePointRadius", config.lobbyQueuePointRadius);
+					config.lobbyNpcText = string(object, "lobbyNpcText", config.lobbyNpcText);
+					config.lobbyNpcHead = string(object, "lobbyNpcHead", config.lobbyNpcHead);
+					config.lobbyNpcArmour = string(object, "lobbyNpcArmour", config.lobbyNpcArmour);
+					config.lobbyNpcHeld = string(object, "lobbyNpcHeld", config.lobbyNpcHeld);
 				} else {
 					readIt = false;
 					FreezeMute.LOGGER.warn("{} is not a JSON object. Using the default settings for this run "
