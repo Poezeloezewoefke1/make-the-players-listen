@@ -168,14 +168,20 @@ class LobbySessionTest {
 		}
 	}
 
-	/** Everything the room is supposed to remember, as one comparable line. */
+	/**
+	 * Everything the room is supposed to remember, as one comparable line.
+	 *
+	 * <p>Spots go in whole rather than through describe(), which prints three numbers and drops
+	 * the two angles. The spawn's yaw is what has somebody arriving looking at the pedestal
+	 * instead of away from it, and three numbers would never have noticed it going missing.
+	 */
 	private static String snapshot(LobbyState state) {
 		StringBuilder written = new StringBuilder();
 		written.append("cap=").append(state.cap())
 				.append(" on=").append(state.enabled())
 				.append(" open=").append(state.queueOpen())
-				.append(" spawn=").append(state.spawn().describe())
-				.append(" point=").append(state.joinedAtAPoint() ? state.queuePoint().describe() : "none");
+				.append(" spawn=").append(state.spawn())
+				.append(" point=").append(state.joinedAtAPoint() ? state.queuePoint().toString() : "none");
 
 		for (java.util.Map.Entry<UUID, String> early : new java.util.TreeMap<>(state.earlyAccess()).entrySet()) {
 			written.append(" early:").append(early.getKey()).append('/').append(early.getValue());
@@ -203,8 +209,8 @@ class LobbySessionTest {
 		for (String course : new java.util.TreeSet<>(state.courseNames())) {
 			Course laid = state.course(course);
 			written.append(" course:").append(course).append('/').append(laid.checkpoints().size())
-					.append('/').append(laid.start().describe())
-					.append('/').append(laid.playable() ? laid.finish().describe() : "unfinished");
+					.append('/').append(laid.start())
+					.append('/').append(laid.playable() ? laid.finish().toString() : "unfinished");
 		}
 
 		return written.toString();
