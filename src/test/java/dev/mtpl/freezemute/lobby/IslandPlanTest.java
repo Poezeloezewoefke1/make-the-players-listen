@@ -258,6 +258,44 @@ class IslandPlanTest {
 	}
 
 	@Test
+	void everyJumpOnTheCourseIsOneAPlayerCanMake() {
+		// Every pad is a single block, so there is nowhere to take a run-up: each jump is made
+		// from a standstill. Three blocks middle to middle is the sprint jump that gets you there;
+		// four needs the run-up there is nowhere to take, and climbing a block costs about half of
+		// the reach.
+		//
+		// The course used to be laid by sweeping round the ring until the gap first went past the
+		// one wanted. The ring is whole blocks, so the gap does not grow smoothly - it goes 2.24,
+		// 2.83, 3.16 - and the first value past 2.6 was 3.16. Two of the twenty-four jumps on
+		// every course the mod had ever built could not be made.
+		List<LobbyBuilder.Step> steps = LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + LobbyBuilder.summit() + 2);
+		assertTrue(steps.size() > 8, "a course worth measuring");
+
+		for (int index = 1; index < steps.size(); index++) {
+			LobbyBuilder.Step from = steps.get(index - 1);
+			LobbyBuilder.Step to = steps.get(index);
+			double jump = Math.hypot(to.x() - from.x(), to.z() - from.z());
+			int climb = to.y() - from.y();
+			double furthest = climb > 0 ? LobbyBuilder.furthestClimb() : LobbyBuilder.furthestJump();
+
+			assertTrue(jump <= furthest + 0.001D, "jump " + index + " is " + Math.round(jump * 100) / 100.0
+					+ " blocks" + (climb > 0 ? " and climbs " + climb : "") + ", further than the " + furthest
+					+ " a player can make from a standstill");
+			assertTrue(jump >= 1.5D, "jump " + index + " is only " + jump + " blocks - that is a walk, not a jump");
+			assertTrue(climb >= 0, "jump " + index + " goes down, and a course that drops is a course you fall off");
+		}
+	}
+
+	@Test
+	void theCourseClimbsAsOftenAsItSaysItDoes() {
+		List<LobbyBuilder.Step> steps = LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + LobbyBuilder.summit() + 2);
+		int climbed = steps.get(steps.size() - 1).y() - steps.get(0).y();
+
+		assertEquals((steps.size() - 1) / LobbyBuilder.risesEvery(), climbed,
+				"the course climbs " + climbed + " blocks over " + (steps.size() - 1) + " jumps");
+	}
+
+	@Test
 	void theWholeCourseIsInTheAirRatherThanBuriedInTheHill() {
 		for (LobbyBuilder.Step step : LobbyBuilder.courseSteps(ORIGIN_X, ORIGIN_Z, SEA + LobbyBuilder.summit() + 2)) {
 			assertTrue(at(step.x(), step.y(), step.z()).standable(),

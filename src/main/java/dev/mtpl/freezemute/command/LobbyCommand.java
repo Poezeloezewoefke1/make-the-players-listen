@@ -195,6 +195,8 @@ public final class LobbyCommand {
 				+ "and a pedestal with an NPC standing on it"), false);
 		source.sendFeedback(() -> Messages.listEntry("  palms, rock outcrops, a jetty, a lighthouse, a "
 				+ "shelter, hot air balloons overhead, and a parkour course spiralling up off the plaza"), false);
+		source.sendFeedback(() -> Messages.listEntry("  four flights of steps from the plaza down to the "
+				+ "sea, a walkway onto the course, and a stair up the inside of the tower to a lookout"), false);
 		source.sendFeedback(() -> Messages.listEntry("  it replaces everything within about "
 				+ LobbyBuilder.reach() + " blocks of you, and moves the lobby spawn and the queue point"), false);
 		source.sendFeedback(() -> Messages.listEntry("  the water sits " + LobbyBuilder.summit()

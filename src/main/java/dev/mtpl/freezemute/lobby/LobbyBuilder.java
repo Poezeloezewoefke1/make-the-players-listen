@@ -53,6 +53,36 @@ public final class LobbyBuilder {
 	private static final double COURSE_RING = 19.0D;
 	private static final double COURSE_GAP = 3.0D;
 	private static final int COURSE_RISE_EVERY = 3;
+
+	/**
+	 * How far apart the jumps are meant to be, and how far apart they are allowed to be.
+	 *
+	 * <p>Measured middle of pad to middle of pad, which is how Minecraft's own jumps are usually
+	 * quoted: three is the standing sprint jump anybody can make off a single block, and four
+	 * needs a run-up there is nowhere to take. A block of climb costs about half a block of that,
+	 * so the ones that go up are held shorter. Under {@link #CLOSEST} it is not a jump at all,
+	 * just a walk with a hop in it.
+	 */
+	private static final double WANTED_LEVEL = 2.6D;
+	private static final double WANTED_CLIMBING = 2.2D;
+	private static final double FURTHEST_LEVEL = 3.0D;
+	private static final double FURTHEST_CLIMBING = 2.5D;
+	private static final double CLOSEST = 1.8D;
+
+	/** The furthest any one jump on a generated course may be, so a test can read the promise. */
+	public static double furthestJump() {
+		return FURTHEST_LEVEL;
+	}
+
+	/** The furthest a jump that also climbs a block may be. */
+	public static double furthestClimb() {
+		return FURTHEST_CLIMBING;
+	}
+
+	/** How many jumps apart the course climbs a block. */
+	public static int risesEvery() {
+		return COURSE_RISE_EVERY;
+	}
 	public static final String COURSE_NAME = "spawn";
 
 	private LobbyBuilder() {
@@ -424,28 +454,68 @@ public final class LobbyBuilder {
 
 		for (int index = 1; index <= COURSE_STEPS; index++) {
 			boolean rises = (index - 1) % COURSE_RISE_EVERY == COURSE_RISE_EVERY - 1;
-			// Going up costs reach, so the jumps that climb are set closer together. Working
-			// forwards until the gap is big enough, rather than dividing the circle and rounding
-			// afterwards, is what keeps that true: rounding a chord to whole blocks can add most
-			// of a block to it, which is the difference between a jump and a swim.
-			double wanted = rises ? 2.2D : 2.6D;
+			// Going up costs reach, so the jumps that climb are set closer together.
+			double wanted = rises ? WANTED_CLIMBING : WANTED_LEVEL;
+			double furthest = rises ? FURTHEST_CLIMBING : FURTHEST_LEVEL;
 			int nextX = x;
 			int nextZ = z;
+			double bestMiss = Double.MAX_VALUE;
+			double bestAngle = angle;
+			boolean found = false;
 
-			for (int sweep = 0; sweep < 2000; sweep++) {
-				angle += 0.005D;
-				int candidateX = originX + (int) Math.round(COURSE_RING * Math.cos(angle));
-				int candidateZ = originZ + (int) Math.round(COURSE_RING * Math.sin(angle));
+			// Sweep round and take the pad that lands nearest the gap wanted, never one further
+			// off than a player can jump.
+			//
+			// Taking the first pad past the wanted gap - which is what this used to do - reads as
+			// the same thing and is not. The ring is whole blocks, so the gap does not grow
+			// smoothly as the sweep turns: it goes 2.24, then 2.83, then 3.16, and the first
+			// value past 2.6 is 3.16. That is a two-and-a-bit block jump from a standstill on a
+			// one block pad, and one of them climbed as well. Two of the twenty-four jumps on
+			// every course the mod has ever generated could not be made.
+			for (double sweep = angle + 0.005D; sweep < angle + Math.PI; sweep += 0.005D) {
+				int candidateX = originX + (int) Math.round(COURSE_RING * Math.cos(sweep));
+				int candidateZ = originZ + (int) Math.round(COURSE_RING * Math.sin(sweep));
 				double dx = candidateX - x;
 				double dz = candidateZ - z;
+				double gap = Math.sqrt(dx * dx + dz * dz);
 
-				if (Math.sqrt(dx * dx + dz * dz) >= wanted) {
+				if (gap < CLOSEST) {
+					continue;
+				}
+
+				if (gap > furthest) {
+					break;
+				}
+
+				double miss = Math.abs(gap - wanted);
+
+				if (miss < bestMiss) {
+					bestMiss = miss;
+					bestAngle = sweep;
 					nextX = candidateX;
 					nextZ = candidateZ;
-					break;
+					found = true;
 				}
 			}
 
+			if (!found) {
+				// Nothing round the ring is both far enough to be a jump and near enough to be
+				// one anybody can make. Rather than lay a pad on top of the last, take the first
+				// that is a jump at all and let the test that measures them say so.
+				for (double sweep = angle + 0.005D; sweep < angle + Math.PI; sweep += 0.005D) {
+					int candidateX = originX + (int) Math.round(COURSE_RING * Math.cos(sweep));
+					int candidateZ = originZ + (int) Math.round(COURSE_RING * Math.sin(sweep));
+
+					if (Math.hypot(candidateX - x, candidateZ - z) >= CLOSEST) {
+						bestAngle = sweep;
+						nextX = candidateX;
+						nextZ = candidateZ;
+						break;
+					}
+				}
+			}
+
+			angle = bestAngle;
 			x = nextX;
 			z = nextZ;
 
