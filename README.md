@@ -171,6 +171,7 @@ startup says which mode is in use.
 | `lobbyAdmitPerSecond` | `1` | How many players may be let through per second |
 | `lobbyVoidCatchY` | `-5` | Anything below this height in the lobby is put back on its last checkpoint. The catch also follows the spawn, triggering at most 40 blocks below it, so a lobby built high up does not turn a missed jump into a very long fall - and no higher than that, or diving to the bottom of your own lagoon counts as falling off the world |
 | `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
+| `lobbyQueuePointRadius` | `4.0` | How close to the queue point a right click counts as asking for a place in line |
 | `lobbyNpcText` | `Join record!` | What floats over the figure on the pedestal, drawn bold and gold |
 | `lobbyNpcHead` | `dragon_head` | Any item id. `player_head` if you want to hang a real skin on it, `none` for a bare stand |
 | `lobbyNpcArmour` | `diamond` | The armour material it wears, or `none` for a stand in its shirtsleeves |

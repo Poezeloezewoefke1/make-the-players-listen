@@ -129,4 +129,39 @@ class ConfigRoundTripTest {
 			assertEquals(somethingElse(field, was), now, field.getName() + " did not survive being " + when);
 		}
 	}
+	@Test
+	void everySettingIsInTheReadme() throws Exception {
+		// The table in the README is how anybody finds out a setting exists. One that is only in
+		// the code is a setting nobody will ever turn on, which is the same as not having written
+		// it - and lobbyQueuePointRadius, the one that decides how close you have to stand to the
+		// pedestal to join the line, was exactly that.
+		Path readme = findTheReadme();
+		String table = Files.readString(readme, StandardCharsets.UTF_8);
+		List<String> missing = new ArrayList<>();
+
+		for (Field field : settings()) {
+			if (!table.contains("| `" + field.getName() + "` |")) {
+				missing.add(field.getName());
+			}
+		}
+
+		assertTrue(missing.isEmpty(), "the README's settings table has no row for " + missing);
+	}
+
+	/** The README, from wherever the tests happen to have been started. */
+	private static Path findTheReadme() {
+		Path here = Path.of("").toAbsolutePath();
+
+		for (int up = 0; up < 5 && here != null; up++) {
+			Path candidate = here.resolve("README.md");
+
+			if (Files.isRegularFile(candidate)) {
+				return candidate;
+			}
+
+			here = here.getParent();
+		}
+
+		throw new IllegalStateException("no README.md above " + Path.of("").toAbsolutePath());
+	}
 }
