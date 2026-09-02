@@ -1,10 +1,12 @@
 package dev.mtpl.freezemute;
 
+import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -188,9 +190,22 @@ public final class FreezeMuteConfig {
 			}
 
 			Gson gson = new GsonBuilder().setPrettyPrinting().create();
+			// Written beside and moved over, the same way the other three files the mod keeps are
+			// written. Straight over the top means a server killed mid-write - which is a power
+			// cut on somebody's home machine, and this is written during startup - leaves half a
+			// config, and half a config is one the mod refuses to read and the owner has to
+			// retype. The move either happened or it did not.
+			Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
 
-			try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
+			try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
 				gson.toJson(object, writer);
+			}
+
+			try {
+				Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (IOException atomicFailed) {
+				// Some filesystems cannot promise it. Better a plain move than no config at all.
+				Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} catch (Exception exception) {
 			FreezeMute.LOGGER.error("Could not write {}", file, exception);

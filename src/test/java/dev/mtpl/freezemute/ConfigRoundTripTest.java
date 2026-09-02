@@ -164,4 +164,19 @@ class ConfigRoundTripTest {
 
 		throw new IllegalStateException("no README.md above " + Path.of("").toAbsolutePath());
 	}
+	@Test
+	void nothingIsLeftBesideTheConfigAfterWriting() throws Exception {
+		// It is written beside and moved over, so a server killed mid-write leaves the old file
+		// rather than half a new one. What must not happen is the half staying there afterwards.
+		Path file = directory.resolve("tidy").resolve("config.json");
+		FreezeMuteConfig.load(file);
+
+		assertTrue(Files.isRegularFile(file), "the config was not written at all");
+
+		try (var beside = Files.list(file.getParent())) {
+			List<String> left = beside.map(path -> path.getFileName().toString())
+					.filter(name -> name.endsWith(".tmp")).toList();
+			assertTrue(left.isEmpty(), "writing the config left " + left + " behind");
+		}
+	}
 }
