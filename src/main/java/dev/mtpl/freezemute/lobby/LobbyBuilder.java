@@ -171,6 +171,7 @@ public final class LobbyBuilder {
 
 		site.palms();
 		site.rocks();
+		site.stairs();
 		site.jetty();
 		site.lighthouse();
 		site.pavilion();
@@ -1387,11 +1388,105 @@ public final class LobbyBuilder {
 		// ------------------------------------------------------------ the built
 
 		/** A jetty walking out south over the lagoon, on stilts. */
+		/**
+		 * The ways down off the summit: four flights of steps from the top of the island to the sea.
+		 *
+		 * <p>The island is terraced, and a terrace is a cliff seen from underneath. Everything
+		 * below the plaza - the beach, the jetty, the whole lower half of the island - could be
+		 * reached by walking off an edge and none of it could be left again: seventeen thousand of
+		 * the nineteen thousand places a player could stand were places they could not walk home
+		 * from. A lobby whose way back is to drown or log out is not a lobby.
+		 *
+		 * <p>The one that matters most runs from the plaza itself out to the head of the jetty,
+		 * and the parkour ring happens to be clear of that line. The other three start outside the
+		 * ring on purpose: begun any nearer they would lay a deck under the jumps and turn the
+		 * course into a pavement.
+		 */
+		int stairs() {
+			int placed = descent(Math.PI / 2.0D, PLAZA_RADIUS + 1);
+
+			for (double angle : new double[] { 0.0D, Math.PI, -Math.PI / 2.0D }) {
+				placed += descent(angle, (int) Math.round(COURSE_RING) + 3);
+			}
+
+			return placed;
+		}
+
+		/**
+		 * One flight, from the summit straight out to the beach.
+		 *
+		 * <p>It follows the ground instead of being ruled straight down through it. A block at a
+		 * time, never more than one up or one down, so it hangs out over the cliffs as steps and
+		 * cuts into the rises; ruled straight it would have been a six-block trench through the
+		 * summit before it ever reached open air.
+		 */
+		private int descent(double angle, int fromRadius) {
+			int placed = 0;
+			double cos = Math.cos(angle);
+			double sin = Math.sin(angle);
+			double edge = Math.floor(coastAt(angle)) - 2.0D;
+			int deck = sea + SUMMIT;
+			int lastX = Integer.MIN_VALUE;
+			int lastZ = Integer.MIN_VALUE;
+
+			// Half a block at a time so the line never skips a cell, and repeats thrown away.
+			for (double out = fromRadius; out <= edge; out += 0.5D) {
+				int dx = (int) Math.round(out * cos);
+				int dz = (int) Math.round(out * sin);
+
+				if (dx == lastX && dz == lastZ) {
+					continue;
+				}
+
+				lastX = dx;
+				lastZ = dz;
+				int ground = groundAt(dx, dz);
+				int land = ground == Integer.MIN_VALUE ? sea + 1 : ground;
+				// One step either way, and never below the ground: that is the whole rule, and it
+				// is the rule because it is what a player can walk in both directions.
+				deck = Math.min(deck + 1, Math.max(land, deck - 1));
+
+				for (int side = -2; side <= 2; side++) {
+					int px = dx + (int) Math.round(side * -sin);
+					int pz = dz + (int) Math.round(side * cos);
+					placed += stairTread(px, pz, deck, Math.abs(side) == 2);
+				}
+			}
+
+			return placed;
+		}
+
+		private int stairTread(int dx, int dz, int deck, boolean kerb) {
+			int placed = set(dx, deck, dz, kerb ? Material.POLISHED_ANDESITE : Material.STONE_BRICKS);
+
+			// A pier under the tread wherever the hill has fallen away from beneath it.
+			for (int under = deck - 1; under > deck - 24; under--) {
+				if (materialAt(originX + dx, under, originZ + dz).standable()) {
+					break;
+				}
+
+				placed += set(dx, under, dz, Material.STONE_BRICKS);
+			}
+
+			// Enough headroom to take a palm with it. A tree left standing in the stair is a tree
+			// you walk into; a tree cut off at the deck is leaves left hanging in mid-air.
+			for (int over = 1; over <= 10; over++) {
+				placed += set(dx, deck + over, dz, Material.AIR);
+			}
+
+			return placed;
+		}
+
+		/** Where the beach starts on the jetty's side. The jetty and the stair down to it share it. */
+		private int jettyShore() {
+			return (int) Math.floor(coastAt(Math.PI / 2.0D)) - 2;
+		}
+
 		int jetty() {
 			int deck = sea + 2;
 			int placed = 0;
 
-			int shore = (int) Math.floor(coastAt(Math.PI / 2.0D)) - 2;
+			int shore = jettyShore();
 
 			for (int reach = shore; reach <= WATER_RADIUS - 3; reach++) {
 				int dz = reach;

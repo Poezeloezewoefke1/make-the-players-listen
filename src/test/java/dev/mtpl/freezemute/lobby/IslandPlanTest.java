@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -616,29 +617,33 @@ class IslandPlanTest {
 
 	@Test
 	void theGroundRisesInSteps() {
-		// Three tiers with cliffs between them is the point of the shape; a smooth cone is not.
+		// Tiers with cliffs between them is the point of the shape; a smooth cone is not.
+		//
+		// Swept round rather than sighted along one line. The lines straight out from the middle
+		// are where the stairs down to the sea go, and a stair is deliberately the one thing on
+		// the island that is not a terrace - reading the shape off one of those said the island
+		// had been flattened when all that had happened was that it had been given a way down.
 		Set<Integer> surfaces = new HashSet<>();
 
-		for (int distance = 0; distance < 26; distance++) {
-			Material found = null;
-			int top = Integer.MIN_VALUE;
+		for (int turn = 0; turn < 24; turn++) {
+			double angle = turn * Math.PI / 12.0D;
 
-			for (int y = SEA + 20; y > SEA - 10; y--) {
-				Material material = at(ORIGIN_X + distance, y, ORIGIN_Z);
+			for (int distance = 0; distance < LobbyBuilder.reach(); distance++) {
+				int x = ORIGIN_X + (int) Math.round(distance * Math.cos(angle));
+				int z = ORIGIN_Z + (int) Math.round(distance * Math.sin(angle));
 
-				if (material == Material.GRASS || material == Material.SAND) {
-					found = material;
-					top = y;
-					break;
+				for (int y = SEA + 20; y > SEA - 10; y--) {
+					Material material = at(x, y, z);
+
+					if (material == Material.GRASS || material == Material.SAND) {
+						surfaces.add(y - SEA);
+						break;
+					}
 				}
-			}
-
-			if (found != null) {
-				surfaces.add(top - SEA);
 			}
 		}
 
-		assertTrue(surfaces.size() >= 3, "expected several ground levels, found " + surfaces);
+		assertTrue(surfaces.size() >= 5, "expected several ground levels, found " + surfaces);
 	}
 	// ------------------------------------------------------------ getting about
 
@@ -666,40 +671,48 @@ class IslandPlanTest {
 
 		seen.add(key(x, y, z));
 		queue.add(new int[] { x, y, z });
-		int[][] sides = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
 
 		while (!queue.isEmpty()) {
-			int[] here = queue.poll();
-
-			for (int[] side : sides) {
-				int nx = here[0] + side[0];
-				int nz = here[2] + side[1];
-
-				if (Math.abs(nx - ORIGIN_X) > span || Math.abs(nz - ORIGIN_Z) > span) {
-					continue;
-				}
-
-				for (int drop = 1; drop >= -3; drop--) {
-					int ny = here[1] + drop;
-
-					if (drop == 1 && at(here[0], here[1] + 2, here[2]).standable()) {
-						continue;
-					}
-
-					if (!canStand(nx, ny, nz)) {
-						continue;
-					}
-
-					if (seen.add(key(nx, ny, nz))) {
-						queue.add(new int[] { nx, ny, nz });
-					}
-
-					break;
+			for (int[] there : stepsFrom(queue.poll(), span)) {
+				if (seen.add(key(there[0], there[1], there[2]))) {
+					queue.add(there);
 				}
 			}
 		}
 
 		return seen;
+	}
+
+	/** Everywhere one step from here. The rules live in one place so both walks obey the same ones. */
+	private static List<int[]> stepsFrom(int[] here, int span) {
+		List<int[]> onwards = new java.util.ArrayList<>(4);
+		int[][] sides = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } };
+
+		for (int[] side : sides) {
+			int nx = here[0] + side[0];
+			int nz = here[2] + side[1];
+
+			if (Math.abs(nx - ORIGIN_X) > span || Math.abs(nz - ORIGIN_Z) > span) {
+				continue;
+			}
+
+			for (int drop = 1; drop >= -3; drop--) {
+				int ny = here[1] + drop;
+
+				if (drop == 1 && at(here[0], here[1] + 2, here[2]).standable()) {
+					continue;
+				}
+
+				if (!canStand(nx, ny, nz)) {
+					continue;
+				}
+
+				onwards.add(new int[] { nx, ny, nz });
+				break;
+			}
+		}
+
+		return onwards;
 	}
 
 	private static boolean canStand(int x, int y, int z) {
@@ -767,6 +780,83 @@ class IslandPlanTest {
 
 		assertTrue(canGetTo(start.x(), start.y(), start.z()),
 				"nobody can walk from the spawn to the start of the course at " + start.describe());
+	}
+
+	@Test
+	void anywhereYouCanWalkToIsSomewhereYouCanWalkBackFrom() {
+		// The island is terraced, and a terrace is a cliff seen from underneath. Before there were
+		// stairs down it, seventeen thousand of the nineteen thousand places a player could stand
+		// were places they could reach by walking off an edge and could never leave again - the
+		// beach, the jetty, the whole lower half of the island. Nothing about the plan looked
+		// wrong. You only find it by walking it and then trying to walk back.
+		Spot spawn = plan.spawn();
+		int[] start = { (int) Math.floor(spawn.x()), (int) Math.floor(spawn.y()), (int) Math.floor(spawn.z()) };
+		Map<Long, List<Long>> backwards = new HashMap<>();
+		Map<Long, int[]> places = new HashMap<>();
+		java.util.ArrayDeque<int[]> queue = new java.util.ArrayDeque<>();
+		places.put(key(start[0], start[1], start[2]), start);
+		queue.add(start);
+
+		while (!queue.isEmpty()) {
+			int[] here = queue.poll();
+
+			for (int[] there : stepsFrom(here, LobbyBuilder.reach())) {
+				long onwards = key(there[0], there[1], there[2]);
+				backwards.computeIfAbsent(onwards, unused -> new java.util.ArrayList<>())
+						.add(key(here[0], here[1], here[2]));
+
+				if (places.putIfAbsent(onwards, there) == null) {
+					queue.add(there);
+				}
+			}
+		}
+
+		// Now the same walk with every step taken the other way, from the spawn outwards.
+		Set<Long> home = new HashSet<>();
+		java.util.ArrayDeque<Long> returning = new java.util.ArrayDeque<>();
+		home.add(key(start[0], start[1], start[2]));
+		returning.add(key(start[0], start[1], start[2]));
+
+		while (!returning.isEmpty()) {
+			for (long previous : backwards.getOrDefault(returning.poll(), List.of())) {
+				if (home.add(previous)) {
+					returning.add(previous);
+				}
+			}
+		}
+
+		List<int[]> stranded = new java.util.ArrayList<>();
+
+		for (Map.Entry<Long, int[]> place : places.entrySet()) {
+			// This walk cannot swim, and in Minecraft you can always swim up. Anywhere touching
+			// water is somewhere the walk is wrong about, not somewhere a player is stuck.
+			if (!home.contains(place.getKey()) && !nearWater(place.getValue())) {
+				stranded.add(place.getValue());
+			}
+		}
+
+		assertTrue(places.size() > 5_000, "only " + places.size() + " places to walk - the island is in pieces");
+		assertTrue(stranded.size() < places.size() / 100,
+				stranded.size() + " of " + places.size() + " places on dry land cannot be walked back from, "
+						+ "the first at " + describe(stranded));
+	}
+
+	private static String describe(List<int[]> places) {
+		return places.isEmpty() ? "nowhere" : places.get(0)[0] + " " + places.get(0)[1] + " " + places.get(0)[2];
+	}
+
+	private static boolean nearWater(int[] place) {
+		for (int dx = -2; dx <= 2; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dz = -2; dz <= 2; dz++) {
+					if (at(place[0] + dx, place[1] + dy, place[2] + dz) == Material.WATER) {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
 	}
 
 	@Test
