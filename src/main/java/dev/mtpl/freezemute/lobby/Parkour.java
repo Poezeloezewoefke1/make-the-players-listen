@@ -215,11 +215,23 @@ public final class Parkour {
 	 * missed jump a four second fall to y -5. So the catch also tracks the spawn: whichever of
 	 * the two is higher wins, and a fall is over about twenty blocks after it starts.
 	 */
+	/**
+	 * How far below the spawn a lobby is allowed to go before a fall counts as a fall.
+	 *
+	 * <p>Has to clear the whole of a generated island, not just the plaza. An island puts its
+	 * spawn twenty-one blocks over the water and digs its lagoon seven blocks under that, so a
+	 * floor set twenty-four under the spawn - which is what this was - sits three blocks below the
+	 * water surface: swimming to the bottom of your own lagoon counted as falling off the world
+	 * and teleported you back to the spawn. Forty clears the deepest thing anybody can stand on
+	 * and is still only two seconds of falling for somebody who really has gone over the edge.
+	 */
+	private static final double DEEPEST = 40.0D;
+
 	static double catchLevel(double configured, double spawnY) {
 		// Never above the floor people are standing on. A catch height set carelessly high would
 		// otherwise mean everybody in the room is permanently falling, and gets teleported back
 		// to the spawn twenty times a second for as long as they stay.
-		return Math.min(spawnY - 4.0D, Math.max(configured, spawnY - 24.0D));
+		return Math.min(spawnY - 4.0D, Math.max(configured, spawnY - DEEPEST));
 	}
 
 	/**
