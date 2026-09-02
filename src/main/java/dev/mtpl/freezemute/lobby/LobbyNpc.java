@@ -72,9 +72,7 @@ public final class LobbyNpc {
 		stand.setShowArms(true);
 
 		wear(stand, EquipmentSlot.HEAD, config.lobbyNpcHead);
-		wear(stand, EquipmentSlot.CHEST, config.lobbyNpcArmour + "_chestplate");
-		wear(stand, EquipmentSlot.LEGS, config.lobbyNpcArmour + "_leggings");
-		wear(stand, EquipmentSlot.FEET, config.lobbyNpcArmour + "_boots");
+		wearArmour(stand, config.lobbyNpcArmour);
 		wear(stand, EquipmentSlot.MAINHAND, config.lobbyNpcHeld);
 
 		if (!world.spawnEntity(stand)) {
@@ -135,17 +133,42 @@ public final class LobbyNpc {
 	}
 
 	/**
+	 * Whether a config value names something to put on, or asks for nothing at all.
+	 *
+	 * <p>Written once because the armour reads it before it knows what piece it is asking for.
+	 * {@code none} has to be recognised as a material, not as an item: "none" with "_chestplate"
+	 * on the end of it is a name no version of Minecraft has, so a bare stand used to cost three
+	 * lines in the log complaining about items nobody asked for.
+	 */
+	static boolean wearsNothing(String id) {
+		return id == null || id.isBlank() || "none".equalsIgnoreCase(id.trim());
+	}
+
+	/** Dresses it in one material, or leaves it in its shirtsleeves. */
+	private static void wearArmour(ArmorStandEntity stand, String material) {
+		if (wearsNothing(material)) {
+			return;
+		}
+
+		String kind = material.trim();
+		wear(stand, EquipmentSlot.CHEST, kind + "_chestplate");
+		wear(stand, EquipmentSlot.LEGS, kind + "_leggings");
+		wear(stand, EquipmentSlot.FEET, kind + "_boots");
+	}
+
+	/**
 	 * Puts one item on it, or says in the log why it could not.
 	 *
 	 * <p>Item ids move between versions and this one came out of a config file, so a name that
 	 * does not resolve is a line in the log rather than a crash or, worse, a half dressed figure
 	 * with nothing anywhere saying why.
 	 */
-	private static void wear(ArmorStandEntity stand, EquipmentSlot slot, String id) {
-		if (id == null || id.isBlank() || "none".equalsIgnoreCase(id)) {
+	private static void wear(ArmorStandEntity stand, EquipmentSlot slot, String name) {
+		if (wearsNothing(name)) {
 			return;
 		}
 
+		String id = name.trim();
 		Identifier identifier = Identifier.tryParse(id.contains(":") ? id : "minecraft:" + id);
 
 		if (identifier == null) {

@@ -1,6 +1,8 @@
 package dev.mtpl.freezemute.lobby;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -24,5 +26,19 @@ class LobbyNpcTest {
 	@Test
 	void theDefaultIsTheOneThatWasAskedFor() {
 		assertEquals("Join record!", LobbyNpc.DEFAULT_SIGN);
+	}
+	@Test
+	void noneMeansABareStandWhicheverSlotItIsAskedFor() {
+		// "none" is documented for the head. Somebody who tries it for the armour used to get
+		// three lines in the log about none_chestplate, none_leggings and none_boots - items no
+		// version of Minecraft has - because the material had the piece stuck on the end of it
+		// before anything looked at what it said.
+		for (String nothing : new String[] { "none", "NONE", " none ", "", "  ", null }) {
+			assertTrue(LobbyNpc.wearsNothing(nothing), "'" + nothing + "' should mean a bare stand");
+		}
+
+		for (String something : new String[] { "diamond", "iron", "minecraft:lantern", " dragon_head " }) {
+			assertFalse(LobbyNpc.wearsNothing(something), "'" + something + "' names something to wear");
+		}
 	}
 }

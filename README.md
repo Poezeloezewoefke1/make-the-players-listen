@@ -173,7 +173,7 @@ startup says which mode is in use.
 | `lobbyCheckpointRadius` | `1.5` | How close you have to be to trigger a checkpoint |
 | `lobbyNpcText` | `Join record!` | What floats over the figure on the pedestal, drawn bold and gold |
 | `lobbyNpcHead` | `dragon_head` | Any item id. `player_head` if you want to hang a real skin on it, `none` for a bare stand |
-| `lobbyNpcArmour` | `diamond` | The armour material it wears |
+| `lobbyNpcArmour` | `diamond` | The armour material it wears, or `none` for a stand in its shirtsleeves |
 | `lobbyNpcHeld` | `lantern` | What it holds |
 
 ## What "frozen" means exactly
